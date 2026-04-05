@@ -1,0 +1,30 @@
+# Dependencias
+node_modules/
+
+# radar-frontend tiene su propio repo git independiente
+radar-frontend/
+
+# Temporales y datos regenerables
+.tmp/
+executions.json
+
+# Sesión y caché de Claude
+.claude/
+
+# Archivos Excel de datos (binarios grandes)
+*.xlsx
+
+# Variables de entorno
+.env
+.env.local
+.env.*.local
+
+# Build output
+.next/
+radar-frontend/.next/
+dist/
+build/
+
+# Sistema
+.DS_Store
+Thumbs.db
