@@ -77,7 +77,7 @@ export default function DashboardPage() {
           <h1 className="text-2xl font-bold text-white">Dashboard</h1>
           <div className="flex items-center gap-3 mt-1">
             <p className="text-gray-400 text-sm">Señales de inversión B2B — Matec</p>
-            <SystemStatus />
+            <SystemStatus activeExecutionId={activeExecution} />
           </div>
         </div>
         <div className="flex items-center gap-3">

@@ -13,6 +13,7 @@ import {
   Plane, Package, Warehouse, Globe, Minus, Plus,
 } from 'lucide-react';
 import { ExecutionStatusBadge } from '@/components/ExecutionStatus';
+import { PipelineStatus } from '@/components/scan/PipelineStatus';
 import Link from 'next/link';
 import type { LineaNegocio, Empresa } from '@/lib/types';
 
@@ -283,6 +284,11 @@ export default function ScanPage() {
   function reintentar() {
     setError(null);
     setExecutionId(null);
+  }
+
+  function onPipelineComplete() {
+    queryClient.invalidateQueries({ queryKey: ['signals'] });
+    toast.success('Pipeline completado. Resultados actualizados.');
   }
 
   const scanLabel = selectMode && selectedEmpresas.length > 0
@@ -626,26 +632,21 @@ export default function ScanPage() {
             </CardContent>
           </Card>
 
-          {/* Execution status */}
+          {/* Pipeline status — replaces old execution card */}
           {executionId && (
-            <Card className="bg-blue-950/40 border-2 border-blue-800">
-              <CardContent className="p-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse" />
-                  <p className="text-blue-300 text-sm font-medium">
-                    {isTimestampId(executionId)
-                      ? 'Escaneo en proceso...'
-                      : 'Escaneo iniciado'}
-                  </p>
+            <>
+              <PipelineStatus
+                executionId={executionId}
+                linea={linea}
+                onComplete={onPipelineComplete}
+              />
+              {/* Compact execution ID / fallback badge */}
+              {!isTimestampId(executionId) && (
+                <div className="flex items-center gap-2 px-1">
+                  <ExecutionStatusBadge executionId={executionId} onComplete={() => {}} />
                 </div>
-                <ExecutionStatusBadge executionId={executionId} onComplete={() => {}} />
-                {!isTimestampId(executionId) && (
-                  <p className="text-xs text-gray-600">
-                    ID: <code className="text-gray-500">{executionId}</code>
-                  </p>
-                )}
-              </CardContent>
-            </Card>
+              )}
+            </>
           )}
 
           {/* Preview empresas */}
