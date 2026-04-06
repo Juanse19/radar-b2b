@@ -90,20 +90,21 @@ function ResultsInner() {
   // Sincronizar con el query param inicial
   useEffect(() => { setTierFiltro(tierParam); }, [tierParam]);
 
-  const signalUrl = useMemo(() => {
-    const p = new URLSearchParams();
-    if (lineaFiltro !== 'ALL') p.set('linea', lineaFiltro);
-    if (tierFiltro  !== 'ALL') p.set('tier', tierFiltro);
-    if (paisFiltro)            p.set('pais', paisFiltro);
-    if (desde)                 p.set('from', desde);
-    if (hasta)                 p.set('to', hasta);
-    p.set('limit', '500');
-    return `/api/signals?${p}`;
-  }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta]);
-
   const { data: rawResults = [], isLoading } = useQuery<ResultadoRadar[]>({
     queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta],
-    queryFn: () => fetch(signalUrl).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const p = new URLSearchParams();
+      if (lineaFiltro !== 'ALL') p.set('linea', lineaFiltro);
+      if (tierFiltro  !== 'ALL') p.set('tier', tierFiltro);
+      if (paisFiltro)            p.set('pais', paisFiltro);
+      if (desde)                 p.set('from', desde);
+      if (hasta)                 p.set('to', hasta);
+      p.set('limit', '500');
+      const res = await fetch(`/api/signals?${p}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: contactos = [], isLoading: loadingContactos } = useQuery({
@@ -124,7 +125,10 @@ function ResultsInner() {
   }, [rawResults, busqueda]);
 
   const totalPaginas = Math.ceil(results.length / POR_PAGINA);
-  const paginados = results.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+  const paginados = useMemo(
+    () => results.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
+    [results, pagina],
+  );
 
   const columns = useMemo(() => createResultsColumns((signal) => setDetailSignal(signal)), []);
 

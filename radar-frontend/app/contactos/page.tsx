@@ -87,16 +87,19 @@ export default function ContactosPage() {
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   // ── Queries ───────────────────────────────────────────────────────────────
-  const queryParams = new URLSearchParams();
-  if (lineaFiltro  !== 'ALL') queryParams.set('linea', lineaFiltro);
-  if (statusFiltro !== 'ALL') queryParams.set('hubspot_status', statusFiltro);
-  if (busqueda)               queryParams.set('q', busqueda);
-  queryParams.set('limit', '500');
-
   const { data: rawContactos = [], isLoading } = useQuery<Contacto[]>({
     queryKey: ['contactos', lineaFiltro, statusFiltro, busqueda],
-    queryFn: () =>
-      fetch(`/api/contacts?${queryParams}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const queryParams = new URLSearchParams();
+      if (lineaFiltro  !== 'ALL') queryParams.set('linea', lineaFiltro);
+      if (statusFiltro !== 'ALL') queryParams.set('hubspot_status', statusFiltro);
+      if (busqueda)               queryParams.set('q', busqueda);
+      queryParams.set('limit', '500');
+      const res = await fetch(`/api/contacts?${queryParams}`);
+      if (!res.ok) return [];
+      const data = await res.json();
+      return Array.isArray(data) ? data : [];
+    },
   });
 
   const { data: countData } = useQuery<{ total: number }>({
@@ -128,9 +131,12 @@ export default function ContactosPage() {
   });
 
   // ── Tabla ─────────────────────────────────────────────────────────────────
-  const contactos = useMemo(() => rawContactos, [rawContactos]);
+  const contactos = rawContactos;
   const totalPaginas = Math.ceil(contactos.length / POR_PAGINA);
-  const paginados = contactos.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+  const paginados = useMemo(
+    () => contactos.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
+    [contactos, pagina],
+  );
 
   const columns = useMemo(() => createContactsColumns(), []);
   const table = useReactTable({
@@ -154,7 +160,10 @@ export default function ContactosPage() {
   const tokenPct = Math.min(100, Math.round((tokenEstimate / AVAILABLE_TOKENS) * 100));
   const tokenOk = tokenEstimate <= AVAILABLE_TOKENS;
 
-  const activeOption = LINEA_OPTIONS.find(l => l.value === lineaSeleccionada) ?? LINEA_OPTIONS[0]!;
+  const activeOption = useMemo(
+    () => LINEA_OPTIONS.find(l => l.value === lineaSeleccionada) ?? LINEA_OPTIONS[0]!,
+    [lineaSeleccionada],
+  );
 
   async function lanzarProspeccion() {
     if (empresasCount === 0) {
