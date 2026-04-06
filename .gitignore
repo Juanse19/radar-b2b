@@ -59,8 +59,11 @@ Thumbs.db
 .tmp/
 *.tmp
 
-# Claude Code
+# Claude Code (archivos internos del agente, no van al repo)
 skills-lock.json
+.agents/
+executions.json
+workflow.json
 
 # ========================
 # Datos raw (no en repo)
