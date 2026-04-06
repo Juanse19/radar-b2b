@@ -1,0 +1,113 @@
+// Radar de Inversión B2B — Prisma Schema
+// DB: SQLite (dev) → PostgreSQL (prod, cambiar solo DATABASE_URL)
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Empresa {
+  id             Int       @id @default(autoincrement())
+  company_name   String
+  company_domain String?
+  company_url    String?
+  pais           String?
+  ciudad         String?
+  linea_negocio  String
+  linea_raw      String?
+  tier           String    @default("Tier B")
+  status         String    @default("pending")
+  prioridad      Int       @default(0)
+  keywords       String?
+  last_run_at    DateTime?
+  created_at     DateTime  @default(now())
+  updated_at     DateTime  @updatedAt
+
+  senales   Senal[]
+  contactos Contacto[]
+
+  @@index([linea_negocio])
+  @@index([last_run_at])
+  @@index([prioridad])
+  @@map("empresas")
+}
+
+model Ejecucion {
+  id               Int       @id @default(autoincrement())
+  n8n_execution_id String?
+  linea_negocio    String?
+  batch_size       Int?
+  estado           String    @default("running")
+  trigger_type     String    @default("manual")
+  parametros       String?
+  error_msg        String?
+  started_at       DateTime  @default(now())
+  finished_at      DateTime?
+
+  senales Senal[]
+
+  @@index([linea_negocio])
+  @@index([estado])
+  @@index([started_at])
+  @@map("ejecuciones")
+}
+
+model Senal {
+  id                  Int        @id @default(autoincrement())
+  empresa_id          Int?
+  ejecucion_id        Int?
+  empresa_nombre      String
+  empresa_pais        String?
+  linea_negocio       String
+  tier                String?
+  radar_activo        Boolean    @default(false)
+  tipo_senal          String?
+  descripcion         String?
+  fuente              String?
+  fuente_url          String?
+  score_radar         Float      @default(0)
+  ventana_compra      String?
+  prioridad_comercial String?
+  motivo_descarte     String?
+  ticket_estimado     String?
+  razonamiento_agente String?
+  created_at          DateTime   @default(now())
+
+  empresa   Empresa?   @relation(fields: [empresa_id], references: [id])
+  ejecucion Ejecucion? @relation(fields: [ejecucion_id], references: [id])
+
+  @@index([empresa_id])
+  @@index([linea_negocio])
+  @@index([score_radar])
+  @@index([created_at])
+  @@map("senales")
+}
+
+model Contacto {
+  id             Int      @id @default(autoincrement())
+  empresa_id     Int?
+  nombre         String
+  cargo          String?
+  email          String?
+  telefono       String?
+  linkedin_url   String?
+  empresa_nombre String?
+  linea_negocio  String?
+  fuente         String   @default("apollo")
+  hubspot_status String   @default("pendiente")
+  hubspot_id     String?
+  apollo_id      String?
+  created_at     DateTime @default(now())
+  updated_at     DateTime @updatedAt
+
+  empresa Empresa? @relation(fields: [empresa_id], references: [id])
+
+  @@index([empresa_id])
+  @@index([hubspot_status])
+  @@index([linea_negocio])
+  @@map("contactos")
+}
