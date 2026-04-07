@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
+import { getSenalesSlim, countSenalesOroHoy } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
 
 export async function GET() {
   try {
-    // Query directa — sin count() previo (evita 2 round-trips al DB)
-    const senalesDB = await prisma.senal.findMany({
-      select: { linea_negocio: true, score_radar: true, radar_activo: true },
-    });
+    const senalesDB = await getSenalesSlim();
 
     let senales: Array<{ linea_negocio: string; score_radar: number; radar_activo: boolean }>;
 
@@ -31,7 +28,7 @@ export async function GET() {
       tierCounts[tier]++;
     }
 
-    // Distribución por línea
+    // Distribución por línea (solo señales activas)
     const lineaCounts: Record<string, number> = {};
     for (const s of senales) {
       if (s.radar_activo) {
@@ -39,13 +36,9 @@ export async function GET() {
       }
     }
 
-    // Señales ORO hoy — solo si hay datos en BD (evita extra count cuando estamos en Sheets)
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    // Señales ORO hoy
     const oroHoy = senalesDB.length > 0
-      ? await prisma.senal.count({
-          where: { score_radar: { gte: 8 }, created_at: { gte: hoy } },
-        })
+      ? await countSenalesOroHoy()
       : senales.filter(s => getScoreTier(s.score_radar) === 'ORO').length;
 
     return NextResponse.json({

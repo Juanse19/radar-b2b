@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
       hubspotStatus:  c.hubspot_status,
       hubspotId:      c.hubspot_id ?? '',
       apolloId:       c.apollo_id ?? '',
-      createdAt:      c.created_at.toISOString(),
+      createdAt:      typeof c.created_at === 'string' ? c.created_at : (c.created_at as Date).toISOString(),
     })));
   } catch (err) {
     console.error('[/api/contacts GET] Error:', err);
