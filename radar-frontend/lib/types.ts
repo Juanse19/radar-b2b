@@ -89,6 +89,17 @@ export interface ExecutionStatus {
   errores?: string[];
 }
 
+export interface ProspeccionLog {
+  id: number;
+  empresaNombre: string;
+  linea: string;
+  n8nExecutionId?: string;
+  estado: 'running' | 'success' | 'error';
+  contactosEncontrados: number;
+  createdAt: string;
+  finishedAt?: string;
+}
+
 export type DiaSemana = 'Lunes' | 'Martes' | 'Miércoles' | 'Jueves' | 'Viernes' | 'Sábado' | 'Domingo';
 export type LineaSchedule = LineaNegocio | 'ALL_TIER_A' | 'Todas' | 'Descanso';
 
