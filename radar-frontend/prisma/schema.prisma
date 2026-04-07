@@ -111,3 +111,19 @@ model Contacto {
   @@index([linea_negocio])
   @@map("contactos")
 }
+
+model ProspeccionLog {
+  id                    Int       @id @default(autoincrement())
+  empresa_nombre        String
+  linea                 String
+  n8n_execution_id      String?
+  estado                String    @default("running")
+  contactos_encontrados Int       @default(0)
+  created_at            DateTime  @default(now())
+  finished_at           DateTime?
+
+  @@index([linea])
+  @@index([estado])
+  @@index([created_at])
+  @@map("prospeccion_logs")
+}

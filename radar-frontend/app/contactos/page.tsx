@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import {
@@ -12,13 +12,15 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/EmptyState';
 import {
   Users, ChevronLeft, ChevronRight, Send, Loader2,
   Plane, Package, Warehouse, Minus, Plus,
-  CheckCircle, AlertCircle, Database, PenLine, Search,
+  CheckCircle, AlertCircle, Database, Search, ClipboardList,
 } from 'lucide-react';
-import type { Contacto, LineaNegocio } from '@/lib/types';
+import type { Contacto, LineaNegocio, ProspeccionLog, Empresa } from '@/lib/types';
 
 // ── Líneas disponibles ────────────────────────────────────────────────────────
 
@@ -30,6 +32,7 @@ const LINEA_OPTIONS: {
   color: string;
   activeBg: string;
   activeBorder: string;
+  dotColor: string;
 }[] = [
   {
     value: 'BHS',
@@ -39,6 +42,7 @@ const LINEA_OPTIONS: {
     color: 'text-blue-400',
     activeBg: 'bg-blue-950/60',
     activeBorder: 'border-blue-500',
+    dotColor: 'bg-blue-400',
   },
   {
     value: 'Cartón',
@@ -48,6 +52,7 @@ const LINEA_OPTIONS: {
     color: 'text-amber-400',
     activeBg: 'bg-amber-950/60',
     activeBorder: 'border-amber-500',
+    dotColor: 'bg-amber-400',
   },
   {
     value: 'Intralogística',
@@ -57,11 +62,30 @@ const LINEA_OPTIONS: {
     color: 'text-emerald-400',
     activeBg: 'bg-emerald-950/60',
     activeBorder: 'border-emerald-500',
+    dotColor: 'bg-emerald-400',
   },
 ];
 
 const POR_PAGINA = 50;
 const AVAILABLE_TOKENS = 2540;
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+const isTimestampId = (id: string) => /^\d{11,}$/.test(id);
+
+function formatLogDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleString('es-CO', {
+      day: '2-digit',
+      month: '2-digit',
+      year: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return dateStr;
+  }
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
@@ -72,25 +96,68 @@ export default function ContactosPage() {
   const [lineaSeleccionada, setLineaSeleccionada] = useState<LineaNegocio>('BHS');
   const [modo, setModo] = useState<'lote' | 'manual'>('lote');
   const [batchSize, setBatchSize] = useState(5);
-  const [empresasManual, setEmpresasManual] = useState('');
   const [contactosPorEmpresa, setContactosPorEmpresa] = useState(3);
   const [prospectando, setProspectando] = useState(false);
   const [prospectError, setProspectError] = useState<string | null>(null);
   const [prospectSuccess, setProspectSuccess] = useState(false);
 
+  // ── Company Selector state ────────────────────────────────────────────────
+  const [empresaSearch, setEmpresaSearch] = useState('');
+  const [selectedEmpresaIds, setSelectedEmpresaIds] = useState<Set<string>>(new Set());
+
+  // ── Dialog / execution state ──────────────────────────────────────────────
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [executionRunning, setExecutionRunning] = useState(false);
+  const [logIds, setLogIds] = useState<number[]>([]);
+  const [processingEmpresas, setProcessingEmpresas] = useState<string[]>([]);
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
   // ── Tabla state ───────────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState('');
+  const [busquedaEmpresa, setBusquedaEmpresa] = useState('');
   const [lineaFiltro, setLineaFiltro] = useState('ALL');
   const [statusFiltro, setStatusFiltro] = useState('ALL');
   const [pagina, setPagina] = useState(0);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
-  // ── Queries ───────────────────────────────────────────────────────────────
+  // ── Company Selector Query ────────────────────────────────────────────────
+  const { data: companiesData = [] } = useQuery<Empresa[]>({
+    queryKey: ['companiesSelector', lineaSeleccionada],
+    queryFn: () =>
+      fetch(`/api/companies?linea=${lineaSeleccionada}&limit=500`)
+        .then(r => r.json())
+        .then(d => Array.isArray(d) ? d : []),
+    enabled: modo === 'manual',
+    staleTime: 5 * 60 * 1000,
+  });
+
+  // Reset selection when linea changes
+  useEffect(() => {
+    setSelectedEmpresaIds(new Set());
+    setEmpresaSearch('');
+  }, [lineaSeleccionada]);
+
+  // ── Filtered companies list ───────────────────────────────────────────────
+  const filteredCompanies = useMemo(() => {
+    if (!empresaSearch.trim()) return companiesData;
+    const q = empresaSearch.toLowerCase();
+    return companiesData.filter(e => e.nombre.toLowerCase().includes(q));
+  }, [companiesData, empresaSearch]);
+
+  // Selected empresa names (for prospecting payload)
+  const selectedEmpresaNames = useMemo(() => {
+    return companiesData
+      .filter(e => selectedEmpresaIds.has(e.id))
+      .map(e => e.nombre);
+  }, [companiesData, selectedEmpresaIds]);
+
+  // ── Contacts Query ────────────────────────────────────────────────────────
   const queryParams = new URLSearchParams();
-  if (lineaFiltro  !== 'ALL') queryParams.set('linea', lineaFiltro);
+  if (lineaFiltro !== 'ALL') queryParams.set('linea', lineaFiltro);
   if (statusFiltro !== 'ALL') queryParams.set('hubspot_status', statusFiltro);
-  if (busqueda)               queryParams.set('q', busqueda);
+  if (busqueda) queryParams.set('q', busqueda);
   queryParams.set('limit', '500');
 
   const { data: rawContactos = [], isLoading } = useQuery<Contacto[]>({
@@ -105,7 +172,24 @@ export default function ContactosPage() {
     staleTime: 2 * 60 * 1000,
   });
 
-  // ── Mutations ─────────────────────────────────────────────────────────────
+  // ── Prospection Logs Query ────────────────────────────────────────────────
+  const { data: prospeccionLogs = [], isLoading: logsLoading } = useQuery<ProspeccionLog[]>({
+    queryKey: ['prospeccionLogs', lineaFiltro],
+    queryFn: () => {
+      const params = new URLSearchParams({ limit: '100' });
+      if (lineaFiltro !== 'ALL') params.set('linea', lineaFiltro);
+      return fetch(`/api/prospect/logs?${params}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []);
+    },
+    refetchInterval: (query) => {
+      const data = query.state.data;
+      if (Array.isArray(data) && data.some((l: ProspeccionLog) => l.estado === 'running')) {
+        return 10_000;
+      }
+      return false;
+    },
+  });
+
+  // ── HubSpot Sync Mutation ─────────────────────────────────────────────────
   const syncMutation = useMutation({
     mutationFn: async (ids: number[]) => {
       const res = await fetch('/api/contacts/sync', {
@@ -127,10 +211,18 @@ export default function ContactosPage() {
     },
   });
 
-  // ── Tabla ─────────────────────────────────────────────────────────────────
-  const contactos = useMemo(() => rawContactos, [rawContactos]);
-  const totalPaginas = Math.ceil(contactos.length / POR_PAGINA);
-  const paginados = contactos.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+  // ── Contacts Table ────────────────────────────────────────────────────────
+  const contactosFiltrados = useMemo(() => {
+    if (!busquedaEmpresa.trim()) return rawContactos;
+    const q = busquedaEmpresa.toLowerCase();
+    return rawContactos.filter(c => (c.empresaNombre ?? '').toLowerCase().includes(q));
+  }, [rawContactos, busquedaEmpresa]);
+
+  const totalPaginas = Math.ceil(contactosFiltrados.length / POR_PAGINA);
+  const paginados = useMemo(
+    () => contactosFiltrados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
+    [contactosFiltrados, pagina],
+  );
 
   const columns = useMemo(() => createContactsColumns(), []);
   const table = useReactTable({
@@ -139,7 +231,7 @@ export default function ContactosPage() {
     state: { sorting, rowSelection },
     onSortingChange: setSorting,
     onRowSelectionChange: setRowSelection,
-    getCoreRowModel:   getCoreRowModel(),
+    getCoreRowModel: getCoreRowModel(),
     getSortedRowModel: getSortedRowModel(),
     enableRowSelection: true,
     getRowId: (row) => String(row.id),
@@ -147,9 +239,82 @@ export default function ContactosPage() {
 
   const selectedIds = Object.keys(rowSelection).filter(k => rowSelection[k]).map(Number);
 
+  // ── Polling cleanup ───────────────────────────────────────────────────────
+  function stopPolling() {
+    if (pollingRef.current !== null) {
+      clearInterval(pollingRef.current);
+      pollingRef.current = null;
+    }
+  }
+
+  useEffect(() => {
+    return () => stopPolling();
+  }, []);
+
+  // ── Update logs helper ────────────────────────────────────────────────────
+  async function updateLogs(ids: number[], estado: 'success' | 'error') {
+    await Promise.allSettled(
+      ids.map(id =>
+        fetch(`/api/prospect/logs/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ estado, finished_at: new Date().toISOString() }),
+        }),
+      ),
+    );
+  }
+
+  // ── Start execution polling ───────────────────────────────────────────────
+  function startPolling(execId: string, capturedLogIds: number[]) {
+    stopPolling();
+
+    // Timestamp fallback — skip real polling
+    if (isTimestampId(execId)) {
+      const timeout = setTimeout(() => {
+        setDialogOpen(false);
+        setExecutionRunning(false);
+        setExecutionId(null);
+        toast.success('Prospección enviada — los resultados aparecerán en minutos');
+        queryClient.invalidateQueries({ queryKey: ['prospeccionLogs'] });
+      }, 5000);
+      // Store timeout in ref as a hack (interval of 0 won't fire early)
+      pollingRef.current = timeout as unknown as ReturnType<typeof setInterval>;
+      return;
+    }
+
+    pollingRef.current = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/executions/${execId}`);
+        if (!res.ok) return;
+        const status: { id: string; status: string; finishedAt?: string } = await res.json();
+
+        if (status.status === 'success') {
+          stopPolling();
+          setDialogOpen(false);
+          setExecutionRunning(false);
+          setExecutionId(null);
+          toast.success('Prospección completada — los contactos aparecerán en la tabla en breve');
+          await updateLogs(capturedLogIds, 'success');
+          queryClient.invalidateQueries({ queryKey: ['contactos'] });
+          queryClient.invalidateQueries({ queryKey: ['prospeccionLogs'] });
+        } else if (status.status === 'error') {
+          stopPolling();
+          setDialogOpen(false);
+          setExecutionRunning(false);
+          setExecutionId(null);
+          toast.error('Error en la prospección — revisa los logs de N8N');
+          await updateLogs(capturedLogIds, 'error');
+          queryClient.invalidateQueries({ queryKey: ['prospeccionLogs'] });
+        }
+      } catch {
+        // Network error — keep polling
+      }
+    }, 3000);
+  }
+
   // ── Prospección ───────────────────────────────────────────────────────────
-  const empresasManualList = empresasManual.split('\n').map(s => s.trim()).filter(Boolean);
-  const empresasCount = modo === 'manual' ? empresasManualList.length : batchSize;
+  const empresasManualList = modo === 'manual' ? selectedEmpresaNames : [];
+  const empresasCount = modo === 'manual' ? selectedEmpresaIds.size : batchSize;
   const tokenEstimate = empresasCount * contactosPorEmpresa;
   const tokenPct = Math.min(100, Math.round((tokenEstimate / AVAILABLE_TOKENS) * 100));
   const tokenOk = tokenEstimate <= AVAILABLE_TOKENS;
@@ -158,7 +323,7 @@ export default function ContactosPage() {
 
   async function lanzarProspeccion() {
     if (empresasCount === 0) {
-      toast.error('Ingresa al menos una empresa para prospectar');
+      toast.error('Selecciona al menos una empresa para prospectar');
       return;
     }
     setProspectando(true);
@@ -177,11 +342,23 @@ export default function ContactosPage() {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Error lanzando prospección');
+
+      const execId: string = data.executionId ?? '';
+      const capturedLogIds: number[] = Array.isArray(data.logIds) ? data.logIds : [];
+      const empresasEnviadas: string[] = Array.isArray(data.empresasEnviadas)
+        ? data.empresasEnviadas
+        : modo === 'manual'
+        ? empresasManualList
+        : [];
+
+      setExecutionId(execId);
+      setLogIds(capturedLogIds);
+      setProcessingEmpresas(empresasEnviadas);
+      setExecutionRunning(true);
+      setDialogOpen(true);
       setProspectSuccess(true);
-      toast.success(
-        `Prospección iniciada — ${data.empresasEnviadas} empresas en ${lineaSeleccionada}. Los contactos aparecerán en minutos.`,
-      );
-      queryClient.invalidateQueries({ queryKey: ['contactos'] });
+
+      startPolling(execId, capturedLogIds);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
       setProspectError(msg);
@@ -191,8 +368,26 @@ export default function ContactosPage() {
     }
   }
 
-  const pendienteCount    = rawContactos.filter(c => c.hubspotStatus === 'pendiente').length;
+  const pendienteCount = rawContactos.filter(c => c.hubspotStatus === 'pendiente').length;
   const sincronizadoCount = rawContactos.filter(c => c.hubspotStatus === 'sincronizado').length;
+
+  // ── Company selector handlers ─────────────────────────────────────────────
+  function toggleEmpresa(id: string) {
+    setSelectedEmpresaIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    setSelectedEmpresaIds(new Set(filteredCompanies.map(e => e.id)));
+  }
+
+  function clearAll() {
+    setSelectedEmpresaIds(new Set());
+  }
 
   return (
     <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
@@ -271,8 +466,8 @@ export default function ContactosPage() {
             {/* Toggle de modo */}
             <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 w-fit">
               {[
-                { id: 'lote',   label: 'Lote automático', icon: <Database size={13} /> },
-                { id: 'manual', label: 'Ingresar empresas', icon: <PenLine size={13} /> },
+                { id: 'lote', label: 'Lote automático', Icon: Database as React.ElementType },
+                { id: 'manual', label: 'Selección de empresa', Icon: Search as React.ElementType },
               ].map(tab => (
                 <button
                   key={tab.id}
@@ -283,7 +478,7 @@ export default function ContactosPage() {
                       : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
                   }`}
                 >
-                  {tab.icon}
+                  <tab.Icon size={13} />
                   {tab.label}
                 </button>
               ))}
@@ -326,28 +521,88 @@ export default function ContactosPage() {
               </Card>
             )}
 
-            {/* Modo manual */}
+            {/* Modo manual — Company Picker */}
             {modo === 'manual' && (
               <Card className="bg-gray-900 border-gray-800">
                 <CardHeader className="pb-2">
                   <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
-                    <PenLine size={12} /> Empresas específicas
+                    <Search size={12} /> Selección de empresas — {activeOption.shortLabel}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-3">
-                  <p className="text-sm text-gray-400">
-                    Ingresa una empresa por línea. Apollo buscará los contactos de cada una.
-                  </p>
-                  <textarea
-                    value={empresasManual}
-                    onChange={e => setEmpresasManual(e.target.value)}
-                    placeholder={'Empresa ABC S.A.\nLogística del Norte\nAeropuerto Internacional...'}
-                    rows={6}
-                    className="w-full bg-gray-800 border border-gray-700 text-white text-sm rounded-lg px-3 py-2.5 placeholder-gray-600 resize-none focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
-                  />
+                  {/* Search + actions row */}
+                  <div className="flex items-center gap-2">
+                    <div className="relative flex-1">
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      <Input
+                        placeholder="Filtrar empresas..."
+                        value={empresaSearch}
+                        onChange={e => setEmpresaSearch(e.target.value)}
+                        className="bg-gray-800 border-gray-700 text-white text-sm pl-8 h-8"
+                      />
+                    </div>
+                    <button
+                      onClick={selectAll}
+                      className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                    >
+                      Seleccionar todas
+                    </button>
+                    <button
+                      onClick={clearAll}
+                      className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  </div>
+
+                  {/* Selected count */}
                   <p className="text-xs text-gray-500">
-                    {empresasManualList.length} empresa{empresasManualList.length !== 1 ? 's' : ''} ingresada{empresasManualList.length !== 1 ? 's' : ''}
+                    {selectedEmpresaIds.size > 0
+                      ? <span className="text-blue-400 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
+                      : 'Ninguna empresa seleccionada'}
                   </p>
+
+                  {/* Scrollable list */}
+                  <div
+                    className="overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/50 divide-y divide-gray-700/50"
+                    style={{ maxHeight: '280px' }}
+                  >
+                    {filteredCompanies.length === 0 ? (
+                      <div className="px-4 py-8 text-center text-xs text-gray-500">
+                        {companiesData.length === 0
+                          ? 'Cargando empresas...'
+                          : 'No hay empresas que coincidan con la búsqueda'}
+                      </div>
+                    ) : (
+                      filteredCompanies.map(empresa => {
+                        const isChecked = selectedEmpresaIds.has(empresa.id);
+                        const lineaOpt = LINEA_OPTIONS.find(l => l.value === empresa.linea);
+                        return (
+                          <label
+                            key={empresa.id}
+                            className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
+                              isChecked ? 'bg-blue-950/30' : 'hover:bg-gray-700/40'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleEmpresa(empresa.id)}
+                              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 shrink-0"
+                            />
+                            {lineaOpt && (
+                              <span
+                                className={`w-2 h-2 rounded-full shrink-0 ${lineaOpt.dotColor}`}
+                                title={empresa.linea}
+                              />
+                            )}
+                            <span className="text-sm text-gray-200 truncate flex-1">{empresa.nombre}</span>
+                            <span className="text-xs text-gray-500 shrink-0">{empresa.pais}</span>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -421,18 +676,18 @@ export default function ContactosPage() {
             {/* Botón trigger */}
             <Button
               onClick={lanzarProspeccion}
-              disabled={prospectando || empresasCount === 0 || !tokenOk}
+              disabled={prospectando || dialogOpen || empresasCount === 0 || !tokenOk}
               className="w-full h-12 bg-blue-700 hover:bg-blue-600 gap-2 text-base font-semibold shadow-lg shadow-blue-900/30 disabled:opacity-50"
             >
               {prospectando ? (
-                <><Loader2 size={18} className="animate-spin" /> Buscando contactos...</>
+                <><Loader2 size={18} className="animate-spin" /> Iniciando...</>
               ) : (
                 <><Search size={18} /> Prospectar contactos</>
               )}
             </Button>
 
             {/* Estado */}
-            {prospectSuccess && !prospectando && (
+            {prospectSuccess && !prospectando && !dialogOpen && (
               <div className="flex items-center gap-2 text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2.5">
                 <CheckCircle size={15} />
                 Prospección iniciada — revisa la tabla en unos minutos
@@ -447,144 +702,315 @@ export default function ContactosPage() {
           </div>
         </div>
 
-        {/* ── Separador ─────────────────────────────────────────────────────── */}
-        <div className="border-t border-gray-800 pt-6">
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
-            <div>
-              <h2 className="text-lg font-semibold text-white">Contactos prospectados</h2>
-              <p className="text-xs text-gray-500 mt-0.5">
-                {contactos.length} contacto{contactos.length !== 1 ? 's' : ''} · {sincronizadoCount} en HubSpot
-              </p>
-            </div>
+        {/* ── Execution Dialog ───────────────────────────────────────────── */}
+        <Dialog
+          open={dialogOpen}
+          onOpenChange={(open) => {
+            if (!open && executionRunning) return; // block close while running
+            setDialogOpen(open);
+            if (!open) {
+              setExecutionId(null);
+              setExecutionRunning(false);
+              stopPolling();
+            }
+          }}
+        >
+          <DialogContent showCloseButton={false} className="bg-gray-900 border-gray-700 text-white max-w-sm">
+            <DialogHeader>
+              <DialogTitle className="text-white text-base">Prospección en curso</DialogTitle>
+            </DialogHeader>
+            <div className="flex flex-col items-center gap-4 py-4">
+              <Loader2 size={40} className="animate-spin text-blue-400" />
+              <p className="text-sm text-gray-300 font-medium">Ejecutando WF03 Prospector...</p>
 
-            {/* Filtros */}
-            <div className="flex gap-2 flex-wrap items-center">
-              <Input
-                placeholder="Buscar nombre, cargo o empresa..."
-                value={busqueda}
-                onChange={e => { setBusqueda(e.target.value); setPagina(0); setRowSelection({}); }}
-                className="bg-gray-800 border-gray-700 text-white w-56"
-              />
-              <Select value={lineaFiltro} onValueChange={v => { setLineaFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="ALL"            className="text-gray-100">Todas las líneas</SelectItem>
-                  <SelectItem value="BHS"            className="text-gray-100">✈️ BHS</SelectItem>
-                  <SelectItem value="Cartón"         className="text-gray-100">📦 Cartón</SelectItem>
-                  <SelectItem value="Intralogística" className="text-gray-100">🏭 Intralogística</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={statusFiltro} onValueChange={v => { setStatusFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-36">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
-                  <SelectItem value="ALL"          className="text-gray-100">Todos</SelectItem>
-                  <SelectItem value="pendiente"    className="text-gray-100">⏳ Pendiente</SelectItem>
-                  <SelectItem value="sincronizado" className="text-gray-100">✅ Sincronizado</SelectItem>
-                  <SelectItem value="error"        className="text-gray-100">❌ Error</SelectItem>
-                </SelectContent>
-              </Select>
-              {selectedIds.length > 0 && (
-                <span className="text-xs text-gray-400">
-                  {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Tabla */}
-          <Card className="bg-gray-900 border-gray-800">
-            <CardContent className="p-0">
-              {isLoading ? (
-                <div className="divide-y divide-gray-800/50">
-                  {Array.from({ length: 8 }).map((_, i) => (
-                    <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
-                      <div className="h-4 w-4 bg-gray-800 rounded" />
-                      <div className="h-4 bg-gray-800 rounded w-36" />
-                      <div className="h-4 bg-gray-800 rounded w-32" />
-                      <div className="h-4 bg-gray-800 rounded w-40" />
-                      <div className="h-4 bg-gray-800 rounded w-20 ml-auto" />
-                    </div>
+              {/* empresa list */}
+              {processingEmpresas.length > 0 && (
+                <div className="w-full bg-gray-800 rounded-lg px-4 py-3 space-y-1 text-xs text-gray-400">
+                  {processingEmpresas.slice(0, 5).map((name, i) => (
+                    <p key={i} className="truncate">· {name}</p>
                   ))}
-                </div>
-              ) : table.getRowModel().rows.length === 0 ? (
-                <EmptyState
-                  icon={Users}
-                  title="Sin contactos"
-                  description="Usa el panel de arriba para prospectar empresas, o espera que el Agente Prospector los extraiga automáticamente."
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      {table.getHeaderGroups().map(hg => (
-                        <tr key={hg.id} className="border-b border-gray-800 bg-gray-800/60">
-                          {hg.headers.map(header => (
-                            <th
-                              key={header.id}
-                              className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide select-none"
-                              onClick={header.column.getToggleSortingHandler()}
-                              style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default' }}
-                            >
-                              <div className="flex items-center gap-1">
-                                {flexRender(header.column.columnDef.header, header.getContext())}
-                                {header.column.getIsSorted() === 'asc'  && <span className="text-blue-400">↑</span>}
-                                {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
-                              </div>
-                            </th>
-                          ))}
-                        </tr>
-                      ))}
-                    </thead>
-                    <tbody className="divide-y divide-gray-800/50">
-                      {table.getRowModel().rows.map(row => (
-                        <tr
-                          key={row.id}
-                          className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-gray-800/30'}`}
-                        >
-                          {row.getVisibleCells().map(cell => (
-                            <td key={cell.id} className="px-4 py-3">
-                              {flexRender(cell.column.columnDef.cell, cell.getContext())}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                  {processingEmpresas.length > 5 && (
+                    <p className="text-gray-500">y {processingEmpresas.length - 5} más...</p>
+                  )}
                 </div>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Paginación */}
-          {totalPaginas > 1 && (
-            <div className="flex items-center justify-between mt-4">
-              <span className="text-xs text-gray-500">
-                Página {pagina + 1} de {totalPaginas} · {contactos.length} contactos
-              </span>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline" size="sm"
-                  onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
-                  disabled={pagina === 0}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
-                >
-                  <ChevronLeft size={14} /> Anterior
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
-                  disabled={pagina >= totalPaginas - 1}
-                  className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
-                >
-                  Siguiente <ChevronRight size={14} />
-                </Button>
-              </div>
+              <p className="text-xs text-gray-500">Polling cada 3 segundos...</p>
+
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={executionRunning}
+                onClick={() => {
+                  if (!executionRunning) {
+                    setDialogOpen(false);
+                    setExecutionId(null);
+                    stopPolling();
+                  }
+                }}
+                className="border-gray-600 text-gray-300 hover:bg-gray-800 disabled:opacity-40 mt-2"
+              >
+                Cancelar
+              </Button>
             </div>
-          )}
+          </DialogContent>
+        </Dialog>
+
+        {/* ── Bottom section: Tabs ───────────────────────────────────────── */}
+        <div className="border-t border-gray-800 pt-6">
+          <Tabs defaultValue="contactos">
+            <TabsList className="bg-gray-900 border border-gray-800 mb-5 h-9">
+              <TabsTrigger value="contactos" className="text-gray-400 data-active:text-white text-sm px-5">
+                Contactos
+              </TabsTrigger>
+              <TabsTrigger value="logs" className="text-gray-400 data-active:text-white text-sm px-5">
+                Log de Prospección
+              </TabsTrigger>
+            </TabsList>
+
+            {/* ── Tab: Contactos ──────────────────────────────────────────── */}
+            <TabsContent value="contactos">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Contactos prospectados</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    {contactosFiltrados.length} contacto{contactosFiltrados.length !== 1 ? 's' : ''} · {sincronizadoCount} en HubSpot
+                  </p>
+                </div>
+
+                {/* Filtros */}
+                <div className="flex gap-2 flex-wrap items-center">
+                  <Input
+                    placeholder="Buscar nombre, cargo..."
+                    value={busqueda}
+                    onChange={e => { setBusqueda(e.target.value); setPagina(0); setRowSelection({}); }}
+                    className="bg-gray-800 border-gray-700 text-white w-44"
+                  />
+                  <Input
+                    placeholder="Buscar empresa..."
+                    value={busquedaEmpresa}
+                    onChange={e => { setBusquedaEmpresa(e.target.value); setPagina(0); setRowSelection({}); }}
+                    className="bg-gray-800 border-gray-700 text-white w-40"
+                  />
+                  <Select value={lineaFiltro} onValueChange={v => { setLineaFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
+                      <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
+                      <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
+                      <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <Select value={statusFiltro} onValueChange={v => { setStatusFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
+                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-36">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent className="bg-gray-800 border-gray-700">
+                      <SelectItem value="ALL" className="text-gray-100">Todos</SelectItem>
+                      <SelectItem value="pendiente" className="text-gray-100">Pendiente</SelectItem>
+                      <SelectItem value="sincronizado" className="text-gray-100">Sincronizado</SelectItem>
+                      <SelectItem value="error" className="text-gray-100">Error</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {selectedIds.length > 0 && (
+                    <span className="text-xs text-gray-400">
+                      {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Contacts Table */}
+              <Card className="bg-gray-900 border-gray-800">
+                <CardContent className="p-0">
+                  {isLoading ? (
+                    <div className="divide-y divide-gray-800/50">
+                      {Array.from({ length: 8 }).map((_, i) => (
+                        <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
+                          <div className="h-4 w-4 bg-gray-800 rounded" />
+                          <div className="h-4 bg-gray-800 rounded w-36" />
+                          <div className="h-4 bg-gray-800 rounded w-32" />
+                          <div className="h-4 bg-gray-800 rounded w-40" />
+                          <div className="h-4 bg-gray-800 rounded w-20 ml-auto" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : table.getRowModel().rows.length === 0 ? (
+                    <EmptyState
+                      icon={Users}
+                      title="Sin contactos"
+                      description="Usa el panel de arriba para prospectar empresas, o espera que el Agente Prospector los extraiga automáticamente."
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          {table.getHeaderGroups().map(hg => (
+                            <tr key={hg.id} className="border-b border-gray-800 bg-gray-800/60">
+                              {hg.headers.map(header => (
+                                <th
+                                  key={header.id}
+                                  className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide select-none"
+                                  onClick={header.column.getToggleSortingHandler()}
+                                  style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default' }}
+                                >
+                                  <div className="flex items-center gap-1">
+                                    {flexRender(header.column.columnDef.header, header.getContext())}
+                                    {header.column.getIsSorted() === 'asc' && <span className="text-blue-400">↑</span>}
+                                    {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
+                                  </div>
+                                </th>
+                              ))}
+                            </tr>
+                          ))}
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/50">
+                          {table.getRowModel().rows.map(row => (
+                            <tr
+                              key={row.id}
+                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-gray-800/30'}`}
+                            >
+                              {row.getVisibleCells().map(cell => (
+                                <td key={cell.id} className="px-4 py-3">
+                                  {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                                </td>
+                              ))}
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Paginación */}
+              {totalPaginas > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <span className="text-xs text-gray-500">
+                    Página {pagina + 1} de {totalPaginas} · {contactosFiltrados.length} contactos
+                  </span>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
+                      disabled={pagina === 0}
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
+                    >
+                      <ChevronLeft size={14} /> Anterior
+                    </Button>
+                    <Button
+                      variant="outline" size="sm"
+                      onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
+                      disabled={pagina >= totalPaginas - 1}
+                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
+                    >
+                      Siguiente <ChevronRight size={14} />
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </TabsContent>
+
+            {/* ── Tab: Log de Prospección ──────────────────────────────────── */}
+            <TabsContent value="logs">
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
+                <div>
+                  <h2 className="text-lg font-semibold text-white">Log de Prospección</h2>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Historial de ejecuciones del agente prospector
+                  </p>
+                </div>
+                {/* Linea filter reuse */}
+                <Select value={lineaFiltro} onValueChange={v => setLineaFiltro(v ?? 'ALL')}>
+                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
+                    <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
+                    <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
+                    <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <Card className="bg-gray-900 border-gray-800">
+                <CardContent className="p-0">
+                  {logsLoading ? (
+                    <div className="divide-y divide-gray-800/50">
+                      {Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
+                          <div className="h-4 bg-gray-800 rounded w-40" />
+                          <div className="h-4 bg-gray-800 rounded w-24" />
+                          <div className="h-4 bg-gray-800 rounded w-20" />
+                          <div className="h-4 bg-gray-800 rounded w-16 ml-auto" />
+                        </div>
+                      ))}
+                    </div>
+                  ) : prospeccionLogs.length === 0 ? (
+                    <EmptyState
+                      icon={ClipboardList}
+                      title="Sin registros de prospección"
+                      description="Los logs aparecerán aquí cuando prospectes empresas."
+                    />
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-800 bg-gray-800/60">
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Empresa</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Línea</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Estado</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Contactos</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Fecha</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-800/50">
+                          {prospeccionLogs.map(log => (
+                            <tr key={log.id} className="hover:bg-gray-800/30 transition-colors">
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-gray-200 font-medium">{log.empresaNombre}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-gray-400">{log.linea}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                {log.estado === 'running' && (
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-800">
+                                    <Loader2 size={12} className="animate-spin" />
+                                    Ejecutando...
+                                  </span>
+                                )}
+                                {log.estado === 'success' && (
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-300 border border-green-800">
+                                    Completado
+                                  </span>
+                                )}
+                                {log.estado === 'error' && (
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400 border border-red-800">
+                                    Error
+                                  </span>
+                                )}
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-sm text-gray-300 font-mono">{log.contactosEncontrados}</span>
+                              </td>
+                              <td className="px-4 py-3">
+                                <span className="text-xs text-gray-500">{formatLogDate(log.createdAt)}</span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>
