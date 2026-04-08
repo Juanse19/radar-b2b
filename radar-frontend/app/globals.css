@@ -217,3 +217,65 @@ button, input, select, textarea { font: inherit; }
   -ms-overflow-style: none;
 }
 .scroll-area-no-bar::-webkit-scrollbar { display: none; }
+
+/* ═══════════════════════════════════════════
+   Badge tokens — tema claro (light theme)
+═══════════════════════════════════════════ */
+
+/* Líneas de negocio */
+.badge-bhs            { @apply bg-blue-50   text-blue-700   border border-blue-200;   }
+.badge-carton         { @apply bg-amber-50  text-amber-700  border border-amber-200;  }
+.badge-intralogistica { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+.badge-final-linea    { @apply bg-violet-50 text-violet-700 border border-violet-200; }
+.badge-motos          { @apply bg-orange-50 text-orange-700 border border-orange-200; }
+.badge-solumat        { @apply bg-cyan-50   text-cyan-700   border border-cyan-200;   }
+
+/* Tiers de señal */
+.badge-oro            { @apply bg-yellow-50 text-yellow-700 border border-yellow-300; }
+.badge-monitoreo      { @apply bg-blue-50   text-blue-700   border border-blue-200;   }
+.badge-contexto       { @apply bg-muted     text-muted-foreground border border-border; }
+
+/* ═══════════════════════════════════════════
+   KPI Card — icon containers
+═══════════════════════════════════════════ */
+.kpi-icon-gold    { @apply p-2.5 rounded-xl bg-yellow-50 border border-yellow-100; }
+.kpi-icon-blue    { @apply p-2.5 rounded-xl bg-blue-50   border border-blue-100;   }
+.kpi-icon-emerald { @apply p-2.5 rounded-xl bg-emerald-50 border border-emerald-100; }
+.kpi-icon-violet  { @apply p-2.5 rounded-xl bg-violet-50 border border-violet-100; }
+
+/* ═══════════════════════════════════════════
+   Status indicators — tema claro
+═══════════════════════════════════════════ */
+.status-success { @apply text-emerald-600; }
+.status-error   { @apply text-red-600;     }
+.status-running { @apply text-blue-600;    }
+.status-warning { @apply text-amber-600;   }
+
+/* ═══════════════════════════════════════════
+   Línea selector card (Scan page)
+═══════════════════════════════════════════ */
+.linea-card-base {
+  @apply rounded-xl border-2 p-3 cursor-pointer transition-all duration-150;
+  @apply border-border bg-surface hover:border-secondary hover:bg-surface-muted;
+}
+.linea-card-active {
+  @apply shadow-sm;
+}
+
+/* ═══════════════════════════════════════════
+   Animaciones de entrada
+═══════════════════════════════════════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.25s ease-out both;
+}
+
+/* Stagger delay helpers */
+.delay-75  { animation-delay: 75ms;  }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }

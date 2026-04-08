@@ -54,7 +54,7 @@ export function RecentGoldSignals({ signals, isLoading }: RecentGoldSignalsProps
   return (
     <div className="space-y-3">
       {signals.map((s, i) => (
-        <div key={i} className="flex items-start justify-between p-3 bg-surface-muted rounded-lg border border-border hover:border-yellow-800/50 transition-colors">
+        <div key={i} className="flex items-start justify-between p-3 bg-surface-muted rounded-lg border border-border hover:border-yellow-300 transition-colors">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <span className="font-medium text-foreground text-sm truncate">{s.empresa}</span>
@@ -66,7 +66,7 @@ export function RecentGoldSignals({ signals, isLoading }: RecentGoldSignalsProps
               {s.tipoSenal && (
                 <>
                   <span className="text-muted-foreground">·</span>
-                  <span className="text-blue-400">{s.tipoSenal}</span>
+                  <span className="text-blue-600">{s.tipoSenal}</span>
                 </>
               )}
               {s.fuenteUrl && (
@@ -86,7 +86,7 @@ export function RecentGoldSignals({ signals, isLoading }: RecentGoldSignalsProps
             </div>
           </div>
           <div className="ml-3 shrink-0 text-right">
-            <div className={`text-xl font-bold ${s.scoreRadar >= 70 || s.scoreRadar >= 8 ? 'text-yellow-400' : 'text-muted-foreground'}`}>
+            <div className={`text-xl font-bold ${s.scoreRadar >= 70 || s.scoreRadar >= 8 ? 'text-yellow-600' : 'text-muted-foreground'}`}>
               {s.scoreRadar}
             </div>
           </div>
@@ -95,7 +95,7 @@ export function RecentGoldSignals({ signals, isLoading }: RecentGoldSignalsProps
 
       <Link
         href="/results?tier=ORO"
-        className="flex items-center justify-center gap-2 mt-2 text-xs text-blue-400 hover:text-blue-300 py-2 border border-dashed border-border rounded-lg hover:border-blue-800 transition-colors"
+        className="flex items-center justify-center gap-2 mt-2 text-xs text-blue-600 hover:text-blue-700 py-2 border border-dashed border-border rounded-lg hover:border-blue-400 transition-colors"
       >
         Ver todas las señales ORO
         <ArrowRight size={12} />

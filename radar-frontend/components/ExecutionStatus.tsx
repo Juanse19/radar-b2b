@@ -15,7 +15,6 @@ function isTimestampId(id: string): boolean {
 }
 
 export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
-  // If the ID is a timestamp fallback we skip polling entirely — there is nothing to poll.
   const isTimestamp = isTimestampId(executionId);
 
   const { data, isError } = useQuery<ExecutionStatus>({
@@ -40,10 +39,9 @@ export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
     }
   }, [data, onComplete]);
 
-  // Timestamp fallback — no real execution ID to track
   if (isTimestamp) {
     return (
-      <div className="flex items-center gap-2 text-blue-300 text-sm">
+      <div className="flex items-center gap-2 text-blue-600 text-sm">
         <Loader2 size={16} className="animate-spin" />
         Escaneo en curso. Revisa la pestaña Resultados en 2-3 minutos.
       </div>
@@ -51,7 +49,7 @@ export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
   }
 
   if (isError) return (
-    <div className="flex items-center gap-2 text-yellow-400 text-sm">
+    <div className="flex items-center gap-2 text-amber-600 text-sm">
       <Clock size={16} /> No se pudo obtener el estado. El escaneo puede seguir en curso.
     </div>
   );
@@ -63,10 +61,10 @@ export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
   );
 
   const icons: Record<ExecutionStatus['status'], React.ReactNode> = {
-    running: <Loader2 size={16} className="animate-spin text-blue-400" />,
-    waiting: <Clock size={16} className="text-yellow-400" />,
-    success: <CheckCircle size={16} className="text-green-400" />,
-    error: <XCircle size={16} className="text-red-400" />,
+    running: <Loader2 size={16} className="animate-spin text-blue-600" />,
+    waiting: <Clock size={16} className="text-amber-600" />,
+    success: <CheckCircle size={16} className="text-emerald-600" />,
+    error: <XCircle size={16} className="text-red-600" />,
   };
 
   const messages: Record<ExecutionStatus['status'], string> = {
@@ -76,8 +74,13 @@ export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
     error: '❌ Error en el escaneo',
   };
 
+  const textColor =
+    data.status === 'success' ? 'text-emerald-600'
+    : data.status === 'error' ? 'text-red-600'
+    : 'text-blue-600';
+
   return (
-    <div className={`flex items-center gap-2 text-sm ${data.status === 'success' ? 'text-green-400' : data.status === 'error' ? 'text-red-400' : 'text-blue-300'}`}>
+    <div className={`flex items-center gap-2 text-sm ${textColor}`}>
       {icons[data.status]}
       {messages[data.status]}
     </div>

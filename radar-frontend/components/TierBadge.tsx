@@ -1,12 +1,12 @@
 import { cn } from '@/lib/utils';
 
 const tierStyles: Record<string, string> = {
-  'Tier A':      'bg-purple-900/60 text-purple-300 border border-purple-800',
-  'Tier B-Alta': 'bg-indigo-900/60 text-indigo-300 border border-indigo-800',
-  'Tier B':      'bg-surface-muted      text-muted-foreground   border border-border',
-  'Tier B-Baja': 'bg-surface-muted      text-muted-foreground   border border-border',
-  'Tier C':      'bg-surface      text-muted-foreground   border border-border',
-  'Tier D':      'bg-surface      text-muted-foreground   border border-border',
+  'Tier A':      'bg-purple-50 text-purple-700 border border-purple-200',
+  'Tier B-Alta': 'bg-indigo-50 text-indigo-700 border border-indigo-200',
+  'Tier B':      'bg-surface-muted text-muted-foreground border border-border',
+  'Tier B-Baja': 'bg-surface-muted text-muted-foreground border border-border',
+  'Tier C':      'bg-surface   text-muted-foreground border border-border',
+  'Tier D':      'bg-surface   text-muted-foreground border border-border',
 };
 
 interface TierBadgeProps {

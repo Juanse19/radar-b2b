@@ -3,9 +3,10 @@ export type LineaNegocio =
   | 'BHS'           // BHS, Aeropuertos, Cargo, ULD
   | 'Cartón'        // Cartón, Corrugado, Papel
   | 'Intralogística'// CEDI, WMS, Supply Chain
+  | 'Cargo'         // Cargo LATAM, carga aérea
   | 'Final de Línea'// Alimentos, Bebidas, Palletizado
   | 'Motos'         // Ensambladoras, Motocicletas
-  | 'SOLUMAT'       // Plásticos, Materiales industriales
+  | 'Solumat'       // Plásticos, Materiales industriales
   | 'ALL';          // Todas las líneas
 
 export type TierEmpresa = 'Tier A' | 'Tier B-Alta' | 'Tier B' | 'Tier B-Baja' | 'Tier C' | 'Tier D';

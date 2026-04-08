@@ -39,30 +39,30 @@ const LINEA_OPTIONS: {
     shortLabel: 'BHS',
     desc: 'Aeropuertos y cargo',
     Icon: Plane,
-    color: 'text-blue-400',
-    activeBg: 'bg-blue-950/60',
-    activeBorder: 'border-blue-500',
-    dotColor: 'bg-blue-400',
+    color: 'text-blue-600',
+    activeBg: 'bg-blue-50',
+    activeBorder: 'border-blue-400',
+    dotColor: 'bg-blue-500',
   },
   {
     value: 'Cartón',
     shortLabel: 'Cartón',
     desc: 'Corrugadoras, empaque',
     Icon: Package,
-    color: 'text-amber-400',
-    activeBg: 'bg-amber-950/60',
-    activeBorder: 'border-amber-500',
-    dotColor: 'bg-amber-400',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-50',
+    activeBorder: 'border-amber-400',
+    dotColor: 'bg-amber-500',
   },
   {
     value: 'Intralogística',
     shortLabel: 'Intralogística',
     desc: 'CEDI, WMS, ASRS',
     Icon: Warehouse,
-    color: 'text-emerald-400',
-    activeBg: 'bg-emerald-950/60',
-    activeBorder: 'border-emerald-500',
-    dotColor: 'bg-emerald-400',
+    color: 'text-emerald-600',
+    activeBg: 'bg-emerald-50',
+    activeBorder: 'border-emerald-400',
+    dotColor: 'bg-emerald-500',
   },
 ];
 
@@ -453,10 +453,10 @@ export default function ContactosPage() {
                       <div className={`mb-2 ${isActive ? opt.color : 'text-muted-foreground'}`}>
                         <opt.Icon size={24} />
                       </div>
-                      <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
+                      <p className={`font-semibold text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {opt.shortLabel}
                       </p>
-                      <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
                     </button>
                   );
                 })}
@@ -474,8 +474,8 @@ export default function ContactosPage() {
                   onClick={() => setModo(tab.id as 'lote' | 'manual')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     modo === tab.id
-                      ? 'bg-blue-600 text-foreground shadow-sm'
-                      : 'text-muted-foreground hover:text-gray-200 hover:bg-surface-muted'
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
                   }`}
                 >
                   <tab.Icon size={13} />
@@ -494,7 +494,7 @@ export default function ContactosPage() {
                 </CardHeader>
                 <CardContent className="pt-0 space-y-4">
                   <p className="text-sm text-muted-foreground">
-                    Toma las <span className="text-white font-medium">{batchSize} empresas</span> con mayor
+                    Toma las <span className="text-foreground font-medium">{batchSize} empresas</span> con mayor
                     prioridad en línea <span className={`font-medium ${activeOption.color}`}>{activeOption.shortLabel}</span> y
                     extrae contactos vía Apollo.
                   </p>
@@ -514,7 +514,7 @@ export default function ContactosPage() {
                       >
                         <Plus size={14} />
                       </button>
-                      <span className="text-xs text-gray-600">máx. 50</span>
+                      <span className="text-xs text-muted-foreground">máx. 50</span>
                     </div>
                   </div>
                 </CardContent>
@@ -543,7 +543,7 @@ export default function ContactosPage() {
                     </div>
                     <button
                       onClick={selectAll}
-                      className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap px-2 py-1 rounded hover:bg-surface-muted transition-colors"
+                      className="text-xs text-blue-600 hover:text-blue-700 whitespace-nowrap px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     >
                       Seleccionar todas
                     </button>
@@ -558,7 +558,7 @@ export default function ContactosPage() {
                   {/* Selected count */}
                   <p className="text-xs text-muted-foreground">
                     {selectedEmpresaIds.size > 0
-                      ? <span className="text-blue-400 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
+                      ? <span className="text-blue-600 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
                       : 'Ninguna empresa seleccionada'}
                   </p>
 
@@ -581,14 +581,14 @@ export default function ContactosPage() {
                           <label
                             key={empresa.id}
                             className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
-                              isChecked ? 'bg-blue-950/30' : 'hover:bg-surface-muted/40'
+                              isChecked ? 'bg-blue-50' : 'hover:bg-surface-muted/40'
                             }`}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleEmpresa(empresa.id)}
-                              className="w-4 h-4 rounded border-border bg-surface-muted text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 shrink-0"
+                              className="w-4 h-4 rounded border-border bg-surface-muted text-blue-500 focus:ring-blue-500 focus:ring-offset-white shrink-0"
                             />
                             {lineaOpt && (
                               <span
@@ -596,7 +596,7 @@ export default function ContactosPage() {
                                 title={empresa.linea}
                               />
                             )}
-                            <span className="text-sm text-gray-200 truncate flex-1">{empresa.nombre}</span>
+                            <span className="text-sm text-foreground truncate flex-1">{empresa.nombre}</span>
                             <span className="text-xs text-muted-foreground shrink-0">{empresa.pais}</span>
                           </label>
                         );
@@ -614,7 +614,7 @@ export default function ContactosPage() {
             {/* Línea activa */}
             <div className={`p-4 rounded-2xl border-2 ${activeOption.activeBg} ${activeOption.activeBorder}`}>
               <div className={`${activeOption.color} mb-2`}><activeOption.Icon size={24} /></div>
-              <p className="text-white font-semibold">{activeOption.shortLabel}</p>
+              <p className="text-foreground font-semibold">{activeOption.shortLabel}</p>
               <p className="text-xs text-muted-foreground mt-0.5">{activeOption.desc}</p>
             </div>
 
@@ -641,7 +641,7 @@ export default function ContactosPage() {
                     >
                       <Plus size={14} />
                     </button>
-                    <span className="text-xs text-gray-600">máx. 5</span>
+                    <span className="text-xs text-muted-foreground">máx. 5</span>
                   </div>
                 </div>
 
@@ -651,7 +651,7 @@ export default function ContactosPage() {
                     <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                       Tokens Apollo
                     </p>
-                    <p className={`text-sm font-mono font-bold ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
+                    <p className={`text-sm font-mono font-bold ${tokenOk ? 'text-green-600' : 'text-red-600'}`}>
                       {tokenEstimate.toLocaleString()} / {AVAILABLE_TOKENS.toLocaleString()}
                     </p>
                   </div>
@@ -661,11 +661,11 @@ export default function ContactosPage() {
                       style={{ width: `${tokenPct}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-600 mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     {empresasCount} empresa{empresasCount !== 1 ? 's' : ''} × {contactosPorEmpresa} contacto{contactosPorEmpresa !== 1 ? 's' : ''}
                   </p>
                   {!tokenOk && (
-                    <p className="text-xs text-red-400 mt-1">
+                    <p className="text-xs text-red-600 mt-1">
                       Supera los tokens disponibles. Reduce el lote o contactos.
                     </p>
                   )}
@@ -688,13 +688,13 @@ export default function ContactosPage() {
 
             {/* Estado */}
             {prospectSuccess && !prospectando && !dialogOpen && (
-              <div className="flex items-center gap-2 text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2.5">
+              <div className="flex items-center gap-2 text-green-700 text-sm bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
                 <CheckCircle size={15} />
                 Prospección iniciada — revisa la tabla en unos minutos
               </div>
             )}
             {prospectError && (
-              <div className="flex items-start gap-2 text-red-400 text-sm bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2.5">
+              <div className="flex items-start gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
                 <AlertCircle size={15} className="mt-0.5 shrink-0" />
                 {prospectError}
               </div>
@@ -717,10 +717,10 @@ export default function ContactosPage() {
         >
           <DialogContent showCloseButton={false} className="text-foreground max-w-sm">
             <DialogHeader>
-              <DialogTitle className="text-white text-base">Prospección en curso</DialogTitle>
+              <DialogTitle className="text-foreground text-base">Prospección en curso</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
-              <Loader2 size={40} className="animate-spin text-blue-400" />
+              <Loader2 size={40} className="animate-spin text-blue-600" />
               <p className="text-sm text-muted-foreground font-medium">Ejecutando WF03 Prospector...</p>
 
               {/* empresa list */}
@@ -797,10 +797,10 @@ export default function ContactosPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-muted border-border">
-                      <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
-                      <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
-                      <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
-                      <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                      <SelectItem value="ALL" className="text-foreground">Todas las líneas</SelectItem>
+                      <SelectItem value="BHS" className="text-foreground">BHS</SelectItem>
+                      <SelectItem value="Cartón" className="text-foreground">Cartón</SelectItem>
+                      <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={statusFiltro} onValueChange={v => { setStatusFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
@@ -808,10 +808,10 @@ export default function ContactosPage() {
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="bg-surface-muted border-border">
-                      <SelectItem value="ALL" className="text-gray-100">Todos</SelectItem>
-                      <SelectItem value="pendiente" className="text-gray-100">Pendiente</SelectItem>
-                      <SelectItem value="sincronizado" className="text-gray-100">Sincronizado</SelectItem>
-                      <SelectItem value="error" className="text-gray-100">Error</SelectItem>
+                      <SelectItem value="ALL" className="text-foreground">Todos</SelectItem>
+                      <SelectItem value="pendiente" className="text-foreground">Pendiente</SelectItem>
+                      <SelectItem value="sincronizado" className="text-foreground">Sincronizado</SelectItem>
+                      <SelectItem value="error" className="text-foreground">Error</SelectItem>
                     </SelectContent>
                   </Select>
                   {selectedIds.length > 0 && (
@@ -826,7 +826,7 @@ export default function ContactosPage() {
               <Card>
                 <CardContent className="p-0">
                   {isLoading ? (
-                    <div className="divide-y divide-gray-800/50">
+                    <div className="divide-y divide-border">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
                           <div className="h-4 w-4 bg-surface-muted rounded" />
@@ -858,19 +858,19 @@ export default function ContactosPage() {
                                 >
                                   <div className="flex items-center gap-1">
                                     {flexRender(header.column.columnDef.header, header.getContext())}
-                                    {header.column.getIsSorted() === 'asc' && <span className="text-blue-400">↑</span>}
-                                    {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
+                                    {header.column.getIsSorted() === 'asc' && <span className="text-blue-600">↑</span>}
+                                    {header.column.getIsSorted() === 'desc' && <span className="text-blue-600">↓</span>}
                                   </div>
                                 </th>
                               ))}
                             </tr>
                           ))}
                         </thead>
-                        <tbody className="divide-y divide-gray-800/50">
+                        <tbody className="divide-y divide-border">
                           {table.getRowModel().rows.map(row => (
                             <tr
                               key={row.id}
-                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-surface-muted/30'}`}
+                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-50' : 'hover:bg-surface-muted/30'}`}
                             >
                               {row.getVisibleCells().map(cell => (
                                 <td key={cell.id} className="px-4 py-3">
@@ -929,10 +929,10 @@ export default function ContactosPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent className="bg-surface-muted border-border">
-                    <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
-                    <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
-                    <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
-                    <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                    <SelectItem value="ALL" className="text-foreground">Todas las líneas</SelectItem>
+                    <SelectItem value="BHS" className="text-foreground">BHS</SelectItem>
+                    <SelectItem value="Cartón" className="text-foreground">Cartón</SelectItem>
+                    <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -940,7 +940,7 @@ export default function ContactosPage() {
               <Card>
                 <CardContent className="p-0">
                   {logsLoading ? (
-                    <div className="divide-y divide-gray-800/50">
+                    <div className="divide-y divide-border">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
                           <div className="h-4 bg-surface-muted rounded w-40" />
@@ -968,29 +968,29 @@ export default function ContactosPage() {
                             <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Fecha</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800/50">
+                        <tbody className="divide-y divide-border">
                           {prospeccionLogs.map(log => (
                             <tr key={log.id} className="hover:bg-surface-muted/30 transition-colors">
                               <td className="px-4 py-3">
-                                <span className="text-sm text-gray-200 font-medium">{log.empresaNombre}</span>
+                                <span className="text-sm text-foreground font-medium">{log.empresaNombre}</span>
                               </td>
                               <td className="px-4 py-3">
                                 <span className="text-xs text-muted-foreground">{log.linea}</span>
                               </td>
                               <td className="px-4 py-3">
                                 {log.estado === 'running' && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-800">
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
                                     <Loader2 size={12} className="animate-spin" />
                                     Ejecutando...
                                   </span>
                                 )}
                                 {log.estado === 'success' && (
-                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-300 border border-green-800">
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                                     Completado
                                   </span>
                                 )}
                                 {log.estado === 'error' && (
-                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400 border border-red-800">
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
                                     Error
                                   </span>
                                 )}

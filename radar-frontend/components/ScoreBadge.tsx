@@ -20,10 +20,10 @@ export function getScoreTier(raw: number): ScoreTier {
 }
 
 const tierStyles: Record<ScoreTier, string> = {
-  ORO:        'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
-  Monitoreo:  'bg-blue-900/60  text-blue-300  border border-blue-700',
-  Contexto:   'bg-surface-muted     text-muted-foreground  border border-border',
-  'Sin Señal':'bg-surface     text-muted-foreground  border border-border',
+  ORO:        'bg-yellow-50 text-yellow-700 border border-yellow-300',
+  Monitoreo:  'bg-blue-50   text-blue-700   border border-blue-200',
+  Contexto:   'bg-surface-muted text-muted-foreground border border-border',
+  'Sin Señal':'bg-surface   text-muted-foreground border border-border',
 };
 
 interface ScoreBadgeProps {

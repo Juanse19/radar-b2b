@@ -33,13 +33,13 @@ const TIER_OPTIONS = [
 const POR_PAGINA = 50;
 
 const LINEA_FILTER_OPTIONS = [
-  { value: 'ALL',            label: 'Todas',             color: 'text-gray-200',    dot: 'bg-gray-400' },
-  { value: 'BHS',            label: '✈️ BHS',            color: 'text-blue-400',    dot: 'bg-blue-500' },
-  { value: 'Cartón',         label: '📦 Cartón',         color: 'text-amber-400',   dot: 'bg-amber-500' },
-  { value: 'Intralogística', label: '🏭 Intralogística', color: 'text-emerald-400', dot: 'bg-emerald-500' },
-  { value: 'Final de Línea', label: '📤 Final de Línea', color: 'text-violet-400',  dot: 'bg-violet-500' },
-  { value: 'Motos',          label: '🏍️ Motos',          color: 'text-orange-400',  dot: 'bg-orange-500' },
-  { value: 'SOLUMAT',        label: '🔧 SOLUMAT',        color: 'text-cyan-400',    dot: 'bg-cyan-500' },
+  { value: 'ALL',            label: 'Todas',             color: 'text-muted-foreground',    dot: 'bg-gray-400' },
+  { value: 'BHS',            label: '✈️ BHS',            color: 'text-blue-600',    dot: 'bg-blue-500' },
+  { value: 'Cartón',         label: '📦 Cartón',         color: 'text-amber-600',   dot: 'bg-amber-500' },
+  { value: 'Intralogística', label: '🏭 Intralogística', color: 'text-emerald-600', dot: 'bg-emerald-500' },
+  { value: 'Final de Línea', label: '📤 Final de Línea', color: 'text-violet-600',  dot: 'bg-violet-500' },
+  { value: 'Motos',          label: '🏍️ Motos',          color: 'text-orange-600',  dot: 'bg-orange-500' },
+  { value: 'SOLUMAT',        label: '🔧 SOLUMAT',        color: 'text-cyan-600',    dot: 'bg-cyan-500' },
 ];
 
 // ── Loading skeleton shown while Suspense waits for useSearchParams ────────────
@@ -55,7 +55,7 @@ function ResultsLoadingSkeleton() {
         <div className="h-9 bg-surface-muted rounded w-32 animate-pulse" />
       </div>
       <div className="border-b border-border h-12 animate-pulse" />
-      <div className="divide-y divide-gray-800/50">
+      <div className="divide-y divide-border">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex gap-4 px-4 py-4 animate-pulse">
             <div className="h-4 bg-surface-muted rounded w-40" />
@@ -169,8 +169,8 @@ function ResultsInner() {
               <span className="font-medium text-foreground">{lineaFiltro}</span>
             ) : 'Todas las líneas'}
             {' · '}{results.length} empresa{results.length !== 1 ? 's' : ''}
-            {conSenalCount > 0 && <> · <span className="text-green-400">{conSenalCount} con señal</span></>}
-            {oroCount > 0 && <> · <span className="text-yellow-400">★ {oroCount} ORO</span></>}
+            {conSenalCount > 0 && <> · <span className="text-green-600">{conSenalCount} con señal</span></>}
+            {oroCount > 0 && <> · <span className="text-yellow-600">★ {oroCount} ORO</span></>}
           </p>
         </div>
         <Button onClick={exportarCSV} variant="outline" className="border-border text-muted-foreground hover:bg-surface-muted gap-2">
@@ -215,8 +215,8 @@ function ResultsInner() {
             onClick={() => setActiveTab(tab.id as 'signals' | 'calificacion' | 'radar' | 'contactos')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-blue-600 text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-gray-200 hover:bg-surface-muted'
+                ? 'bg-blue-600 text-white shadow-sm'
+                : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
             }`}
           >
             <tab.Icon size={14} />
@@ -272,7 +272,7 @@ function ResultsInner() {
           <Card>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="divide-y divide-gray-800/50">
+                <div className="divide-y divide-border">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="flex gap-4 px-4 py-4 animate-pulse">
                       <div className="h-4 bg-surface-muted rounded w-40" />
@@ -304,15 +304,15 @@ function ResultsInner() {
                             >
                               <div className="flex items-center gap-1">
                                 {flexRender(header.column.columnDef.header, header.getContext())}
-                                {header.column.getIsSorted() === 'asc' && <span className="text-blue-400">↑</span>}
-                                {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
+                                {header.column.getIsSorted() === 'asc' && <span className="text-blue-600">↑</span>}
+                                {header.column.getIsSorted() === 'desc' && <span className="text-blue-600">↓</span>}
                               </div>
                             </th>
                           ))}
                         </tr>
                       ))}
                     </thead>
-                    <tbody className="divide-y divide-gray-800/50">
+                    <tbody className="divide-y divide-border">
                       {table.getRowModel().rows.map(row => (
                         <tr
                           key={row.id}
@@ -371,9 +371,9 @@ function ResultsInner() {
               <div className="p-8 text-center text-muted-foreground">Cargando datos de calificación...</div>
             ) : results.length === 0 ? (
               <div className="p-8 text-center">
-                <ClipboardCheck size={32} className="mx-auto text-gray-600 mb-3" />
+                <ClipboardCheck size={32} className="mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground text-sm">No hay empresas calificadas aún.</p>
-                <p className="text-gray-600 text-xs mt-1">Los registros aparecen aquí cuando el Agente Calificador procesa empresas.</p>
+                <p className="text-muted-foreground text-xs mt-1">Los registros aparecen aquí cuando el Agente Calificador procesa empresas.</p>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -387,10 +387,10 @@ function ResultsInner() {
                     <th className="px-4 py-3 text-muted-foreground font-medium">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800">
+                <tbody className="divide-y divide-border">
                   {results.map((r, i) => (
                     <tr key={i} className="hover:bg-surface-muted/50 transition-colors">
-                      <td className="px-4 py-2.5 text-gray-200 font-medium">{r.empresa}</td>
+                      <td className="px-4 py-2.5 text-foreground font-medium">{r.empresa}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{r.pais}</td>
                       <td className="px-4 py-2.5"><LineaBadge linea={r.linea} /></td>
                       <td className="px-4 py-2.5"><ScoreBadge score={r.scoreRadar} /></td>
@@ -413,7 +413,7 @@ function ResultsInner() {
           ) : results.filter(r => r.radarActivo === 'Sí').length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <Radar size={32} className="mx-auto text-gray-600 mb-3" />
+                <Radar size={32} className="mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground text-sm">No hay señales detectadas aún.</p>
               </CardContent>
             </Card>
@@ -433,7 +433,7 @@ function ResultsInner() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">{r.fechaEscaneo}</p>
-                      <p className="text-xs text-gray-600 mt-1">{r.pais}</p>
+                      <p className="text-xs text-muted-foreground mt-1">{r.pais}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -451,9 +451,9 @@ function ResultsInner() {
               <div className="p-8 text-center text-muted-foreground">Cargando contactos...</div>
             ) : contactos.length === 0 ? (
               <div className="p-8 text-center">
-                <Users size={32} className="mx-auto text-gray-600 mb-3" />
+                <Users size={32} className="mx-auto text-muted-foreground mb-3" />
                 <p className="text-muted-foreground text-sm">No hay contactos prospectados aún.</p>
-                <p className="text-gray-600 text-xs mt-1">Los contactos aparecen cuando el Agente Prospector extrae datos de Apollo.io.</p>
+                <p className="text-muted-foreground text-xs mt-1">Los contactos aparecen cuando el Agente Prospector extrae datos de Apollo.io.</p>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -467,7 +467,7 @@ function ResultsInner() {
                     <th className="px-4 py-3 text-muted-foreground font-medium">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-800">
+                <tbody className="divide-y divide-border">
                   {(contactos as Array<{
                     nombre?: string;
                     cargo?: string;
@@ -477,15 +477,15 @@ function ResultsInner() {
                     createdAt?: string;
                   }>).map((c, i) => (
                     <tr key={i} className="hover:bg-surface-muted/50 transition-colors">
-                      <td className="px-4 py-2.5 text-gray-200 font-medium">{c.nombre}</td>
+                      <td className="px-4 py-2.5 text-foreground font-medium">{c.nombre}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.cargo ?? '—'}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.empresaNombre ?? '—'}</td>
                       <td className="px-4 py-2.5">{c.lineaNegocio ? <LineaBadge linea={c.lineaNegocio} /> : '—'}</td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          c.hubspotStatus === 'sincronizado' ? 'bg-green-900/60 text-green-300' :
-                          c.hubspotStatus === 'error' ? 'bg-red-900/60 text-red-300' :
-                          'bg-yellow-900/60 text-yellow-300'
+                          c.hubspotStatus === 'sincronizado' ? 'bg-green-50 text-green-700 border border-green-200' :
+                          c.hubspotStatus === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
+                          'bg-yellow-50 text-yellow-700 border border-yellow-200'
                         }`}>
                           {c.hubspotStatus}
                         </span>

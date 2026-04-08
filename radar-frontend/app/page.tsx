@@ -133,7 +133,7 @@ export default function DashboardPage() {
       <Card>
         <CardHeader>
           <CardTitle className="text-base flex items-center gap-2">
-            <span className="text-warning">★</span>
+            <span className="text-yellow-500">★</span>
             Señales ORO — Top por Score
           </CardTitle>
         </CardHeader>

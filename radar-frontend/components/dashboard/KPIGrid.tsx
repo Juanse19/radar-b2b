@@ -42,29 +42,29 @@ export function KPIGrid({ senalesOro, escaneadasHoy, contactosExtraidos, isLoadi
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
       <KPICard
-        icon={<TrendingUp size={20} className="text-yellow-400" />}
-        iconBg="bg-yellow-900/60"
+        icon={<TrendingUp size={20} className="text-yellow-600" />}
+        iconBg="bg-yellow-50"
         label="Señales ORO activas"
         value={senalesOro}
         isLoading={isLoading}
       />
       <KPICard
-        icon={<Building2 size={20} className="text-blue-400" />}
-        iconBg="bg-blue-900/60"
+        icon={<Building2 size={20} className="text-blue-600" />}
+        iconBg="bg-blue-50"
         label="Empresas escaneadas"
         value={escaneadasHoy}
         isLoading={isLoading}
       />
       <KPICard
-        icon={<Users size={20} className="text-emerald-400" />}
-        iconBg="bg-emerald-900/60"
+        icon={<Users size={20} className="text-emerald-600" />}
+        iconBg="bg-emerald-50"
         label="Contactos extraídos"
         value={contactosExtraidos}
         isLoading={isLoading}
       />
       <KPICard
-        icon={<DollarSign size={20} className="text-purple-400" />}
-        iconBg="bg-purple-900/60"
+        icon={<DollarSign size={20} className="text-violet-600" />}
+        iconBg="bg-violet-50"
         label="Costo mensual APIs"
         value="~$80/mes"
         isLoading={false}

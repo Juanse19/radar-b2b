@@ -151,25 +151,19 @@ async function main() {
 
   // UPSERT in batches
   const BATCH = 100;
-  let totalInserted = 0;
-  let totalUpdated  = 0;
 
   for (let i = 0; i < records.length; i += BATCH) {
     const batch = records.slice(i, i + BATCH);
 
-    const { data, error } = await db
+    const { error } = await db
       .from('empresas')
-      .upsert(batch, { onConflict: 'company_name,linea_negocio' })
-      .select('id');
+      .upsert(batch, { onConflict: 'company_name,linea_negocio' });
 
     if (error) {
       console.error(`❌  Batch ${i}–${i + BATCH}: ${error.message}`);
       process.exit(1);
     }
 
-    // Supabase upsert returns all affected rows; we approximate inserted vs updated
-    // by checking if the returned count matches the batch size.
-    totalInserted += (data ?? []).length;
     process.stdout.write(`  ${Math.min(i + BATCH, records.length)}/${records.length}\r`);
   }
 

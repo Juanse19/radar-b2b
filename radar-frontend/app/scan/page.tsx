@@ -39,10 +39,10 @@ const LINEA_OPTIONS: {
     shortLabel: 'BHS',
     desc: 'Terminales, carruseles, sorters',
     Icon: Plane,
-    color: 'text-secondary',
-    activeBg: 'bg-blue-950/60',
-    activeBorder: 'border-blue-500',
-    badge: 'bg-blue-900 text-blue-300',
+    color: 'text-blue-600',
+    activeBg: 'bg-blue-50',
+    activeBorder: 'border-blue-400',
+    badge: 'bg-blue-100 text-blue-700',
   },
   {
     value: 'Cartón',
@@ -50,10 +50,10 @@ const LINEA_OPTIONS: {
     shortLabel: 'Cartón',
     desc: 'Plantas corrugadoras, empaque',
     Icon: Package,
-    color: 'text-amber-400',
-    activeBg: 'bg-amber-950/60',
-    activeBorder: 'border-amber-500',
-    badge: 'bg-amber-900 text-amber-300',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-50',
+    activeBorder: 'border-amber-400',
+    badge: 'bg-amber-100 text-amber-700',
   },
   {
     value: 'Intralogística',
@@ -61,10 +61,10 @@ const LINEA_OPTIONS: {
     shortLabel: 'Intralogística',
     desc: 'CEDI, WMS, ASRS, conveyor',
     Icon: Warehouse,
-    color: 'text-emerald-400',
-    activeBg: 'bg-emerald-950/60',
-    activeBorder: 'border-emerald-500',
-    badge: 'bg-emerald-900 text-emerald-300',
+    color: 'text-emerald-600',
+    activeBg: 'bg-emerald-50',
+    activeBorder: 'border-emerald-400',
+    badge: 'bg-emerald-100 text-emerald-700',
   },
   {
     value: 'Final de Línea',
@@ -72,10 +72,10 @@ const LINEA_OPTIONS: {
     shortLabel: 'Final Línea',
     desc: 'Alimentos, bebidas, palletizado',
     Icon: Factory,
-    color: 'text-orange-400',
-    activeBg: 'bg-orange-950/60',
-    activeBorder: 'border-orange-500',
-    badge: 'bg-orange-900 text-orange-300',
+    color: 'text-orange-600',
+    activeBg: 'bg-orange-50',
+    activeBorder: 'border-orange-400',
+    badge: 'bg-orange-100 text-orange-700',
   },
   {
     value: 'Motos',
@@ -83,21 +83,21 @@ const LINEA_OPTIONS: {
     shortLabel: 'Motos',
     desc: 'Ensambladoras, motocicletas',
     Icon: Bike,
-    color: 'text-rose-400',
-    activeBg: 'bg-rose-950/60',
-    activeBorder: 'border-rose-500',
-    badge: 'bg-rose-900 text-rose-300',
+    color: 'text-violet-600',
+    activeBg: 'bg-violet-50',
+    activeBorder: 'border-violet-400',
+    badge: 'bg-violet-100 text-violet-700',
   },
   {
-    value: 'SOLUMAT',
+    value: 'Solumat',
     label: 'Solumat — Plásticos',
     shortLabel: 'Solumat',
     desc: 'Plásticos, materiales industriales',
     Icon: Truck,
-    color: 'text-violet-400',
-    activeBg: 'bg-violet-950/60',
-    activeBorder: 'border-violet-500',
-    badge: 'bg-violet-900 text-violet-300',
+    color: 'text-cyan-600',
+    activeBg: 'bg-cyan-50',
+    activeBorder: 'border-cyan-400',
+    badge: 'bg-cyan-100 text-cyan-700',
   },
   {
     value: 'ALL',
@@ -105,10 +105,10 @@ const LINEA_OPTIONS: {
     shortLabel: 'Todas',
     desc: 'Escaneo global completo',
     Icon: Globe,
-    color: 'text-indigo-400',
-    activeBg: 'bg-indigo-950/60',
-    activeBorder: 'border-indigo-500',
-    badge: 'bg-indigo-900 text-indigo-300',
+    color: 'text-indigo-600',
+    activeBg: 'bg-indigo-50',
+    activeBorder: 'border-indigo-400',
+    badge: 'bg-indigo-100 text-indigo-700',
   },
 ];
 
@@ -344,8 +344,8 @@ export default function ScanPage() {
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
-              <div className="p-2 bg-blue-950 rounded-lg border border-blue-800">
-                <Radar size={20} className="text-secondary" />
+              <div className="p-2 bg-blue-50 rounded-lg border border-blue-200">
+                <Radar size={20} className="text-blue-600" />
               </div>
               <h1 className="text-3xl font-bold text-foreground tracking-tight">Lanzar Escaneo</h1>
             </div>
@@ -371,7 +371,7 @@ export default function ScanPage() {
           {/* Line selector — visual cards */}
           <Card className="bg-surface border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              <CardTitle className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                 01 — Línea de negocio
               </CardTitle>
             </CardHeader>
@@ -397,7 +397,7 @@ export default function ScanPage() {
                       <div className={`mb-3 ${isActive ? opt.color : 'text-muted-foreground'} transition-colors`}>
                         <opt.Icon size={28} />
                       </div>
-                      <p className={`font-semibold text-sm mb-0.5 ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
+                      <p className={`font-semibold text-sm mb-0.5 ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {opt.shortLabel}
                       </p>
                       <p className="text-xs text-muted-foreground leading-snug mb-2">{opt.desc}</p>
@@ -407,7 +407,7 @@ export default function ScanPage() {
                         </span>
                       )}
                       {isActive && (
-                        <span className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${opt.color.replace('text-', 'bg-')} ring-2 ring-gray-900`} />
+                        <span className={`absolute top-3 right-3 w-2.5 h-2.5 rounded-full ${opt.color.replace('text-', 'bg-')} ring-2 ring-white`} />
                       )}
                     </button>
                   );
@@ -420,7 +420,7 @@ export default function ScanPage() {
           {!selectMode && (
             <Card className="bg-surface border-border">
               <CardHeader className="pb-3">
-                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   02 — Cantidad de empresas
                 </CardTitle>
               </CardHeader>
@@ -472,7 +472,7 @@ export default function ScanPage() {
           <Card className="bg-surface border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   03 — Selección específica
                 </CardTitle>
                 <div className="flex items-center gap-3">
@@ -502,7 +502,7 @@ export default function ScanPage() {
                     </span>
                     <div className="flex items-center gap-3">
                       <button type="button" onClick={selectAll}
-                        className="text-xs text-secondary hover:text-blue-300 flex items-center gap-1 transition-colors">
+                        className="text-xs text-secondary hover:text-blue-700 flex items-center gap-1 transition-colors">
                         <CheckSquare size={12} /> Todas
                       </button>
                       <span className="text-muted-foreground">|</span>
@@ -617,14 +617,14 @@ export default function ScanPage() {
 
           {/* Error */}
           {error && (
-            <div className="bg-red-950/60 border border-red-800 rounded-xl p-4 flex items-start gap-3">
+            <div className="bg-red-50 border border-red-200 rounded-xl p-4 flex items-start gap-3">
               <div className="flex-1">
-                <p className="text-red-400 text-sm font-medium mb-1">Error al lanzar escaneo</p>
-                <p className="text-red-300/70 text-xs">{error}</p>
+                <p className="text-red-700 text-sm font-medium mb-1">Error al lanzar escaneo</p>
+                <p className="text-red-600 text-xs">{error}</p>
               </div>
               <Button
                 onClick={reintentar}
-                className="flex-shrink-0 border border-red-700 bg-transparent text-red-300 hover:bg-red-900 hover:text-red-100 h-8 px-3 text-xs gap-1"
+                className="flex-shrink-0 border border-red-300 bg-transparent text-red-700 hover:bg-red-100 hover:text-red-800 h-8 px-3 text-xs gap-1"
               >
                 <RotateCcw size={13} />
                 Reintentar
@@ -694,7 +694,7 @@ export default function ScanPage() {
                   <button
                     type="button"
                     onClick={() => setShowPreview(p => !p)}
-                    className="text-xs text-secondary hover:text-blue-300 transition-colors"
+                    className="text-xs text-secondary hover:text-blue-700 transition-colors"
                   >
                     {showPreview ? 'Ocultar' : 'Mostrar'}
                   </button>
@@ -760,8 +760,8 @@ export default function ScanPage() {
                 className={`
                   relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed cursor-pointer transition-all
                   ${csvDragOver
-                    ? 'border-blue-500 bg-blue-950/30'
-                    : 'border-border hover:border-secondary bg-surface-muted/40 hover:bg-surface-muted/70'}
+                    ? 'border-blue-400 bg-blue-50'
+                    : 'border-border hover:border-blue-400 bg-surface-muted/40 hover:bg-surface-muted/70'}
                 `}
               >
                 <input
@@ -796,7 +796,7 @@ export default function ScanPage() {
                     <Button
                       onClick={importarCsv}
                       disabled={csvImporting}
-                      className="bg-emerald-700 hover:bg-emerald-600 text-foreground text-xs h-6 px-3 gap-1"
+                      className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs h-6 px-3 gap-1"
                     >
                       {csvImporting ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                       Importar
@@ -820,17 +820,17 @@ export default function ScanPage() {
               )}
 
               {csvRows !== null && csvRows.length === 0 && (
-                <p className="text-red-400 text-xs">No se encontraron empresas válidas.</p>
+                <p className="text-red-600 text-xs">No se encontraron empresas válidas.</p>
               )}
 
               {csvResult && csvResult.inserted >= 0 && (
-                <p className="text-emerald-400 text-xs">
+                <p className="text-emerald-600 text-xs">
                   {csvResult.inserted} empresa{csvResult.inserted !== 1 ? 's' : ''} importada{csvResult.inserted !== 1 ? 's' : ''}
                   {csvResult.skipped > 0 ? ` · ${csvResult.skipped} omitidas` : ''}
                 </p>
               )}
               {csvResult && csvResult.inserted === -1 && (
-                <p className="text-red-400 text-xs">Error al importar. Intenta de nuevo.</p>
+                <p className="text-red-600 text-xs">Error al importar. Intenta de nuevo.</p>
               )}
             </CardContent>
           </Card>

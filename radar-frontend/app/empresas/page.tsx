@@ -74,44 +74,44 @@ const LINEA_OPTIONS: {
     label: 'Todas',
     desc: 'Todas las líneas',
     Icon: Globe,
-    color: 'text-indigo-400',
-    activeBg: 'bg-indigo-950/60',
-    activeBorder: 'border-indigo-500',
-    badge: 'bg-indigo-900 text-indigo-300',
-    dot: 'bg-indigo-400',
+    color: 'text-indigo-600',
+    activeBg: 'bg-indigo-50',
+    activeBorder: 'border-indigo-400',
+    badge: 'bg-indigo-100 text-indigo-700',
+    dot: 'bg-indigo-500',
   },
   {
     value: 'BHS',
     label: 'BHS',
     desc: 'Aeropuertos y cargo',
     Icon: Plane,
-    color: 'text-blue-400',
-    activeBg: 'bg-blue-950/60',
-    activeBorder: 'border-blue-500',
-    badge: 'bg-blue-900 text-blue-300',
-    dot: 'bg-blue-400',
+    color: 'text-blue-600',
+    activeBg: 'bg-blue-50',
+    activeBorder: 'border-blue-400',
+    badge: 'bg-blue-100 text-blue-700',
+    dot: 'bg-blue-500',
   },
   {
     value: 'Cartón',
     label: 'Cartón',
     desc: 'Corrugadoras, empaque',
     Icon: Package,
-    color: 'text-amber-400',
-    activeBg: 'bg-amber-950/60',
-    activeBorder: 'border-amber-500',
-    badge: 'bg-amber-900 text-amber-300',
-    dot: 'bg-amber-400',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-50',
+    activeBorder: 'border-amber-400',
+    badge: 'bg-amber-100 text-amber-700',
+    dot: 'bg-amber-500',
   },
   {
     value: 'Intralogística',
     label: 'Intralogística',
     desc: 'CEDI, WMS, ASRS',
     Icon: Warehouse,
-    color: 'text-emerald-400',
-    activeBg: 'bg-emerald-950/60',
-    activeBorder: 'border-emerald-500',
-    badge: 'bg-emerald-900 text-emerald-300',
-    dot: 'bg-emerald-400',
+    color: 'text-emerald-600',
+    activeBg: 'bg-emerald-50',
+    activeBorder: 'border-emerald-400',
+    badge: 'bg-emerald-100 text-emerald-700',
+    dot: 'bg-emerald-500',
   },
 ];
 
@@ -119,7 +119,7 @@ const LINEA_OPTIONS: {
 
 function TableSkeleton() {
   return (
-    <div className="divide-y divide-gray-800">
+    <div className="divide-y divide-border">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex gap-4 px-5 py-4 animate-pulse items-center">
           <div className="h-4 bg-surface-muted rounded w-48" />
@@ -154,6 +154,7 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
 
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setForm(
         initial
           ? {
@@ -189,7 +190,7 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
           {/* Nombre */}
           <div className="space-y-1.5">
             <Label className="text-muted-foreground">
-              Nombre de la empresa <span className="text-red-400">*</span>
+              Nombre de la empresa <span className="text-red-500">*</span>
             </Label>
             <Input
               required
@@ -240,16 +241,16 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-muted-foreground">
-                Línea de negocio <span className="text-red-400">*</span>
+                Línea de negocio <span className="text-red-500">*</span>
               </Label>
               <Select value={form.linea_negocio} onValueChange={v => v && field('linea_negocio', v)}>
                 <SelectTrigger className="w-full bg-surface-muted border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="BHS"            className="text-gray-100">BHS</SelectItem>
-                  <SelectItem value="Cartón"         className="text-gray-100">Cartón</SelectItem>
-                  <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                  <SelectItem value="BHS"            className="text-foreground">BHS</SelectItem>
+                  <SelectItem value="Cartón"         className="text-foreground">Cartón</SelectItem>
+                  <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -260,9 +261,9 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="Tier A" className="text-gray-100">Tier A</SelectItem>
-                  <SelectItem value="Tier B" className="text-gray-100">Tier B</SelectItem>
-                  <SelectItem value="Tier C" className="text-gray-100">Tier C</SelectItem>
+                  <SelectItem value="Tier A" className="text-foreground">Tier A</SelectItem>
+                  <SelectItem value="Tier B" className="text-foreground">Tier B</SelectItem>
+                  <SelectItem value="Tier C" className="text-foreground">Tier C</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -276,7 +277,7 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
+              className="border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground"
             >
               Cancelar
             </Button>
@@ -539,7 +540,7 @@ export default function EmpresasPage() {
                 <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
                   <opt.Icon size={20} />
                 </div>
-                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
+                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                   {cnt}
                 </p>
                 <p className={`text-xs mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
@@ -579,10 +580,10 @@ export default function EmpresasPage() {
                   <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
                     <opt.Icon size={24} />
                   </div>
-                  <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
+                  <p className={`font-semibold text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {opt.label}
                   </p>
-                  <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
                   {cnt > 0 && (
                     <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-surface-muted text-muted-foreground'}`}>
                       {cnt} empresa{cnt !== 1 ? 's' : ''}
@@ -640,7 +641,7 @@ export default function EmpresasPage() {
               }
             />
           ) : (
-            <div className="divide-y divide-gray-800">
+            <div className="divide-y divide-border">
               {filtered.map(empresa => (
                 <div
                   key={empresa.id}
@@ -660,7 +661,7 @@ export default function EmpresasPage() {
                       }`}
                     />
                     <span
-                      className="text-white text-sm font-medium truncate"
+                      className="text-foreground text-sm font-medium truncate"
                       title={empresa.nombre}
                     >
                       {empresa.nombre}
@@ -690,7 +691,7 @@ export default function EmpresasPage() {
                     <Link
                       href={`/empresas/${empresa.id}`}
                       title="Ver detalle"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-950 transition-colors opacity-0 group-hover:opacity-100"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <Eye size={13} />
                     </Link>
@@ -698,7 +699,7 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => openEdit(empresa)}
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-white hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Editar"
                     >
                       <Pencil size={13} />
@@ -707,7 +708,7 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setDeleteId(empresa.id)}
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Eliminar"
                     >
                       <Trash2 size={13} />
@@ -730,7 +731,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 gap-1"
                 >
                   <ChevronLeft size={14} /> Anterior
                 </Button>
@@ -739,7 +740,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 gap-1"
                 >
                   Siguiente <ChevronRight size={14} />
                 </Button>
@@ -774,7 +775,7 @@ export default function EmpresasPage() {
               <Button
                 variant="outline"
                 onClick={() => setDeleteId(null)}
-                className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
+                className="border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground"
               >
                 Cancelar
               </Button>
