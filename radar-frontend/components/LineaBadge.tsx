@@ -16,7 +16,7 @@ interface LineaBadgeProps {
 }
 
 export function LineaBadge({ linea, className }: LineaBadgeProps) {
-  const style = lineaStyles[linea] ?? 'bg-gray-800 text-gray-300 border border-gray-700';
+  const style = lineaStyles[linea] ?? 'bg-surface-muted text-muted-foreground border border-border';
   return (
     <span className={cn(
       'inline-block px-2 py-0.5 rounded-full text-xs font-medium',

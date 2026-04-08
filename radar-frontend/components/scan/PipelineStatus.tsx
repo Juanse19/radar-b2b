@@ -204,7 +204,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
   }
 
   return (
-    <div className="bg-gray-900 border border-gray-800 rounded-2xl p-5">
+    <div className="bg-surface border border-border rounded-2xl p-5">
       {/* Header */}
       <div className="flex items-center justify-between mb-5">
         <div className="flex items-center gap-2">
@@ -213,17 +213,17 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
           )}
           {allDone && <CheckCircle size={14} className="text-green-400" />}
           {hasError && <XCircle size={14} className="text-red-400" />}
-          <span className="text-sm font-semibold text-white">
+          <span className="text-sm font-semibold text-foreground">
             {allDone
               ? 'Pipeline completado'
               : hasError
               ? 'Error en pipeline'
               : 'Pipeline en ejecución'}
           </span>
-          <span className="text-xs text-gray-500">— {linea}</span>
+          <span className="text-xs text-muted-foreground">— {linea}</span>
         </div>
         {!allDone && !hasError && (
-          <span className="text-xs text-gray-600 tabular-nums">{elapsedSeconds}s</span>
+          <span className="text-xs text-muted-foreground tabular-nums">{elapsedSeconds}s</span>
         )}
       </div>
 
@@ -243,7 +243,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
               ? tokens.card
               : isErr
               ? 'bg-red-950/60 border-red-700'
-              : 'bg-gray-800/40 border-gray-700';
+              : 'bg-surface-muted/40 border-border';
 
           return (
             <div key={step.id} className="flex flex-col md:flex-row flex-1 items-center">
@@ -257,7 +257,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                         ? tokens.label
                         : isErr
                         ? 'text-red-400'
-                        : 'text-gray-600'
+                        : 'text-muted-foreground'
                     }`}
                   >
                     WF{step.num}
@@ -276,7 +276,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                         ? 'text-green-400'
                         : isErr
                         ? 'text-red-400'
-                        : 'text-gray-600'
+                        : 'text-muted-foreground'
                     }
                   />
                   <span
@@ -288,7 +288,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                         : isErr
                         ? 'text-red-300'
                         : isIdle
-                        ? 'text-gray-500'
+                        ? 'text-muted-foreground'
                         : 'text-white'
                     }`}
                   >
@@ -299,7 +299,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                 {/* Description */}
                 <p
                   className={`text-xs leading-snug ${
-                    isActive ? 'text-gray-300' : 'text-gray-600'
+                    isActive ? 'text-muted-foreground' : 'text-muted-foreground'
                   }`}
                 >
                   {step.desc}
@@ -307,7 +307,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
 
                 {/* Running indicator */}
                 {isActive && (
-                  <div className="mt-3 h-0.5 bg-gray-700 rounded-full overflow-hidden">
+                  <div className="mt-3 h-0.5 bg-surface-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full animate-pulse ${
                         step.color === 'blue'
@@ -331,7 +331,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                       className={`h-px w-6 transition-colors duration-700 ${
                         idx < currentStep || allDone
                           ? tokens.connector
-                          : 'bg-gray-700'
+                          : 'bg-surface-muted'
                       }`}
                     />
                     <div
@@ -348,7 +348,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
                       className={`w-px h-4 transition-colors duration-700 ${
                         idx < currentStep || allDone
                           ? tokens.connector
-                          : 'bg-gray-700'
+                          : 'bg-surface-muted'
                       }`}
                     />
                   </div>
@@ -361,7 +361,7 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
 
       {/* Timestamp fallback note */}
       {isTimestamp && (
-        <p className="mt-4 text-xs text-gray-600 text-center">
+        <p className="mt-4 text-xs text-muted-foreground text-center">
           El progreso se estima por tiempo — no hay ID de ejecución real disponible.
         </p>
       )}

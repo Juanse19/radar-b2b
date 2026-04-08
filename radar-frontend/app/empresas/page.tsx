@@ -122,15 +122,15 @@ function TableSkeleton() {
     <div className="divide-y divide-gray-800">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex gap-4 px-5 py-4 animate-pulse items-center">
-          <div className="h-4 bg-gray-800 rounded w-48" />
-          <div className="h-4 bg-gray-800 rounded w-20" />
-          <div className="h-4 bg-gray-800 rounded w-32" />
-          <div className="h-5 bg-gray-800 rounded-full w-24" />
-          <div className="h-5 bg-gray-800 rounded-full w-16" />
+          <div className="h-4 bg-surface-muted rounded w-48" />
+          <div className="h-4 bg-surface-muted rounded w-20" />
+          <div className="h-4 bg-surface-muted rounded w-32" />
+          <div className="h-5 bg-surface-muted rounded-full w-24" />
+          <div className="h-5 bg-surface-muted rounded-full w-16" />
           <div className="flex gap-1 ml-auto">
-            <div className="h-7 w-7 bg-gray-800 rounded-lg" />
-            <div className="h-7 w-7 bg-gray-800 rounded-lg" />
-            <div className="h-7 w-7 bg-gray-800 rounded-lg" />
+            <div className="h-7 w-7 bg-surface-muted rounded-lg" />
+            <div className="h-7 w-7 bg-surface-muted rounded-lg" />
+            <div className="h-7 w-7 bg-surface-muted rounded-lg" />
           </div>
         </div>
       ))}
@@ -180,15 +180,15 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
 
   return (
     <Dialog open={open} onOpenChange={v => { if (!v) onClose(); }}>
-      <DialogContent className="bg-gray-900 border-gray-700 text-white sm:max-w-lg">
+      <DialogContent className="text-foreground sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-white">{titulo}</DialogTitle>
+          <DialogTitle className="text-foreground">{titulo}</DialogTitle>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4 pt-2">
           {/* Nombre */}
           <div className="space-y-1.5">
-            <Label className="text-gray-300">
+            <Label className="text-muted-foreground">
               Nombre de la empresa <span className="text-red-400">*</span>
             </Label>
             <Input
@@ -196,57 +196,57 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
               value={form.company_name}
               onChange={e => field('company_name', e.target.value)}
               placeholder="Ej: Aeropuertos de Colombia S.A."
-              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* País / Ciudad — 2-column grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-gray-300">País</Label>
+              <Label className="text-muted-foreground">País</Label>
               <Input
                 value={form.pais}
                 onChange={e => field('pais', e.target.value)}
                 placeholder="Colombia"
-                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-300">
+              <Label className="text-muted-foreground">
                 Ciudad{' '}
-                <span className="text-gray-500 text-xs">(opcional)</span>
+                <span className="text-muted-foreground text-xs">(opcional)</span>
               </Label>
               <Input
                 value={form.ciudad}
                 onChange={e => field('ciudad', e.target.value)}
                 placeholder="Bogotá"
-                className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+                className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground"
               />
             </div>
           </div>
 
           {/* Dominio */}
           <div className="space-y-1.5">
-            <Label className="text-gray-300">Dominio</Label>
+            <Label className="text-muted-foreground">Dominio</Label>
             <Input
               value={form.company_domain}
               onChange={e => field('company_domain', e.target.value)}
               placeholder="empresa.com"
-              className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500"
+              className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground"
             />
           </div>
 
           {/* Línea / Tier — 2-column grid */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <Label className="text-gray-300">
+              <Label className="text-muted-foreground">
                 Línea de negocio <span className="text-red-400">*</span>
               </Label>
               <Select value={form.linea_negocio} onValueChange={v => v && field('linea_negocio', v)}>
-                <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white">
+                <SelectTrigger className="w-full bg-surface-muted border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent className="bg-surface-muted border-border">
                   <SelectItem value="BHS"            className="text-gray-100">BHS</SelectItem>
                   <SelectItem value="Cartón"         className="text-gray-100">Cartón</SelectItem>
                   <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
@@ -254,12 +254,12 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
               </Select>
             </div>
             <div className="space-y-1.5">
-              <Label className="text-gray-300">Tier</Label>
+              <Label className="text-muted-foreground">Tier</Label>
               <Select value={form.tier} onValueChange={v => v && field('tier', v)}>
-                <SelectTrigger className="w-full bg-gray-800 border-gray-700 text-white">
+                <SelectTrigger className="w-full bg-surface-muted border-border text-foreground">
                   <SelectValue />
                 </SelectTrigger>
-                <SelectContent className="bg-gray-800 border-gray-700">
+                <SelectContent className="bg-surface-muted border-border">
                   <SelectItem value="Tier A" className="text-gray-100">Tier A</SelectItem>
                   <SelectItem value="Tier B" className="text-gray-100">Tier B</SelectItem>
                   <SelectItem value="Tier C" className="text-gray-100">Tier C</SelectItem>
@@ -270,13 +270,13 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
 
           <DialogFooter
             showCloseButton={false}
-            className="bg-gray-900 border-gray-800 -mx-4 -mb-4 px-4 pb-4 pt-4 mt-2 rounded-b-xl flex flex-row justify-end gap-2"
+            className="-mx-4 -mb-4 px-4 pb-4 pt-4 mt-2 rounded-b-xl flex flex-row justify-end gap-2"
           >
             <Button
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+              className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
             >
               Cancelar
             </Button>
@@ -492,18 +492,18 @@ export default function EmpresasPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-800 rounded-lg border border-gray-700">
-              <Building2 size={20} className="text-gray-400" />
+            <div className="p-2 bg-surface-muted rounded-lg border border-border">
+              <Building2 size={20} className="text-muted-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Gestión de Empresas</h1>
-              <p className="text-gray-500 text-sm mt-0.5">
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Gestión de Empresas</h1>
+              <p className="text-muted-foreground text-sm mt-0.5">
                 Base de datos comercial — filtra, agrega y edita empresas por línea de negocio
               </p>
             </div>
@@ -533,16 +533,16 @@ export default function EmpresasPage() {
                   text-left p-4 rounded-xl border-2 transition-all duration-150
                   ${isActive
                     ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                    : 'bg-gray-900 border-gray-800 hover:border-gray-600 hover:bg-gray-800/60'}
+                    : 'bg-surface border-border hover:border-border hover:bg-surface-muted/60'}
                 `}
               >
-                <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-gray-500'}`}>
+                <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
                   <opt.Icon size={20} />
                 </div>
-                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
                   {cnt}
                 </p>
-                <p className={`text-xs mt-0.5 ${isActive ? 'text-gray-300' : 'text-gray-500'}`}>
+                <p className={`text-xs mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
                   {opt.label}
                 </p>
               </button>
@@ -552,7 +552,7 @@ export default function EmpresasPage() {
 
         {/* ── Line selector cards ─────────────────────────────────────────── */}
         <div>
-          <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold">
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
             Filtrar por línea
           </p>
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -570,21 +570,21 @@ export default function EmpresasPage() {
                     relative flex flex-col items-center text-center p-4 rounded-2xl border-2 transition-all duration-150
                     ${isActive
                       ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                      : 'bg-gray-900/60 border-gray-700/60 hover:border-gray-600 hover:bg-gray-800/60'}
+                      : 'bg-surface/60 border-border/60 hover:border-border hover:bg-surface-muted/60'}
                   `}
                 >
                   {isActive && (
                     <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
                   )}
-                  <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-gray-500'}`}>
+                  <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
                     <opt.Icon size={24} />
                   </div>
-                  <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-400'}`}>
+                  <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
                     {opt.label}
                   </p>
                   <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
                   {cnt > 0 && (
-                    <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-gray-800 text-gray-500'}`}>
+                    <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-surface-muted text-muted-foreground'}`}>
                       {cnt} empresa{cnt !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -598,20 +598,20 @@ export default function EmpresasPage() {
         <div className="relative max-w-sm">
           <Search
             size={15}
-            className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none"
+            className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none"
           />
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
             placeholder={`Buscar en ${activeOption.label}...`}
-            className="bg-gray-800 border-gray-700 text-white placeholder:text-gray-500 pl-9"
+            className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground pl-9"
           />
         </div>
 
         {/* ── Table ──────────────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-gray-800 overflow-hidden bg-gray-900">
+        <div className="rounded-xl border border-border overflow-hidden bg-surface">
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-3 bg-gray-800/60 text-xs font-medium text-gray-400 uppercase tracking-wide border-b border-gray-800">
+          <div className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-3 bg-surface-muted/60 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border">
             <span>Empresa</span>
             <span>País</span>
             <span>Dominio</span>
@@ -644,7 +644,7 @@ export default function EmpresasPage() {
               {filtered.map(empresa => (
                 <div
                   key={empresa.id}
-                  className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-gray-800/40 transition-colors group"
+                  className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-surface-muted/40 transition-colors group"
                 >
                   {/* Nombre con indicador de línea */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -667,12 +667,12 @@ export default function EmpresasPage() {
                     </span>
                   </div>
 
-                  <span className="text-gray-400 text-sm truncate">
+                  <span className="text-muted-foreground text-sm truncate">
                     {empresa.pais || '—'}
                   </span>
 
                   <span
-                    className="text-gray-500 text-xs truncate"
+                    className="text-muted-foreground text-xs truncate"
                     title={empresa.dominio}
                   >
                     {empresa.dominio || '—'}
@@ -690,7 +690,7 @@ export default function EmpresasPage() {
                     <Link
                       href={`/empresas/${empresa.id}`}
                       title="Ver detalle"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg text-gray-500 hover:text-blue-400 hover:bg-blue-950 transition-colors opacity-0 group-hover:opacity-100"
+                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-950 transition-colors opacity-0 group-hover:opacity-100"
                     >
                       <Eye size={13} />
                     </Link>
@@ -698,7 +698,7 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => openEdit(empresa)}
-                      className="h-7 w-7 p-0 text-gray-400 hover:text-white hover:bg-gray-700 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-white hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Editar"
                     >
                       <Pencil size={13} />
@@ -707,7 +707,7 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => setDeleteId(empresa.id)}
-                      className="h-7 w-7 p-0 text-gray-500 hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-red-400 hover:bg-red-950 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Eliminar"
                     >
                       <Trash2 size={13} />
@@ -720,8 +720,8 @@ export default function EmpresasPage() {
 
           {/* Pagination */}
           {!isFetching && totalCount > PAGE_SIZE && (
-            <div className="flex items-center justify-between px-5 py-3 border-t border-gray-800 bg-gray-900/40">
-              <span className="text-xs text-gray-500">
+            <div className="flex items-center justify-between px-5 py-3 border-t border-border bg-surface/40">
+              <span className="text-xs text-muted-foreground">
                 Página {page + 1} de {totalPages} · {totalCount} empresas
               </span>
               <div className="flex gap-2">
@@ -730,7 +730,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="h-7 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
                 >
                   <ChevronLeft size={14} /> Anterior
                 </Button>
@@ -739,7 +739,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="h-7 border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
                 >
                   Siguiente <ChevronRight size={14} />
                 </Button>
@@ -760,28 +760,28 @@ export default function EmpresasPage() {
 
         {/* ── Confirmación de eliminación ──────────────────────────────────── */}
         <Dialog open={!!deleteId} onOpenChange={v => { if (!v) setDeleteId(null); }}>
-          <DialogContent className="bg-gray-900 border-gray-700 text-white sm:max-w-sm">
+          <DialogContent className="text-foreground sm:max-w-sm">
             <DialogHeader>
-              <DialogTitle className="text-white">Confirmar eliminación</DialogTitle>
+              <DialogTitle className="text-foreground">Confirmar eliminación</DialogTitle>
             </DialogHeader>
-            <p className="text-gray-400 text-sm py-2">
+            <p className="text-muted-foreground text-sm py-2">
               Esta acción no se puede deshacer. ¿Seguro que deseas eliminar esta empresa?
             </p>
             <DialogFooter
               showCloseButton={false}
-              className="bg-gray-900 border-gray-800 -mx-4 -mb-4 px-4 pb-4 pt-4 rounded-b-xl flex flex-row justify-end gap-2"
+              className="-mx-4 -mb-4 px-4 pb-4 pt-4 rounded-b-xl flex flex-row justify-end gap-2"
             >
               <Button
                 variant="outline"
                 onClick={() => setDeleteId(null)}
-                className="border-gray-700 text-gray-300 hover:bg-gray-800 hover:text-white"
+                className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
               >
                 Cancelar
               </Button>
               <Button
                 onClick={() => { if (deleteId) deleteMutation.mutate(deleteId); }}
                 disabled={deleteMutation.isPending}
-                className="bg-red-700 hover:bg-red-600 text-white"
+                className="bg-red-700 hover:bg-red-600 text-foreground"
               >
                 {deleteMutation.isPending && (
                   <Loader2 size={14} className="mr-2 animate-spin" />

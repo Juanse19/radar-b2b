@@ -91,13 +91,13 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
                   ? 'text-green-400'
                   : isActive
                   ? 'text-blue-300'
-                  : 'text-gray-600'
+                  : 'text-muted-foreground'
               }`}
             >
               {label}
             </span>
             {i < STEP_LABELS.length - 1 && (
-              <span className="text-gray-700 text-xs hidden lg:inline">›</span>
+              <span className="text-muted-foreground text-xs hidden lg:inline">›</span>
             )}
           </div>
         );
@@ -118,7 +118,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 size={12} className="animate-spin" />
         Verificando N8N...
       </div>
@@ -127,7 +127,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
 
   if (!latest) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Clock size={12} />
         Sin ejecuciones recientes
       </div>
@@ -154,7 +154,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
       {isSuccess && (
         <>
           <CheckCircle2 size={12} className="text-green-400" />
-          <span className="text-gray-400">Último scan: {fecha}</span>
+          <span className="text-muted-foreground">Último scan: {fecha}</span>
         </>
       )}
       {isError && (
@@ -166,7 +166,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
       {/* Mini pipeline indicator when there's an active execution */}
       {activeExecutionId && (
         <>
-          <span className="text-gray-700">·</span>
+          <span className="text-muted-foreground">·</span>
           <MiniPipelineIndicator executionId={activeExecutionId} />
         </>
       )}

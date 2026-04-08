@@ -22,8 +22,8 @@ export function getScoreTier(raw: number): ScoreTier {
 const tierStyles: Record<ScoreTier, string> = {
   ORO:        'bg-yellow-900/60 text-yellow-300 border border-yellow-700',
   Monitoreo:  'bg-blue-900/60  text-blue-300  border border-blue-700',
-  Contexto:   'bg-gray-800     text-gray-400  border border-gray-700',
-  'Sin Señal':'bg-gray-900     text-gray-600  border border-gray-800',
+  Contexto:   'bg-surface-muted     text-muted-foreground  border border-border',
+  'Sin Señal':'bg-surface     text-muted-foreground  border border-border',
 };
 
 interface ScoreBadgeProps {

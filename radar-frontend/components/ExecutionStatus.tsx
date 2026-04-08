@@ -57,7 +57,7 @@ export function ExecutionStatusBadge({ executionId, onComplete }: Props) {
   );
 
   if (!data) return (
-    <div className="flex items-center gap-2 text-gray-400 text-sm animate-pulse">
+    <div className="flex items-center gap-2 text-muted-foreground text-sm animate-pulse">
       <Loader2 size={16} className="animate-spin" /> Iniciando escaneo...
     </div>
   );

@@ -13,10 +13,10 @@ export function createResultsColumns(
       header: 'Empresa',
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-white text-sm truncate max-w-[180px]" title={row.original.empresa}>
+          <p className="font-medium text-foreground text-sm truncate max-w-[180px]" title={row.original.empresa}>
             {row.original.empresa}
           </p>
-          <p className="text-xs text-gray-500">{row.original.pais}</p>
+          <p className="text-xs text-muted-foreground">{row.original.pais}</p>
         </div>
       ),
     },
@@ -32,7 +32,7 @@ export function createResultsColumns(
         const activo = getValue<string>() === 'Sí';
         return (
           <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full ${
-            activo ? 'bg-green-900/60 text-green-300 border border-green-800' : 'bg-gray-800 text-gray-500 border border-gray-700'
+            activo ? 'bg-green-900/60 text-green-300 border border-green-800' : 'bg-surface-muted text-muted-foreground border border-border'
           }`}>
             {activo ? '🟢 Activo' : '⚫ Sin señal'}
           </span>
@@ -43,7 +43,7 @@ export function createResultsColumns(
       accessorKey: 'tipoSenal',
       header: 'Tipo señal',
       cell: ({ getValue }) => (
-        <span className="text-xs text-gray-300 max-w-[140px] truncate block" title={getValue<string>()}>
+        <span className="text-xs text-muted-foreground max-w-[140px] truncate block" title={getValue<string>()}>
           {getValue<string>() || '—'}
         </span>
       ),
@@ -58,7 +58,7 @@ export function createResultsColumns(
       accessorKey: 'ventanaCompra',
       header: 'Ventana',
       cell: ({ getValue }) => (
-        <span className="text-xs text-gray-400">{getValue<string>() || '—'}</span>
+        <span className="text-xs text-muted-foreground">{getValue<string>() || '—'}</span>
       ),
     },
     {

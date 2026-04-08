@@ -61,7 +61,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6 max-w-5xl">
       {/* Back + Header */}
       <div>
-        <Link href="/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-gray-400 hover:text-gray-200 hover:bg-gray-800 transition-colors">
+        <Link href="/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-gray-200 hover:bg-surface-muted transition-colors">
           <ArrowLeft size={16} />
           Volver a Empresas
         </Link>
@@ -69,14 +69,14 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
         {empresa ? (
           <div className="flex items-start justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-white flex items-center gap-2">
-                <Building2 size={20} className="text-gray-400" />
+              <h1 className="text-2xl font-bold text-foreground flex items-center gap-2">
+                <Building2 size={20} className="text-muted-foreground" />
                 {empresa.nombre}
               </h1>
               <div className="flex items-center gap-2 mt-2 flex-wrap">
                 <LineaBadge linea={empresa.linea} />
                 <TierBadge tier={empresa.tier} />
-                <span className="text-sm text-gray-400">{empresa.pais}</span>
+                <span className="text-sm text-muted-foreground">{empresa.pais}</span>
                 {empresa.dominio && (
                   <a
                     href={`https://${empresa.dominio}`}
@@ -93,7 +93,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
             <div className="text-right shrink-0 ml-4">
               {senales.length > 0 && (
                 <div>
-                  <p className="text-xs text-gray-500">Score promedio</p>
+                  <p className="text-xs text-muted-foreground">Score promedio</p>
                   <ScoreBadge
                     score={senales.reduce((s, sig) => s + sig.scoreRadar, 0) / senales.length}
                   />
@@ -102,30 +102,30 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
             </div>
           </div>
         ) : (
-          <div className="h-10 w-64 bg-gray-800 rounded animate-pulse" />
+          <div className="h-10 w-64 bg-surface-muted rounded animate-pulse" />
         )}
       </div>
 
       {/* Tabs */}
       <Tabs defaultValue="senales">
-        <TabsList className="bg-gray-800 border border-gray-700">
-          <TabsTrigger value="senales" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-400">
+        <TabsList className="bg-surface-muted border border-border">
+          <TabsTrigger value="senales" className="data-[state=active]:bg-surface-muted data-[state=active]:text-white text-muted-foreground">
             Señales ({senales.length})
           </TabsTrigger>
-          <TabsTrigger value="contactos" className="data-[state=active]:bg-gray-700 data-[state=active]:text-white text-gray-400">
+          <TabsTrigger value="contactos" className="data-[state=active]:bg-surface-muted data-[state=active]:text-white text-muted-foreground">
             Contactos Apollo ({contactos.length})
           </TabsTrigger>
         </TabsList>
 
         {/* Tab: Señales */}
         <TabsContent value="senales" className="mt-4">
-          <Card className="bg-gray-900 border-gray-800">
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-white text-base">Historial de señales detectadas</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loadingSignals ? (
-                <div className="p-6 text-gray-500 text-sm">Cargando señales...</div>
+                <div className="p-6 text-muted-foreground text-sm">Cargando señales...</div>
               ) : senales.length === 0 ? (
                 <EmptyState
                   title="Sin señales registradas"
@@ -134,15 +134,15 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
               ) : (
                 <div className="divide-y divide-gray-800">
                   {senales.map((s, i) => (
-                    <div key={s.id ?? i} className="px-4 py-3 hover:bg-gray-800/30 transition-colors">
+                    <div key={s.id ?? i} className="px-4 py-3 hover:bg-surface-muted/30 transition-colors">
                       <div className="flex items-start justify-between gap-3">
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap mb-1">
                             <ScoreBadge score={s.scoreRadar} showNumber />
-                            <span className="text-sm text-gray-300">{s.tipoSenal || 'Sin tipo'}</span>
+                            <span className="text-sm text-muted-foreground">{s.tipoSenal || 'Sin tipo'}</span>
                           </div>
                           {s.descripcion && (
-                            <p className="text-xs text-gray-400 line-clamp-2">{s.descripcion}</p>
+                            <p className="text-xs text-muted-foreground line-clamp-2">{s.descripcion}</p>
                           )}
                           <div className="flex items-center gap-3 mt-1 text-xs text-gray-600">
                             <span>{s.fechaEscaneo}</span>
@@ -167,13 +167,13 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
 
         {/* Tab: Contactos */}
         <TabsContent value="contactos" className="mt-4">
-          <Card className="bg-gray-900 border-gray-800">
+          <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-white text-base">Contactos Apollo extraídos</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loadingContactos ? (
-                <div className="p-6 text-gray-500 text-sm">Cargando contactos...</div>
+                <div className="p-6 text-muted-foreground text-sm">Cargando contactos...</div>
               ) : contactos.length === 0 ? (
                 <EmptyState
                   title="Sin contactos"
@@ -184,8 +184,8 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
                   {contactos.map(c => (
                     <div key={c.id} className="px-4 py-3 flex items-center justify-between gap-4">
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white">{c.nombre}</p>
-                        {c.cargo && <p className="text-xs text-gray-400">{c.cargo}</p>}
+                        <p className="text-sm font-medium text-foreground">{c.nombre}</p>
+                        {c.cargo && <p className="text-xs text-muted-foreground">{c.cargo}</p>}
                         {c.email && (
                           <a href={`mailto:${c.email}`} className="text-xs text-blue-400 hover:text-blue-300">
                             {c.email}
@@ -195,7 +195,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
                       <div className="flex items-center gap-2 shrink-0">
                         {c.linkedinUrl && (
                           <a href={c.linkedinUrl} target="_blank" rel="noopener noreferrer"
-                            className="text-gray-500 hover:text-gray-300">
+                            className="text-muted-foreground hover:text-muted-foreground">
                             <ExternalLink size={13} />
                           </a>
                         )}

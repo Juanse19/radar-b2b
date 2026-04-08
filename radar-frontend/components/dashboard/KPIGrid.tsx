@@ -20,16 +20,16 @@ interface KPICardProps {
 
 function KPICard({ icon, label, value, iconBg, isLoading }: KPICardProps) {
   return (
-    <Card className="bg-gray-900 border-gray-800">
+    <Card className="bg-surface border-border">
       <CardContent className="pt-6">
         <div className="flex items-center gap-3">
           <div className={`p-2 rounded-lg ${iconBg}`}>{icon}</div>
           <div>
-            <p className="text-sm text-gray-400">{label}</p>
+            <p className="text-sm text-muted-foreground">{label}</p>
             {isLoading ? (
-              <div className="h-7 w-12 bg-gray-800 rounded animate-pulse mt-1" />
+              <div className="h-7 w-12 bg-surface-muted rounded animate-pulse mt-1" />
             ) : (
-              <p className="text-2xl font-bold text-white">{value}</p>
+              <p className="text-2xl font-bold text-foreground">{value}</p>
             )}
           </div>
         </div>

@@ -390,18 +390,18 @@ export default function ContactosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-800 rounded-lg border border-gray-700">
-              <Users size={20} className="text-gray-400" />
+            <div className="p-2 bg-surface-muted rounded-lg border border-border">
+              <Users size={20} className="text-muted-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Contactos Apollo</h1>
-              <p className="text-gray-500 text-sm">
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Contactos Apollo</h1>
+              <p className="text-muted-foreground text-sm">
                 {countData
                   ? `${countData.total} totales · ${sincronizadoCount} en HubSpot · ${pendienteCount} pendientes`
                   : 'Prospección de contactos por línea de negocio'}
@@ -430,7 +430,7 @@ export default function ContactosPage() {
 
             {/* Selector de línea */}
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
                 Línea de negocio
               </p>
               <div className="grid grid-cols-3 gap-3">
@@ -444,16 +444,16 @@ export default function ContactosPage() {
                         relative flex flex-col items-center text-center p-4 rounded-2xl border-2 transition-all
                         ${isActive
                           ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                          : 'bg-gray-900/60 border-gray-700/60 hover:border-gray-600 hover:bg-gray-800/60'}
+                          : 'bg-surface/60 border-border/60 hover:border-border hover:bg-surface-muted/60'}
                       `}
                     >
                       {isActive && (
                         <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
                       )}
-                      <div className={`mb-2 ${isActive ? opt.color : 'text-gray-500'}`}>
+                      <div className={`mb-2 ${isActive ? opt.color : 'text-muted-foreground'}`}>
                         <opt.Icon size={24} />
                       </div>
-                      <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-400'}`}>
+                      <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
                         {opt.shortLabel}
                       </p>
                       <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
@@ -464,7 +464,7 @@ export default function ContactosPage() {
             </div>
 
             {/* Toggle de modo */}
-            <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 w-fit">
+            <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border w-fit">
               {[
                 { id: 'lote', label: 'Lote automático', Icon: Database as React.ElementType },
                 { id: 'manual', label: 'Selección de empresa', Icon: Search as React.ElementType },
@@ -474,8 +474,8 @@ export default function ContactosPage() {
                   onClick={() => setModo(tab.id as 'lote' | 'manual')}
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     modo === tab.id
-                      ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                      ? 'bg-blue-600 text-foreground shadow-sm'
+                      : 'text-muted-foreground hover:text-gray-200 hover:bg-surface-muted'
                   }`}
                 >
                   <tab.Icon size={13} />
@@ -486,31 +486,31 @@ export default function ContactosPage() {
 
             {/* Modo lote */}
             {modo === 'lote' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+                  <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                     <Database size={12} /> Lote automático — {activeOption.shortLabel}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-4">
-                  <p className="text-sm text-gray-400">
+                  <p className="text-sm text-muted-foreground">
                     Toma las <span className="text-white font-medium">{batchSize} empresas</span> con mayor
                     prioridad en línea <span className={`font-medium ${activeOption.color}`}>{activeOption.shortLabel}</span> y
                     extrae contactos vía Apollo.
                   </p>
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Empresas a prospectar</p>
+                    <p className="text-xs text-muted-foreground mb-2">Empresas a prospectar</p>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setBatchSize(p => Math.max(1, p - 1))}
-                        className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                       >
                         <Minus size={14} />
                       </button>
-                      <span className="text-2xl font-mono font-bold text-white w-10 text-center">{batchSize}</span>
+                      <span className="text-2xl font-mono font-bold text-foreground w-10 text-center">{batchSize}</span>
                       <button
                         onClick={() => setBatchSize(p => Math.min(50, p + 1))}
-                        className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                       >
                         <Plus size={14} />
                       </button>
@@ -523,9 +523,9 @@ export default function ContactosPage() {
 
             {/* Modo manual — Company Picker */}
             {modo === 'manual' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+                  <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                     <Search size={12} /> Selección de empresas — {activeOption.shortLabel}
                   </CardTitle>
                 </CardHeader>
@@ -533,30 +533,30 @@ export default function ContactosPage() {
                   {/* Search + actions row */}
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                       <Input
                         placeholder="Filtrar empresas..."
                         value={empresaSearch}
                         onChange={e => setEmpresaSearch(e.target.value)}
-                        className="bg-gray-800 border-gray-700 text-white text-sm pl-8 h-8"
+                        className="bg-surface-muted border-border text-foreground text-sm pl-8 h-8"
                       />
                     </div>
                     <button
                       onClick={selectAll}
-                      className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                      className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap px-2 py-1 rounded hover:bg-surface-muted transition-colors"
                     >
                       Seleccionar todas
                     </button>
                     <button
                       onClick={clearAll}
-                      className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-muted-foreground px-2 py-1 rounded hover:bg-surface-muted transition-colors"
                     >
                       Limpiar
                     </button>
                   </div>
 
                   {/* Selected count */}
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {selectedEmpresaIds.size > 0
                       ? <span className="text-blue-400 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
                       : 'Ninguna empresa seleccionada'}
@@ -564,11 +564,11 @@ export default function ContactosPage() {
 
                   {/* Scrollable list */}
                   <div
-                    className="overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/50 divide-y divide-gray-700/50"
+                    className="overflow-y-auto rounded-lg border border-border bg-surface-muted/50 divide-y divide-border"
                     style={{ maxHeight: '280px' }}
                   >
                     {filteredCompanies.length === 0 ? (
-                      <div className="px-4 py-8 text-center text-xs text-gray-500">
+                      <div className="px-4 py-8 text-center text-xs text-muted-foreground">
                         {companiesData.length === 0
                           ? 'Cargando empresas...'
                           : 'No hay empresas que coincidan con la búsqueda'}
@@ -581,14 +581,14 @@ export default function ContactosPage() {
                           <label
                             key={empresa.id}
                             className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
-                              isChecked ? 'bg-blue-950/30' : 'hover:bg-gray-700/40'
+                              isChecked ? 'bg-blue-950/30' : 'hover:bg-surface-muted/40'
                             }`}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleEmpresa(empresa.id)}
-                              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 shrink-0"
+                              className="w-4 h-4 rounded border-border bg-surface-muted text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 shrink-0"
                             />
                             {lineaOpt && (
                               <span
@@ -597,7 +597,7 @@ export default function ContactosPage() {
                               />
                             )}
                             <span className="text-sm text-gray-200 truncate flex-1">{empresa.nombre}</span>
-                            <span className="text-xs text-gray-500 shrink-0">{empresa.pais}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{empresa.pais}</span>
                           </label>
                         );
                       })
@@ -615,29 +615,29 @@ export default function ContactosPage() {
             <div className={`p-4 rounded-2xl border-2 ${activeOption.activeBg} ${activeOption.activeBorder}`}>
               <div className={`${activeOption.color} mb-2`}><activeOption.Icon size={24} /></div>
               <p className="text-white font-semibold">{activeOption.shortLabel}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{activeOption.desc}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{activeOption.desc}</p>
             </div>
 
             {/* Contactos por empresa */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card>
               <CardContent className="p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-3">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">
                     Contactos por empresa
                   </p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setContactosPorEmpresa(p => Math.max(1, p - 1))}
-                      className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                     >
                       <Minus size={14} />
                     </button>
-                    <span className="text-2xl font-mono font-bold text-white w-8 text-center">
+                    <span className="text-2xl font-mono font-bold text-foreground w-8 text-center">
                       {contactosPorEmpresa}
                     </span>
                     <button
                       onClick={() => setContactosPorEmpresa(p => Math.min(5, p + 1))}
-                      className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                     >
                       <Plus size={14} />
                     </button>
@@ -646,16 +646,16 @@ export default function ContactosPage() {
                 </div>
 
                 {/* Token estimate */}
-                <div className="pt-2 border-t border-gray-800">
+                <div className="pt-2 border-t border-border">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                       Tokens Apollo
                     </p>
                     <p className={`text-sm font-mono font-bold ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
                       {tokenEstimate.toLocaleString()} / {AVAILABLE_TOKENS.toLocaleString()}
                     </p>
                   </div>
-                  <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${tokenOk ? 'bg-green-500' : 'bg-red-500'}`}
                       style={{ width: `${tokenPct}%` }}
@@ -715,27 +715,27 @@ export default function ContactosPage() {
             }
           }}
         >
-          <DialogContent showCloseButton={false} className="bg-gray-900 border-gray-700 text-white max-w-sm">
+          <DialogContent showCloseButton={false} className="text-foreground max-w-sm">
             <DialogHeader>
               <DialogTitle className="text-white text-base">Prospección en curso</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
               <Loader2 size={40} className="animate-spin text-blue-400" />
-              <p className="text-sm text-gray-300 font-medium">Ejecutando WF03 Prospector...</p>
+              <p className="text-sm text-muted-foreground font-medium">Ejecutando WF03 Prospector...</p>
 
               {/* empresa list */}
               {processingEmpresas.length > 0 && (
-                <div className="w-full bg-gray-800 rounded-lg px-4 py-3 space-y-1 text-xs text-gray-400">
+                <div className="w-full bg-surface-muted rounded-lg px-4 py-3 space-y-1 text-xs text-muted-foreground">
                   {processingEmpresas.slice(0, 5).map((name, i) => (
                     <p key={i} className="truncate">· {name}</p>
                   ))}
                   {processingEmpresas.length > 5 && (
-                    <p className="text-gray-500">y {processingEmpresas.length - 5} más...</p>
+                    <p className="text-muted-foreground">y {processingEmpresas.length - 5} más...</p>
                   )}
                 </div>
               )}
 
-              <p className="text-xs text-gray-500">Polling cada 3 segundos...</p>
+              <p className="text-xs text-muted-foreground">Polling cada 3 segundos...</p>
 
               <Button
                 variant="outline"
@@ -748,7 +748,7 @@ export default function ContactosPage() {
                     stopPolling();
                   }
                 }}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800 disabled:opacity-40 mt-2"
+                className="border-border text-muted-foreground hover:bg-surface-muted disabled:opacity-40 mt-2"
               >
                 Cancelar
               </Button>
@@ -757,13 +757,13 @@ export default function ContactosPage() {
         </Dialog>
 
         {/* ── Bottom section: Tabs ───────────────────────────────────────── */}
-        <div className="border-t border-gray-800 pt-6">
+        <div className="border-t border-border pt-6">
           <Tabs defaultValue="contactos">
-            <TabsList className="bg-gray-900 border border-gray-800 mb-5 h-9">
-              <TabsTrigger value="contactos" className="text-gray-400 data-active:text-white text-sm px-5">
+            <TabsList className="bg-surface border border-border mb-5 h-9">
+              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-white text-sm px-5">
                 Contactos
               </TabsTrigger>
-              <TabsTrigger value="logs" className="text-gray-400 data-active:text-white text-sm px-5">
+              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-white text-sm px-5">
                 Log de Prospección
               </TabsTrigger>
             </TabsList>
@@ -772,8 +772,8 @@ export default function ContactosPage() {
             <TabsContent value="contactos">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Contactos prospectados</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <h2 className="text-lg font-semibold text-foreground">Contactos prospectados</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {contactosFiltrados.length} contacto{contactosFiltrados.length !== 1 ? 's' : ''} · {sincronizadoCount} en HubSpot
                   </p>
                 </div>
@@ -784,19 +784,19 @@ export default function ContactosPage() {
                     placeholder="Buscar nombre, cargo..."
                     value={busqueda}
                     onChange={e => { setBusqueda(e.target.value); setPagina(0); setRowSelection({}); }}
-                    className="bg-gray-800 border-gray-700 text-white w-44"
+                    className="bg-surface-muted border-border text-foreground w-44"
                   />
                   <Input
                     placeholder="Buscar empresa..."
                     value={busquedaEmpresa}
                     onChange={e => { setBusquedaEmpresa(e.target.value); setPagina(0); setRowSelection({}); }}
-                    className="bg-gray-800 border-gray-700 text-white w-40"
+                    className="bg-surface-muted border-border text-foreground w-40"
                   />
                   <Select value={lineaFiltro} onValueChange={v => { setLineaFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                    <SelectTrigger className="bg-surface-muted border-border text-foreground w-40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectContent className="bg-surface-muted border-border">
                       <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
                       <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
                       <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
@@ -804,10 +804,10 @@ export default function ContactosPage() {
                     </SelectContent>
                   </Select>
                   <Select value={statusFiltro} onValueChange={v => { setStatusFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-36">
+                    <SelectTrigger className="bg-surface-muted border-border text-foreground w-36">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
+                    <SelectContent className="bg-surface-muted border-border">
                       <SelectItem value="ALL" className="text-gray-100">Todos</SelectItem>
                       <SelectItem value="pendiente" className="text-gray-100">Pendiente</SelectItem>
                       <SelectItem value="sincronizado" className="text-gray-100">Sincronizado</SelectItem>
@@ -815,7 +815,7 @@ export default function ContactosPage() {
                     </SelectContent>
                   </Select>
                   {selectedIds.length > 0 && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted-foreground">
                       {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -823,17 +823,17 @@ export default function ContactosPage() {
               </div>
 
               {/* Contacts Table */}
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardContent className="p-0">
                   {isLoading ? (
                     <div className="divide-y divide-gray-800/50">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
-                          <div className="h-4 w-4 bg-gray-800 rounded" />
-                          <div className="h-4 bg-gray-800 rounded w-36" />
-                          <div className="h-4 bg-gray-800 rounded w-32" />
-                          <div className="h-4 bg-gray-800 rounded w-40" />
-                          <div className="h-4 bg-gray-800 rounded w-20 ml-auto" />
+                          <div className="h-4 w-4 bg-surface-muted rounded" />
+                          <div className="h-4 bg-surface-muted rounded w-36" />
+                          <div className="h-4 bg-surface-muted rounded w-32" />
+                          <div className="h-4 bg-surface-muted rounded w-40" />
+                          <div className="h-4 bg-surface-muted rounded w-20 ml-auto" />
                         </div>
                       ))}
                     </div>
@@ -848,11 +848,11 @@ export default function ContactosPage() {
                       <table className="w-full text-sm">
                         <thead>
                           {table.getHeaderGroups().map(hg => (
-                            <tr key={hg.id} className="border-b border-gray-800 bg-gray-800/60">
+                            <tr key={hg.id} className="border-b border-border bg-surface-muted/60">
                               {hg.headers.map(header => (
                                 <th
                                   key={header.id}
-                                  className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide select-none"
+                                  className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide select-none"
                                   onClick={header.column.getToggleSortingHandler()}
                                   style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default' }}
                                 >
@@ -870,7 +870,7 @@ export default function ContactosPage() {
                           {table.getRowModel().rows.map(row => (
                             <tr
                               key={row.id}
-                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-gray-800/30'}`}
+                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-surface-muted/30'}`}
                             >
                               {row.getVisibleCells().map(cell => (
                                 <td key={cell.id} className="px-4 py-3">
@@ -889,7 +889,7 @@ export default function ContactosPage() {
               {/* Paginación */}
               {totalPaginas > 1 && (
                 <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-gray-500">
+                  <span className="text-xs text-muted-foreground">
                     Página {pagina + 1} de {totalPaginas} · {contactosFiltrados.length} contactos
                   </span>
                   <div className="flex gap-2">
@@ -897,7 +897,7 @@ export default function ContactosPage() {
                       variant="outline" size="sm"
                       onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
                       disabled={pagina === 0}
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
+                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
                     >
                       <ChevronLeft size={14} /> Anterior
                     </Button>
@@ -905,7 +905,7 @@ export default function ContactosPage() {
                       variant="outline" size="sm"
                       onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
                       disabled={pagina >= totalPaginas - 1}
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
+                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
                     >
                       Siguiente <ChevronRight size={14} />
                     </Button>
@@ -918,17 +918,17 @@ export default function ContactosPage() {
             <TabsContent value="logs">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Log de Prospección</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <h2 className="text-lg font-semibold text-foreground">Log de Prospección</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Historial de ejecuciones del agente prospector
                   </p>
                 </div>
                 {/* Linea filter reuse */}
                 <Select value={lineaFiltro} onValueChange={v => setLineaFiltro(v ?? 'ALL')}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                  <SelectTrigger className="bg-surface-muted border-border text-foreground w-40">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
+                  <SelectContent className="bg-surface-muted border-border">
                     <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
                     <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
                     <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
@@ -937,16 +937,16 @@ export default function ContactosPage() {
                 </Select>
               </div>
 
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardContent className="p-0">
                   {logsLoading ? (
                     <div className="divide-y divide-gray-800/50">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
-                          <div className="h-4 bg-gray-800 rounded w-40" />
-                          <div className="h-4 bg-gray-800 rounded w-24" />
-                          <div className="h-4 bg-gray-800 rounded w-20" />
-                          <div className="h-4 bg-gray-800 rounded w-16 ml-auto" />
+                          <div className="h-4 bg-surface-muted rounded w-40" />
+                          <div className="h-4 bg-surface-muted rounded w-24" />
+                          <div className="h-4 bg-surface-muted rounded w-20" />
+                          <div className="h-4 bg-surface-muted rounded w-16 ml-auto" />
                         </div>
                       ))}
                     </div>
@@ -960,22 +960,22 @@ export default function ContactosPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-gray-800 bg-gray-800/60">
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Empresa</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Línea</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Estado</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Contactos</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Fecha</th>
+                          <tr className="border-b border-border bg-surface-muted/60">
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Empresa</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Línea</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Estado</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Contactos</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Fecha</th>
                           </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-800/50">
                           {prospeccionLogs.map(log => (
-                            <tr key={log.id} className="hover:bg-gray-800/30 transition-colors">
+                            <tr key={log.id} className="hover:bg-surface-muted/30 transition-colors">
                               <td className="px-4 py-3">
                                 <span className="text-sm text-gray-200 font-medium">{log.empresaNombre}</span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-xs text-gray-400">{log.linea}</span>
+                                <span className="text-xs text-muted-foreground">{log.linea}</span>
                               </td>
                               <td className="px-4 py-3">
                                 {log.estado === 'running' && (
@@ -996,10 +996,10 @@ export default function ContactosPage() {
                                 )}
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-sm text-gray-300 font-mono">{log.contactosEncontrados}</span>
+                                <span className="text-sm text-muted-foreground font-mono">{log.contactosEncontrados}</span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-xs text-gray-500">{formatLogDate(log.createdAt)}</span>
+                                <span className="text-xs text-muted-foreground">{formatLogDate(log.createdAt)}</span>
                               </td>
                             </tr>
                           ))}

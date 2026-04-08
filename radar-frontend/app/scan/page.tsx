@@ -39,7 +39,7 @@ const LINEA_OPTIONS: {
     shortLabel: 'BHS',
     desc: 'Terminales, carruseles, sorters',
     Icon: Plane,
-    color: 'text-blue-400',
+    color: 'text-secondary',
     activeBg: 'bg-blue-950/60',
     activeBorder: 'border-blue-500',
     badge: 'bg-blue-900 text-blue-300',
@@ -338,25 +338,25 @@ export default function ScanPage() {
   const previewList = selectMode ? selectedEmpresas : previewEmpresas;
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
+    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
       {/* ── Page header ─────────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="flex items-start justify-between gap-4">
           <div>
             <div className="flex items-center gap-3 mb-2">
               <div className="p-2 bg-blue-950 rounded-lg border border-blue-800">
-                <Radar size={20} className="text-blue-400" />
+                <Radar size={20} className="text-secondary" />
               </div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Lanzar Escaneo</h1>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Lanzar Escaneo</h1>
             </div>
-            <p className="text-gray-400 text-sm ml-1">
+            <p className="text-muted-foreground text-sm ml-1">
               Panel de control del Radar de Inversión B2B — selecciona línea y ejecuta manualmente.
             </p>
           </div>
           {totalLinea > 0 && (
-            <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-gray-900 border border-gray-700 rounded-full">
+            <div className="flex-shrink-0 flex items-center gap-2 px-4 py-2 bg-surface border border-border rounded-full">
               <span className={`w-2 h-2 rounded-full ${activeOption.color.replace('text-', 'bg-')}`} />
-              <span className="text-sm text-gray-300 font-medium">{totalLinea} empresas en {activeOption.shortLabel}</span>
+              <span className="text-sm text-muted-foreground font-medium">{totalLinea} empresas en {activeOption.shortLabel}</span>
             </div>
           )}
         </div>
@@ -369,9 +369,9 @@ export default function ScanPage() {
         <div className="lg:col-span-3 space-y-6">
 
           {/* Line selector — visual cards */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-gray-400">
+              <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                 01 — Línea de negocio
               </CardTitle>
             </CardHeader>
@@ -391,18 +391,18 @@ export default function ScanPage() {
                         relative text-left p-4 rounded-xl border-2 transition-all duration-150
                         ${isActive
                           ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                          : 'bg-gray-800/50 border-gray-700 hover:border-gray-500 hover:bg-gray-800'}
+                          : 'bg-surface-muted/50 border-border hover:border-secondary hover:bg-surface-muted'}
                       `}
                     >
-                      <div className={`mb-3 ${isActive ? opt.color : 'text-gray-500'} transition-colors`}>
+                      <div className={`mb-3 ${isActive ? opt.color : 'text-muted-foreground'} transition-colors`}>
                         <opt.Icon size={28} />
                       </div>
-                      <p className={`font-semibold text-sm mb-0.5 ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                      <p className={`font-semibold text-sm mb-0.5 ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
                         {opt.shortLabel}
                       </p>
-                      <p className="text-xs text-gray-500 leading-snug mb-2">{opt.desc}</p>
+                      <p className="text-xs text-muted-foreground leading-snug mb-2">{opt.desc}</p>
                       {count > 0 && (
-                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-gray-700 text-gray-400'}`}>
+                        <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-surface-muted text-muted-foreground'}`}>
                           {count} empresas
                         </span>
                       )}
@@ -418,9 +418,9 @@ export default function ScanPage() {
 
           {/* Batch size stepper — hidden in selectMode */}
           {!selectMode && (
-            <Card className="bg-gray-900 border-gray-800">
+            <Card className="bg-surface border-border">
               <CardHeader className="pb-3">
-                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-gray-400">
+                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   02 — Cantidad de empresas
                 </CardTitle>
               </CardHeader>
@@ -430,19 +430,19 @@ export default function ScanPage() {
                     type="button"
                     onClick={() => setBatchSize(v => Math.max(1, v - 1))}
                     disabled={batchSize <= 1}
-                    className="w-11 h-11 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-11 h-11 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Minus size={18} />
                   </button>
                   <div className="text-center flex-1">
-                    <span className="text-5xl font-bold text-white tabular-nums">{batchSize}</span>
-                    <p className="text-xs text-gray-500 mt-1">empresas</p>
+                    <span className="text-5xl font-bold text-foreground tabular-nums">{batchSize}</span>
+                    <p className="text-xs text-muted-foreground mt-1">empresas</p>
                   </div>
                   <button
                     type="button"
                     onClick={() => setBatchSize(v => Math.min(maxBatch, v + 1))}
                     disabled={batchSize >= maxBatch}
-                    className="w-11 h-11 rounded-xl bg-gray-800 border border-gray-700 flex items-center justify-center text-gray-300 hover:bg-gray-700 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+                    className="w-11 h-11 rounded-xl bg-surface-muted border border-border flex items-center justify-center text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
                   >
                     <Plus size={18} />
                   </button>
@@ -451,33 +451,33 @@ export default function ScanPage() {
                 {/* Progress bar */}
                 {totalLinea > 0 && (
                   <div className="space-y-2">
-                    <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                    <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all duration-300 ${activeOption.color.replace('text-', 'bg-')}`}
                         style={{ width: `${Math.min(100, batchPct)}%` }}
                       />
                     </div>
-                    <div className="flex justify-between text-xs text-gray-500">
+                    <div className="flex justify-between text-xs text-muted-foreground">
                       <span>{batchSize} de {totalLinea} disponibles</span>
                       <span>{batchPct}% del total</span>
                     </div>
                   </div>
                 )}
-                <p className="text-xs text-gray-600 mt-2">Máximo {maxBatch} por ejecución</p>
+                <p className="text-xs text-muted-foreground mt-2">Máximo {maxBatch} por ejecución</p>
               </CardContent>
             </Card>
           )}
 
           {/* Select mode + empresa picker */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-gray-400">
+                <CardTitle className="text-white text-sm font-semibold uppercase tracking-widest text-muted-foreground">
                   03 — Selección específica
                 </CardTitle>
                 <div className="flex items-center gap-3">
                   {linea === 'ALL' && (
-                    <span className="text-xs text-gray-500">(no disponible en Todas)</span>
+                    <span className="text-xs text-muted-foreground">(no disponible en Todas)</span>
                   )}
                   <Switch
                     id="select-mode"
@@ -485,7 +485,7 @@ export default function ScanPage() {
                     onCheckedChange={handleToggleSelectMode}
                     disabled={linea === 'ALL'}
                   />
-                  <Label htmlFor="select-mode" className="text-gray-300 text-sm cursor-pointer select-none">
+                  <Label htmlFor="select-mode" className="text-muted-foreground text-sm cursor-pointer select-none">
                     {selectMode ? 'Activo' : 'Inactivo'}
                   </Label>
                 </div>
@@ -494,34 +494,34 @@ export default function ScanPage() {
 
             {selectMode && linea !== 'ALL' && (
               <CardContent className="pt-0">
-                <div className="bg-gray-800/60 border border-gray-700 rounded-xl overflow-hidden">
+                <div className="bg-surface-muted/60 border border-border rounded-xl overflow-hidden">
                   {/* Toolbar */}
-                  <div className="px-4 py-2.5 border-b border-gray-700 flex items-center justify-between gap-3 bg-gray-800">
-                    <span className="text-xs text-gray-400 font-medium">
+                  <div className="px-4 py-2.5 border-b border-border flex items-center justify-between gap-3 bg-surface-muted">
+                    <span className="text-xs text-muted-foreground font-medium">
                       {selectedEmpresas.length} / {allEmpresas.length} seleccionadas
                     </span>
                     <div className="flex items-center gap-3">
                       <button type="button" onClick={selectAll}
-                        className="text-xs text-blue-400 hover:text-blue-300 flex items-center gap-1 transition-colors">
+                        className="text-xs text-secondary hover:text-blue-300 flex items-center gap-1 transition-colors">
                         <CheckSquare size={12} /> Todas
                       </button>
-                      <span className="text-gray-700">|</span>
+                      <span className="text-muted-foreground">|</span>
                       <button type="button" onClick={deselectAll}
-                        className="text-xs text-gray-400 hover:text-gray-300 flex items-center gap-1 transition-colors">
+                        className="text-xs text-muted-foreground hover:text-muted-foreground flex items-center gap-1 transition-colors">
                         <Square size={12} /> Ninguna
                       </button>
                     </div>
                   </div>
 
                   {/* Search */}
-                  <div className="px-3 py-2 border-b border-gray-700/60">
+                  <div className="px-3 py-2 border-b border-border/60">
                     <div className="relative">
-                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" />
+                      <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
                       <Input
                         placeholder="Buscar empresa o país..."
                         value={searchFilter}
                         onChange={e => setSearchFilter(e.target.value)}
-                        className="bg-gray-900 border-gray-600 text-white text-xs h-8 pl-8 rounded-lg"
+                        className="bg-surface border-border text-foreground text-xs h-8 pl-8 rounded-lg"
                       />
                     </div>
                   </div>
@@ -529,11 +529,11 @@ export default function ScanPage() {
                   {/* List */}
                   <div className="max-h-60 overflow-y-auto">
                     {loadingAll ? (
-                      <div className="flex items-center gap-2 p-4 text-gray-400 text-xs">
+                      <div className="flex items-center gap-2 p-4 text-muted-foreground text-xs">
                         <Loader2 size={13} className="animate-spin" /> Cargando empresas...
                       </div>
                     ) : filteredEmpresas.length === 0 ? (
-                      <p className="text-gray-500 text-xs p-4">
+                      <p className="text-muted-foreground text-xs p-4">
                         {searchFilter ? 'Sin coincidencias.' : 'No hay empresas disponibles.'}
                       </p>
                     ) : (
@@ -544,11 +544,11 @@ export default function ScanPage() {
                             <li
                               key={emp.id}
                               onClick={() => toggleEmpresa(emp)}
-                              className={`px-4 py-2.5 flex items-center gap-3 cursor-pointer text-xs border-b border-gray-700/40 last:border-0 transition-colors
-                                ${isChecked ? 'bg-blue-950/40 text-white' : 'text-gray-300 hover:bg-gray-700/50'}`}
+                              className={`px-4 py-2.5 flex items-center gap-3 cursor-pointer text-xs border-b border-border/40 last:border-0 transition-colors
+                                ${isChecked ? 'bg-secondary/15 text-secondary' : 'text-muted-foreground hover:bg-surface-muted/50'}`}
                             >
                               <span className={`flex-shrink-0 w-4 h-4 rounded border flex items-center justify-center transition-all
-                                ${isChecked ? 'bg-blue-600 border-blue-500' : 'border-gray-600 bg-transparent'}`}>
+                                ${isChecked ? 'bg-blue-600 border-blue-500' : 'border-border bg-transparent'}`}>
                                 {isChecked && (
                                   <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
                                     <path d="M1 4l3 3 5-6" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
@@ -556,7 +556,7 @@ export default function ScanPage() {
                                 )}
                               </span>
                               <span className="flex-1 truncate font-medium">{emp.nombre}</span>
-                              <span className="text-gray-500 flex-shrink-0">{emp.pais}</span>
+                              <span className="text-muted-foreground flex-shrink-0">{emp.pais}</span>
                             </li>
                           );
                         })}
@@ -569,7 +569,7 @@ export default function ScanPage() {
 
             {!selectMode && (
               <CardContent className="pt-0">
-                <p className="text-xs text-gray-600">
+                <p className="text-xs text-muted-foreground">
                   Activa este modo para elegir empresas individualmente en lugar de usar el lote por defecto.
                 </p>
               </CardContent>
@@ -578,9 +578,9 @@ export default function ScanPage() {
 
           {/* Launch button */}
           <div className="space-y-3">
-            <div className="flex items-center gap-2 text-xs text-gray-600">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <Calendar size={12} />
-              <span>Filtro de fecha activo: noticias desde <strong className="text-gray-400">2025-07-01</strong> en adelante</span>
+              <span>Filtro de fecha activo: noticias desde <strong className="text-muted-foreground">2025-07-01</strong> en adelante</span>
             </div>
 
             <Button
@@ -589,8 +589,8 @@ export default function ScanPage() {
               className={`
                 w-full h-12 text-base font-semibold gap-3 transition-all duration-200
                 ${canScan
-                  ? 'bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-900/40'
-                  : 'bg-gray-800 text-gray-500 cursor-not-allowed'}
+                  ? 'bg-blue-600 hover:bg-blue-500 text-foreground shadow-lg shadow-blue-900/40'
+                  : 'bg-surface-muted text-muted-foreground cursor-not-allowed'}
               `}
             >
               {loading ? (
@@ -608,7 +608,7 @@ export default function ScanPage() {
 
             <Link
               href="/schedule"
-              className="flex items-center justify-center gap-2 w-full h-10 rounded-lg border border-gray-700 text-gray-400 hover:bg-gray-800 hover:text-white text-sm transition-colors"
+              className="flex items-center justify-center gap-2 w-full h-10 rounded-lg border border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground text-sm transition-colors"
             >
               <Calendar size={15} />
               Ver / configurar escaneo automático
@@ -640,22 +640,22 @@ export default function ScanPage() {
           <Card className={`border-2 ${activeOption.activeBorder} ${activeOption.activeBg}`}>
             <CardContent className="p-5">
               <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl bg-gray-900/60 ${activeOption.color}`}>
+                <div className={`p-3 rounded-xl bg-surface/60 ${activeOption.color}`}>
                   <activeOption.Icon size={28} />
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-500 mb-1 uppercase tracking-wider">Línea activa</p>
+                  <p className="text-xs text-muted-foreground mb-1 uppercase tracking-wider">Línea activa</p>
                   <h2 className={`text-lg font-bold ${activeOption.color} leading-tight`}>
                     {activeOption.shortLabel}
                   </h2>
-                  <p className="text-xs text-gray-400 mt-0.5">{activeOption.desc}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{activeOption.desc}</p>
                   <div className="flex items-center gap-2 mt-3">
                     {totalLinea > 0 && (
                       <span className={`inline-flex px-2.5 py-1 rounded-lg text-xs font-semibold ${activeOption.badge}`}>
                         {totalLinea} empresas
                       </span>
                     )}
-                    <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-gray-800 text-gray-400">
+                    <span className="inline-flex px-2.5 py-1 rounded-lg text-xs font-medium bg-surface-muted text-muted-foreground">
                       {selectMode && selectedEmpresas.length > 0
                         ? `${selectedEmpresas.length} seleccionadas`
                         : `Lote de ${batchSize}`}
@@ -684,17 +684,17 @@ export default function ScanPage() {
           )}
 
           {/* Preview empresas */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-2">
               <div className="flex items-center justify-between">
-                <CardTitle className="text-gray-400 text-xs font-semibold uppercase tracking-widest">
+                <CardTitle className="text-muted-foreground text-xs font-semibold uppercase tracking-widest">
                   {selectMode ? 'Empresas seleccionadas' : `Preview — ${batchSize} a escanear`}
                 </CardTitle>
                 {!selectMode && (
                   <button
                     type="button"
                     onClick={() => setShowPreview(p => !p)}
-                    className="text-xs text-blue-400 hover:text-blue-300 transition-colors"
+                    className="text-xs text-secondary hover:text-blue-300 transition-colors"
                   >
                     {showPreview ? 'Ocultar' : 'Mostrar'}
                   </button>
@@ -703,47 +703,47 @@ export default function ScanPage() {
             </CardHeader>
             <CardContent className="pt-0">
               {showPreview || selectMode ? (
-                <div className="bg-gray-800/50 rounded-lg overflow-hidden">
+                <div className="bg-surface-muted/50 rounded-lg overflow-hidden">
                   {(selectMode ? false : loadingPreview) ? (
-                    <div className="flex items-center gap-2 p-3 text-gray-400 text-xs">
+                    <div className="flex items-center gap-2 p-3 text-muted-foreground text-xs">
                       <Loader2 size={12} className="animate-spin" /> Cargando...
                     </div>
                   ) : previewList.length === 0 ? (
-                    <p className="text-gray-600 text-xs p-3">
+                    <p className="text-muted-foreground text-xs p-3">
                       {selectMode ? 'Ninguna empresa seleccionada.' : 'No hay empresas disponibles.'}
                     </p>
                   ) : (
                     <ul className="max-h-64 overflow-y-auto">
                       {previewList.map(e => (
-                        <li key={e.id} className="px-3 py-2 flex items-center gap-2 border-b border-gray-700/40 last:border-0">
+                        <li key={e.id} className="px-3 py-2 flex items-center gap-2 border-b border-border/40 last:border-0">
                           {selectMode && (
                             <span className="w-1.5 h-1.5 rounded-full bg-blue-400 flex-shrink-0" />
                           )}
-                          <span className="flex-1 text-xs text-gray-200 truncate">{e.nombre}</span>
-                          <span className="text-xs text-gray-500 flex-shrink-0">{e.pais}</span>
+                          <span className="flex-1 text-xs text-foreground truncate">{e.nombre}</span>
+                          <span className="text-xs text-muted-foreground flex-shrink-0">{e.pais}</span>
                         </li>
                       ))}
                     </ul>
                   )}
                 </div>
               ) : (
-                <p className="text-xs text-gray-600 py-1">Lista de empresas oculta.</p>
+                <p className="text-xs text-muted-foreground py-1">Lista de empresas oculta.</p>
               )}
             </CardContent>
           </Card>
 
           {/* CSV import — right panel */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-gray-400 text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
+              <CardTitle className="text-muted-foreground text-xs font-semibold uppercase tracking-widest flex items-center gap-2">
                 <FileUp size={13} /> Importar CSV
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <p className="text-xs text-gray-500 leading-relaxed">
-                Columnas: <code className="text-gray-400 bg-gray-800 px-1 rounded">COMPANY NAME</code>,{' '}
-                <code className="text-gray-400 bg-gray-800 px-1 rounded">PAÍS</code>,{' '}
-                <code className="text-gray-400 bg-gray-800 px-1 rounded">LÍNEA DE NEGOCIO</code>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Columnas: <code className="text-muted-foreground bg-surface-muted px-1 rounded">COMPANY NAME</code>,{' '}
+                <code className="text-muted-foreground bg-surface-muted px-1 rounded">PAÍS</code>,{' '}
+                <code className="text-muted-foreground bg-surface-muted px-1 rounded">LÍNEA DE NEGOCIO</code>
               </p>
 
               {/* Drag & drop zone */}
@@ -761,7 +761,7 @@ export default function ScanPage() {
                   relative flex flex-col items-center justify-center gap-2 p-5 rounded-xl border-2 border-dashed cursor-pointer transition-all
                   ${csvDragOver
                     ? 'border-blue-500 bg-blue-950/30'
-                    : 'border-gray-700 hover:border-gray-500 bg-gray-800/40 hover:bg-gray-800/70'}
+                    : 'border-border hover:border-secondary bg-surface-muted/40 hover:bg-surface-muted/70'}
                 `}
               >
                 <input
@@ -771,32 +771,32 @@ export default function ScanPage() {
                   className="hidden"
                   onChange={e => { const f = e.target.files?.[0]; if (f) handleCsvFile(f); }}
                 />
-                <Upload size={20} className={csvDragOver ? 'text-blue-400' : 'text-gray-600'} />
+                <Upload size={20} className={csvDragOver ? 'text-secondary' : 'text-muted-foreground'} />
                 {csvFileName ? (
                   <div className="flex items-center gap-2">
-                    <span className="text-xs text-gray-300 truncate max-w-[160px]">{csvFileName}</span>
+                    <span className="text-xs text-muted-foreground truncate max-w-[160px]">{csvFileName}</span>
                     <button
                       type="button"
                       onClick={e => { e.stopPropagation(); setCsvRows(null); setCsvFileName(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-                      className="text-gray-500 hover:text-gray-300"
+                      className="text-muted-foreground hover:text-muted-foreground"
                     >
                       <X size={13} />
                     </button>
                   </div>
                 ) : (
-                  <span className="text-xs text-gray-500">Arrastra un CSV o haz clic aquí</span>
+                  <span className="text-xs text-muted-foreground">Arrastra un CSV o haz clic aquí</span>
                 )}
               </div>
 
               {/* Preview filas */}
               {csvRows && csvRows.length > 0 && (
-                <div className="bg-gray-800 border border-gray-700 rounded-lg overflow-hidden">
-                  <div className="px-3 py-2 border-b border-gray-700 flex items-center justify-between">
-                    <span className="text-xs text-gray-400 font-medium">{csvRows.length} empresas detectadas</span>
+                <div className="bg-surface-muted border border-border rounded-lg overflow-hidden">
+                  <div className="px-3 py-2 border-b border-border flex items-center justify-between">
+                    <span className="text-xs text-muted-foreground font-medium">{csvRows.length} empresas detectadas</span>
                     <Button
                       onClick={importarCsv}
                       disabled={csvImporting}
-                      className="bg-emerald-700 hover:bg-emerald-600 text-white text-xs h-6 px-3 gap-1"
+                      className="bg-emerald-700 hover:bg-emerald-600 text-foreground text-xs h-6 px-3 gap-1"
                     >
                       {csvImporting ? <Loader2 size={11} className="animate-spin" /> : <Upload size={11} />}
                       Importar
@@ -804,14 +804,14 @@ export default function ScanPage() {
                   </div>
                   <ul className="max-h-36 overflow-y-auto">
                     {csvRows.slice(0, 20).map((r, i) => (
-                      <li key={i} className="px-3 py-1.5 text-xs text-gray-300 flex justify-between gap-2 border-b border-gray-700/40 last:border-0">
+                      <li key={i} className="px-3 py-1.5 text-xs text-muted-foreground flex justify-between gap-2 border-b border-border/40 last:border-0">
                         <span className="truncate flex-1">{r.company_name}</span>
-                        <span className="text-gray-500 flex-shrink-0">{r.pais ?? '—'}</span>
-                        <span className="text-blue-400 flex-shrink-0">{r.linea_negocio}</span>
+                        <span className="text-muted-foreground flex-shrink-0">{r.pais ?? '—'}</span>
+                        <span className="text-secondary flex-shrink-0">{r.linea_negocio}</span>
                       </li>
                     ))}
                     {csvRows.length > 20 && (
-                      <li className="px-3 py-1.5 text-xs text-gray-600 italic">
+                      <li className="px-3 py-1.5 text-xs text-muted-foreground italic">
                         ... y {csvRows.length - 20} más
                       </li>
                     )}
