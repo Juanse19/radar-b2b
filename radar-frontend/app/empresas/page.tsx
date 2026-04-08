@@ -22,6 +22,7 @@ import {
 import { LineaBadge } from '@/components/LineaBadge';
 import { TierBadge }  from '@/components/TierBadge';
 import { EmptyState } from '@/components/EmptyState';
+import { fetchJson } from '@/lib/fetcher';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -311,7 +312,7 @@ export default function EmpresasPage() {
 
   const { data: counts = {} } = useQuery<Record<string, number>>({
     queryKey: ['companyCounts'],
-    queryFn:  () => fetch('/api/companies?count=true').then(r => r.json()),
+    queryFn:  () => fetchJson<Record<string, number>>('/api/companies?count=true'),
     staleTime: 60_000,
   });
 
@@ -326,9 +327,9 @@ export default function EmpresasPage() {
   const { data: rawEmpresas, isFetching } = useQuery<EmpresaRow[]>({
     queryKey: ['empresas', lineaFiltro, offset],
     queryFn:  () =>
-      fetch(
+      fetchJson<EmpresaRow[]>(
         `/api/companies?linea=${encodeURIComponent(lineaFiltro)}&limit=${PAGE_SIZE}&offset=${offset}`,
-      ).then(r => r.json()),
+      ),
     staleTime: 30_000,
     placeholderData: prev => prev,
   });
@@ -515,39 +516,6 @@ export default function EmpresasPage() {
             <Plus size={16} />
             Nueva Empresa
           </Button>
-        </div>
-
-        {/* ── Stats bar ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {LINEA_OPTIONS.map(opt => {
-            const cnt = opt.value === 'ALL'
-              ? Object.values(counts).reduce((a, b) => a + b, 0)
-              : (counts[opt.value] ?? 0);
-            const isActive = lineaFiltro === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleLineaChange(opt.value)}
-                className={`
-                  text-left p-4 rounded-xl border-2 transition-all duration-150
-                  ${isActive
-                    ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                    : 'bg-surface border-border hover:border-border hover:bg-surface-muted/60'}
-                `}
-              >
-                <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
-                  <opt.Icon size={20} />
-                </div>
-                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
-                  {cnt}
-                </p>
-                <p className={`text-xs mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                  {opt.label}
-                </p>
-              </button>
-            );
-          })}
         </div>
 
         {/* ── Line selector cards ─────────────────────────────────────────── */}

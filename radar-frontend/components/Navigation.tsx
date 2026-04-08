@@ -11,9 +11,12 @@ import {
   ChevronLeft,
   ChevronRight,
   Signal,
+  Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import type { SessionUser } from '@/lib/auth/types';
+import { SidebarUserSection } from '@/components/AppShell';
 
 const navItems = [
   { href: '/',          label: 'Dashboard',   icon: LayoutDashboard },
@@ -24,15 +27,22 @@ const navItems = [
   { href: '/contactos', label: 'Contactos',   icon: Users },
 ];
 
-export function Navigation() {
+const adminNavItem = { href: '/admin', label: 'Admin', icon: Shield };
+
+export function Navigation({ session }: { session: SessionUser | null }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+
+  const visibleItems = [
+    ...navItems,
+    ...(session?.role === 'ADMIN' ? [adminNavItem] : []),
+  ];
 
   return (
     <aside
       className={cn(
-        'relative flex flex-col justify-between bg-sidebar text-sidebar-foreground transition-all duration-300 shrink-0',
-        collapsed ? 'w-[72px]' : 'w-[260px]'
+        'relative flex h-full min-h-screen flex-col justify-between bg-sidebar text-sidebar-foreground transition-all duration-300 shrink-0',
+        collapsed ? 'w-[72px]' : 'w-[240px] lg:w-[260px]'
       )}
     >
       {/* Header / Branding */}
@@ -74,7 +84,7 @@ export function Navigation() {
 
         {/* Navegación */}
         <nav className="grid gap-0.5">
-          {navItems.map(({ href, label, icon: Icon }) => {
+          {visibleItems.map(({ href, label, icon: Icon }) => {
             const active =
               href === '/'
                 ? pathname === '/'
@@ -101,19 +111,24 @@ export function Navigation() {
         </nav>
       </div>
 
-      {/* Footer */}
-      <div className="mx-3 mb-4 rounded-xl border border-white/10 bg-white/5 p-3">
-        {!collapsed ? (
-          <>
-            <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Sistema</p>
-            <p className="mt-1 text-xs font-semibold text-white">Matec LATAM</p>
-            <p className="text-[11px] text-white/55">v2.0 · Agentes IA</p>
-          </>
-        ) : (
-          <div className="flex justify-center">
-            <span className="text-[10px] font-bold text-white/40">M</span>
-          </div>
-        )}
+      {/* Bottom section: user info + logout above system footer */}
+      <div className="flex flex-col gap-2 pb-2">
+        <SidebarUserSection session={session} collapsed={collapsed} />
+
+        {/* Footer */}
+        <div className="mx-3 mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
+          {!collapsed ? (
+            <>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Sistema</p>
+              <p className="mt-1 text-xs font-semibold text-white">Matec LATAM</p>
+              <p className="text-[11px] text-white/55">v2.0 · Agentes IA</p>
+            </>
+          ) : (
+            <div className="flex justify-center">
+              <span className="text-[10px] font-bold text-white/40">M</span>
+            </div>
+          )}
+        </div>
       </div>
     </aside>
   );

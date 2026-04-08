@@ -41,7 +41,9 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
     enabled: !isTimestamp && !allDone,
     refetchInterval: (query) => {
       const d = query.state.data;
-      if (!d || d.status === 'running' || d.status === 'waiting') return 3000;
+      // 6s en lugar de 3s — el dashboard se siente igual de "vivo" pero
+      // libera el main thread la mitad del tiempo.
+      if (!d || d.status === 'running' || d.status === 'waiting') return 6000;
       return false;
     },
     retry: 2,

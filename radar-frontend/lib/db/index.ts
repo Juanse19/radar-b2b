@@ -83,6 +83,18 @@ export function getEjecucionesRecientes(limit?: number) {
     : PriEj.getEjecucionesRecientes(limit);
 }
 
+export function getEjecucionById(idOrN8nId: string | number) {
+  return getDriver() === 'supabase'
+    ? SupEj.getEjecucionById(idOrN8nId)
+    : PriEj.getEjecucionById(idOrN8nId);
+}
+
+export function getPipelines(opts?: Parameters<typeof PriEj.getPipelines>[0]) {
+  return getDriver() === 'supabase'
+    ? SupEj.getPipelines(opts)
+    : PriEj.getPipelines(opts);
+}
+
 // ── Señales ───────────────────────────────────────────────────────────────────
 
 export function getSenales(filter: Parameters<typeof PriSe.getSenales>[0]) {

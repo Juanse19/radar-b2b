@@ -21,17 +21,38 @@ export interface EmpresaRow {
   updated_at: string;
 }
 
+/** One row in the `ejecuciones` table. Pipeline-tracking fields added in
+ *  Sprint 1 of the agent tracker — see `prisma/schema.prisma`. */
 export interface EjecucionRow {
   id: number;
   n8n_execution_id: string | null;
   linea_negocio: string | null;
   batch_size: number | null;
-  estado: string;
-  trigger_type: string;
+  estado: string; // 'running' | 'success' | 'error' | 'waiting'
+  trigger_type: string; // 'manual' | 'scheduled' | 'cascade'
   parametros: Record<string, unknown> | null;
   error_msg: string | null;
   started_at: string;
   finished_at: string | null;
+  /** 'calificador' | 'radar' | 'prospector' */
+  agent_type: AgentType;
+  /** uuid v4 grouping all executions of one logical pipeline run */
+  pipeline_id: string | null;
+  /** Self-FK to the parent ejecución when this row is part of a cascade */
+  parent_execution_id: number | null;
+  /** Latest n8n node label finished, derived server-side from runData */
+  current_step: string | null;
+}
+
+export type AgentType = 'calificador' | 'radar' | 'prospector';
+
+/** Composite DTO returned by GET /api/executions — groups all rows of one
+ *  pipeline_id together so the tray can render them as a single unit. */
+export interface PipelineDTO {
+  pipeline_id: string;
+  started_at: string;
+  status: 'running' | 'success' | 'error' | 'partial' | 'waiting';
+  agents: Array<EjecucionRow & { elapsed_seconds: number }>;
 }
 
 export interface SenalRow {

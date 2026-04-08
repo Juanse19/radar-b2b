@@ -28,6 +28,8 @@ export interface ResultadoRadar {
   pais: string;
   linea: LineaNegocio;
   tier: TierEmpresa;
+  /** Company domain — used when re-firing Radar for a specific row. */
+  dominio?: string;
   radarActivo: 'Sí' | 'No';
   tipoSenal: string;
   descripcion: string;
@@ -95,6 +97,9 @@ export interface ExecutionStatus {
   finishedAt?: string;
   empresasProcesadas?: number;
   errores?: string[];
+  /** Human-readable label of the most recently executed n8n node — derived
+   *  via `lib/constants/agentSteps.stepLabelForNode()` from runData. */
+  currentStep?: string;
 }
 
 export interface ProspeccionLog {

@@ -47,24 +47,27 @@ export async function POST(req: NextRequest) {
       empresas: empresasParaN8N,
     });
 
-    // ── Registrar ejecución en Supabase ───────────────────────────────────────
+    // ── Registrar ejecución en BD local con tracking de pipeline ──────────────
+    let pipeline_id: string | null = null;
     try {
-      await registrarEjecucion({
+      const ejecucion = await registrarEjecucion({
         n8n_execution_id: result.executionId,
         linea_negocio:    body.linea,
         batch_size:       batchSize,
         trigger_type:     'manual',
+        agent_type:       'calificador',
         parametros: {
           dateFilterFrom:    n8nParams.dateFilterFrom,
           empresasEnviadas:  empresasParaN8N.length,
           origenEmpresas:    body.empresas ? 'frontend' : 'db',
         },
       });
+      pipeline_id = ejecucion.pipeline_id;
     } catch {
       // No bloquear la respuesta si el log falla
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, pipeline_id });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
 

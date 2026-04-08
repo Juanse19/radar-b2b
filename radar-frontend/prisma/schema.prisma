@@ -37,22 +37,43 @@ model Empresa {
 }
 
 model Ejecucion {
-  id               Int       @id @default(autoincrement())
-  n8n_execution_id String?
-  linea_negocio    String?
-  batch_size       Int?
-  estado           String    @default("running")
-  trigger_type     String    @default("manual")
-  parametros       String?
-  error_msg        String?
-  started_at       DateTime  @default(now())
-  finished_at      DateTime?
+  id                  Int       @id @default(autoincrement())
+  n8n_execution_id    String?
+  linea_negocio       String?
+  batch_size          Int?
+  estado              String    @default("running")
+  trigger_type        String    @default("manual")
+  parametros          String?
+  error_msg           String?
+  started_at          DateTime  @default(now())
+  finished_at         DateTime?
 
-  senales Senal[]
+  // Pipeline tracking — Sprint 1 (real-time agent tracker)
+  // agent_type: which workflow this row represents
+  //   - 'calificador' = WF01
+  //   - 'radar'       = WF02
+  //   - 'prospector'  = WF03
+  agent_type          String    @default("calificador")
+  // pipeline_id: uuid v4 grouping all executions of one logical run.
+  // For a manual single-agent fire it has exactly 1 row; for a cascade
+  // (WF01 → WF02 → WF03) all 3 rows share the same pipeline_id.
+  pipeline_id         String?
+  // parent_execution_id: self-FK pointing at the ejecución that spawned
+  // this one in a cascade. NULL for the root (manual fires + WF01 in cascade).
+  parent_execution_id Int?
+  // current_step: latest n8n node label that finished. Derived server-side
+  // from exec.data.resultData.runData and translated via lib/constants/agentSteps.
+  current_step        String?
+
+  senales  Senal[]
+  parent   Ejecucion?  @relation("EjecucionCascade", fields: [parent_execution_id], references: [id])
+  children Ejecucion[] @relation("EjecucionCascade")
 
   @@index([linea_negocio])
   @@index([estado])
   @@index([started_at])
+  @@index([pipeline_id])
+  @@index([agent_type])
   @@map("ejecuciones")
 }
 

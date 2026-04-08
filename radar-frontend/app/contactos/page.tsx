@@ -21,6 +21,8 @@ import {
   CheckCircle, AlertCircle, Database, Search, ClipboardList,
 } from 'lucide-react';
 import type { Contacto, LineaNegocio, ProspeccionLog, Empresa } from '@/lib/types';
+import { fetchJson } from '@/lib/fetcher';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 
 // ── Líneas disponibles ────────────────────────────────────────────────────────
 
@@ -113,6 +115,12 @@ export default function ContactosPage() {
   const [processingEmpresas, setProcessingEmpresas] = useState<string[]>([]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
+  // Conexión con el tracker global — sabemos si OTRO origen del mismo agente
+  // (otra tab del navegador, otro usuario) ya tiene una prospección corriendo,
+  // y la invalidación tras disparar hace que el tray flotante se actualice.
+  const { anyRunningOfAgent, invalidate: invalidateInflight } = useInflightExecutions();
+  const hasInflightProspector = anyRunningOfAgent('prospector');
+
   // ── Tabla state ───────────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState('');
   const [busquedaEmpresa, setBusquedaEmpresa] = useState('');
@@ -125,10 +133,10 @@ export default function ContactosPage() {
   // ── Company Selector Query ────────────────────────────────────────────────
   const { data: companiesData = [] } = useQuery<Empresa[]>({
     queryKey: ['companiesSelector', lineaSeleccionada],
-    queryFn: () =>
-      fetch(`/api/companies?linea=${lineaSeleccionada}&limit=500`)
-        .then(r => r.json())
-        .then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/companies?linea=${lineaSeleccionada}&limit=500`);
+      return Array.isArray(data) ? (data as Empresa[]) : [];
+    },
     enabled: modo === 'manual',
     staleTime: 5 * 60 * 1000,
   });
@@ -162,28 +170,31 @@ export default function ContactosPage() {
 
   const { data: rawContactos = [], isLoading } = useQuery<Contacto[]>({
     queryKey: ['contactos', lineaFiltro, statusFiltro, busqueda],
-    queryFn: () =>
-      fetch(`/api/contacts?${queryParams}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/contacts?${queryParams}`);
+      return Array.isArray(data) ? (data as Contacto[]) : [];
+    },
   });
 
   const { data: countData } = useQuery<{ total: number }>({
     queryKey: ['contactos', 'count'],
-    queryFn: () => fetch('/api/contacts?count=true').then(r => r.json()),
+    queryFn: () => fetchJson<{ total: number }>('/api/contacts?count=true'),
     staleTime: 2 * 60 * 1000,
   });
 
   // ── Prospection Logs Query ────────────────────────────────────────────────
   const { data: prospeccionLogs = [], isLoading: logsLoading } = useQuery<ProspeccionLog[]>({
     queryKey: ['prospeccionLogs', lineaFiltro],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams({ limit: '100' });
       if (lineaFiltro !== 'ALL') params.set('linea', lineaFiltro);
-      return fetch(`/api/prospect/logs?${params}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []);
+      const data = await fetchJson<unknown>(`/api/prospect/logs?${params}`);
+      return Array.isArray(data) ? (data as ProspeccionLog[]) : [];
     },
     refetchInterval: (query) => {
       const data = query.state.data;
       if (Array.isArray(data) && data.some((l: ProspeccionLog) => l.estado === 'running')) {
-        return 10_000;
+        return 15_000; // 10s → 15s, menos presión en main thread
       }
       return false;
     },
@@ -326,39 +337,50 @@ export default function ContactosPage() {
       toast.error('Selecciona al menos una empresa para prospectar');
       return;
     }
+    if (hasInflightProspector) {
+      toast.error('Ya hay una prospección corriendo. Espera a que termine.');
+      return;
+    }
     setProspectando(true);
     setProspectError(null);
     setProspectSuccess(false);
     try {
-      const res = await fetch('/api/prospect', {
+      // Usamos `/api/agent` (en lugar del legacy `/api/prospect`) para que el
+      // tracker global capture la ejecución con agent_type=prospector y un
+      // pipeline_id correlacionable.
+      const empresasManualPayload = modo === 'manual'
+        ? companiesData
+            .filter(e => selectedEmpresaIds.has(e.id))
+            .map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais, linea: e.linea }))
+        : [];
+
+      const data = await fetchJson<{ execution_id: string; pipeline_id: string }>('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          linea: lineaSeleccionada,
-          empresas: modo === 'manual' ? empresasManualList : [],
+          agent:    'prospector',
+          linea:    lineaSeleccionada,
+          empresas: empresasManualPayload,
           batchSize,
-          contactosPorEmpresa,
+          options: { contactosPorEmpresa, tier: 'ORO' },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error lanzando prospección');
 
-      const execId: string = data.executionId ?? '';
-      const capturedLogIds: number[] = Array.isArray(data.logIds) ? data.logIds : [];
-      const empresasEnviadas: string[] = Array.isArray(data.empresasEnviadas)
-        ? data.empresasEnviadas
-        : modo === 'manual'
+      const execId = data.execution_id;
+      const empresasEnviadas: string[] = modo === 'manual'
         ? empresasManualList
         : [];
 
       setExecutionId(execId);
-      setLogIds(capturedLogIds);
+      setLogIds([]);
       setProcessingEmpresas(empresasEnviadas);
       setExecutionRunning(true);
       setDialogOpen(true);
       setProspectSuccess(true);
 
-      startPolling(execId, capturedLogIds);
+      // Hacer que el tray flotante recoja la nueva ejecución de inmediato.
+      invalidateInflight();
+      startPolling(execId, []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
       setProspectError(msg);
@@ -673,18 +695,32 @@ export default function ContactosPage() {
               </CardContent>
             </Card>
 
-            {/* Botón trigger */}
+            {/* Botón trigger — deshabilitado si hay otra prospección viva globalmente */}
             <Button
               onClick={lanzarProspeccion}
-              disabled={prospectando || dialogOpen || empresasCount === 0 || !tokenOk}
+              disabled={
+                prospectando
+                || dialogOpen
+                || empresasCount === 0
+                || !tokenOk
+                || hasInflightProspector
+              }
               className="w-full h-12 bg-blue-700 hover:bg-blue-600 gap-2 text-base font-semibold shadow-lg shadow-blue-900/30 disabled:opacity-50"
+              data-testid="prospect-fire"
             >
               {prospectando ? (
                 <><Loader2 size={18} className="animate-spin" /> Iniciando...</>
+              ) : hasInflightProspector ? (
+                <><Loader2 size={18} className="animate-spin" /> Prospección en curso…</>
               ) : (
                 <><Search size={18} /> Prospectar contactos</>
               )}
             </Button>
+            {hasInflightProspector && (
+              <p className="text-xs text-amber-400 -mt-1">
+                Ya hay un prospector corriendo. Mira el indicador flotante abajo a la derecha.
+              </p>
+            )}
 
             {/* Estado */}
             {prospectSuccess && !prospectando && !dialogOpen && (

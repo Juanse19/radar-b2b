@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSenalesSlim, countSenalesOroHoy } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
+import { LINEAS_ACTIVAS } from '@/lib/lineas';
 
 export async function GET() {
   try {
@@ -28,10 +29,13 @@ export async function GET() {
       tierCounts[tier]++;
     }
 
-    // Distribución por línea (solo señales activas)
-    const lineaCounts: Record<string, number> = {};
+    // Distribución por línea (solo señales activas y solo líneas activas en UI).
+    const lineasActivas = LINEAS_ACTIVAS as readonly string[];
+    const lineaCounts: Record<string, number> = Object.fromEntries(
+      lineasActivas.map(l => [l, 0]),
+    );
     for (const s of senales) {
-      if (s.radar_activo) {
+      if (s.radar_activo && lineasActivas.includes(s.linea_negocio)) {
         lineaCounts[s.linea_negocio] = (lineaCounts[s.linea_negocio] ?? 0) + 1;
       }
     }

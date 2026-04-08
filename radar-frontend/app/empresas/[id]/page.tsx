@@ -12,6 +12,7 @@ import { ScoreBadge } from '@/components/ScoreBadge';
 import { HubSpotStatusBadge } from '@/components/contactos/HubSpotStatusBadge';
 import { EmptyState } from '@/components/EmptyState';
 import type { Contacto } from '@/lib/types';
+import { fetchJson } from '@/lib/fetcher';
 
 interface Signal {
   id: number;
@@ -41,17 +42,26 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
 
   const { data: senales = [], isLoading: loadingSignals } = useQuery<Signal[]>({
     queryKey: ['signals', 'empresa', id],
-    queryFn: () => fetch(`/api/signals?empresa_id=${id}&limit=100`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/signals?empresa_id=${id}&limit=100`);
+      return Array.isArray(data) ? (data as Signal[]) : [];
+    },
   });
 
   const { data: contactos = [], isLoading: loadingContactos } = useQuery<Contacto[]>({
     queryKey: ['contactos', 'empresa', id],
-    queryFn: () => fetch(`/api/contacts?empresa_id=${id}&limit=100`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/contacts?empresa_id=${id}&limit=100`);
+      return Array.isArray(data) ? (data as Contacto[]) : [];
+    },
   });
 
   const { data: empresas = [] } = useQuery<EmpresaDetail[]>({
     queryKey: ['empresas', 'ALL', 0],
-    queryFn: () => fetch('/api/companies?linea=ALL&limit=1000').then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>('/api/companies?linea=ALL&limit=1000');
+      return Array.isArray(data) ? (data as EmpresaDetail[]) : [];
+    },
     staleTime: 5 * 60 * 1000,
   });
 

@@ -1,5 +1,6 @@
 // lib/n8n.ts
 import type { TriggerParams, ExecutionStatus } from './types';
+import { stepLabelForNode } from './constants/agentSteps';
 
 const N8N_HOST = process.env.N8N_HOST || 'https://n8n.event2flow.com';
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
@@ -102,6 +103,83 @@ export async function triggerScan(params: TriggerScanParams): Promise<{ executio
   return { executionId: String(Date.now()) };
 }
 
+export interface TriggerRadarParams {
+  empresa: string;
+  pais?: string;
+  linea_negocio?: string;
+  tier?: string;
+  company_domain?: string;
+  /** Score from WF01. Defaults to 5 (mid Monitoreo). */
+  score_calificacion?: number;
+}
+
+/**
+ * Disparador del Agente 02 — Radar de Inversión.
+ *
+ * A diferencia de WF01, WF02 normalmente recibe UNA empresa por ejecución
+ * (porque su trabajo es buscar señales de inversión específicas para esa
+ * empresa). Lo usamos en modo manual desde `/scan` cuando el equipo comercial
+ * quiere correr radar sobre una empresa específica.
+ */
+export async function triggerRadar(params: TriggerRadarParams): Promise<{ executionId: string }> {
+  const webhookUrl = `${N8N_HOST}/webhook/${N8N_RADAR_WEBHOOK_PATH}`;
+
+  const body = {
+    empresa:            params.empresa,
+    pais:               params.pais ?? 'Colombia',
+    linea_negocio:      params.linea_negocio ?? '',
+    tier:               params.tier ?? 'MONITOREO',
+    company_domain:     params.company_domain ?? '',
+    score_calificacion: params.score_calificacion ?? 5,
+    trigger_type:       'manual_radar',
+  };
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 12000);
+
+  let res: Response;
+  try {
+    res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: controller.signal,
+    });
+  } catch (err: unknown) {
+    clearTimeout(timeoutId);
+    if ((err as Error)?.name === 'AbortError') {
+      throw new Error('WF02 timeout. Verifica que el workflow Radar esté activo.');
+    }
+    throw err;
+  }
+  clearTimeout(timeoutId);
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+  }
+
+  const data = await res.json().catch(() => ({}));
+  if (data.executionId || data.id) {
+    return { executionId: String(data.executionId || data.id) };
+  }
+
+  // Fallback: query the n8n REST API for the latest execution of WF02.
+  try {
+    const execRes = await fetch(
+      `${N8N_HOST}/api/v1/executions?workflowId=${N8N_RADAR_WORKFLOW_ID}&limit=1`,
+      { headers: { 'X-N8N-API-KEY': N8N_API_KEY } },
+    );
+    if (execRes.ok) {
+      const execData = await execRes.json();
+      const first = execData?.data?.[0];
+      if (first?.id) return { executionId: String(first.id) };
+    }
+  } catch { /* fall through */ }
+
+  return { executionId: String(Date.now()) };
+}
+
 export async function triggerProspect(params: {
   linea: string;
   empresas: string[];
@@ -157,7 +235,7 @@ export async function triggerProspect(params: {
 }
 
 export async function getExecutionStatus(executionId: string): Promise<ExecutionStatus> {
-  const url = `${N8N_HOST}/api/v1/executions/${executionId}`;
+  const url = `${N8N_HOST}/api/v1/executions/${executionId}?includeData=true`;
 
   const res = await fetch(url, {
     headers: {
@@ -183,12 +261,34 @@ export async function getExecutionStatus(executionId: string): Promise<Execution
   else if (finished && hasError) status = 'error';
   else if (exec.status === 'waiting') status = 'waiting';
 
+  // Derive `currentStep` from the most recently executed n8n node.
+  // runData is { nodeName: [{ startTime, executionTime, ... }] }; we pick the
+  // node with the latest startTime that has data, then translate it to a
+  // human-readable label via stepLabelForNode().
+  const runData = exec.data?.resultData?.runData as
+    | Record<string, Array<{ startTime?: number }>>
+    | undefined;
+  let currentStep: string | undefined;
+  if (runData) {
+    let latestNode: string | undefined;
+    let latestTime = -Infinity;
+    for (const [nodeName, runs] of Object.entries(runData)) {
+      const t = runs?.[runs.length - 1]?.startTime ?? 0;
+      if (t > latestTime) {
+        latestTime = t;
+        latestNode = nodeName;
+      }
+    }
+    if (latestNode) currentStep = stepLabelForNode(latestNode);
+  }
+
   return {
     id: executionId,
     status,
-    startedAt: exec.startedAt,
-    finishedAt: exec.stoppedAt,
+    startedAt:          exec.startedAt,
+    finishedAt:         exec.stoppedAt,
     empresasProcesadas: exec.data?.resultData?.runData?.['Loop Over Items1']?.[0]?.data?.main?.[0]?.length,
+    currentStep,
   };
 }
 

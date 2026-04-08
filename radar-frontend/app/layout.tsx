@@ -2,9 +2,10 @@ import type { Metadata } from 'next';
 import { Barlow, Public_Sans } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import { Navigation } from '@/components/Navigation';
+import { AppShell } from '@/components/AppShell';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { getCurrentSession } from '@/lib/auth/session';
 
 /* Barlow — títulos y headings (equivalente a Futura MDBT del manual de marca) */
 const displayFont = Barlow({
@@ -27,18 +28,15 @@ export const metadata: Metadata = {
   description: 'Panel de inteligencia comercial B2B para el equipo Matec LATAM',
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const session = await getCurrentSession();
+
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${displayFont.variable} ${uiFont.variable} antialiased`}>
         <Providers>
           <TooltipProvider>
-            <div className="flex min-h-screen bg-background text-foreground">
-              <Navigation />
-              <main className="flex-1 overflow-auto p-6">
-                {children}
-              </main>
-            </div>
+            <AppShell session={session}>{children}</AppShell>
             <Toaster richColors position="top-right" />
           </TooltipProvider>
         </Providers>

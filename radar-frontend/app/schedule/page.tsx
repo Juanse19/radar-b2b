@@ -10,8 +10,14 @@ import { Switch } from '@/components/ui/switch';
 import {
   Save, CheckCircle, Loader2, Calendar, Clock,
   PlayCircle, AlertCircle, Plane, Package, Warehouse,
+  ClipboardCheck, Radar, Users, Layers,
 } from 'lucide-react';
 import type { ScheduleConfig, DiaSemana, LineaSchedule } from '@/lib/types';
+import { fetchJson, ApiError } from '@/lib/fetcher';
+import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
+import { toast } from 'sonner';
+import type { AgentType } from '@/lib/db/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -24,6 +30,8 @@ const DIAS_ABBR: Record<DiaSemana, string> = {
   Jueves: 'Jue', Viernes: 'Vie', Sábado: 'Sáb', Domingo: 'Dom',
 };
 
+// Solo las 3 líneas activas de Matec — Final de Línea, Motos, SOLUMAT
+// no se ofrecen en la rotación semanal.
 const LINEAS_SEMANA: { value: LineaSchedule; label: string }[] = [
   { value: 'BHS',            label: 'BHS — Aeropuertos' },
   { value: 'Cartón',         label: 'Cartón — Corrugadoras' },
@@ -103,10 +111,15 @@ export default function SchedulePage() {
   const [runningNow, setRunningNow]       = useState(false);
   const [runError, setRunError]           = useState<string | null>(null);
   const [runSuccess, setRunSuccess]       = useState(false);
+  // Which agent to fire with "Ejecutar ahora"
+  const [agentToRun, setAgentToRun]       = useState<AgentType | 'cascade'>('calificador');
+  // Execution id returned after firing — shows an inline tracker card.
+  const [lastExecId, setLastExecId]       = useState<string | null>(null);
+  const { invalidate: invalidateTray }    = useInflightExecutions();
 
   const { data: schedule, isLoading } = useQuery<ScheduleConfig>({
     queryKey: ['schedule'],
-    queryFn: () => fetch('/api/schedule').then(r => r.json()),
+    queryFn: () => fetchJson<ScheduleConfig>('/api/schedule'),
   });
 
   const [draftConfig, setDraftConfig]     = useState<Partial<ScheduleConfig> | null>(null);
@@ -133,11 +146,11 @@ export default function SchedulePage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: Partial<ScheduleConfig>) =>
-      fetch('/api/schedule', {
+      fetchJson<ScheduleConfig>('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(r => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
@@ -165,22 +178,49 @@ export default function SchedulePage() {
     setTimeout(() => { setSavedConfig(false); setSavedWeek(false); }, 3000);
   }
 
+  // Agent labels for the selector
+  const AGENT_OPTIONS: { value: AgentType | 'cascade'; label: string; Icon: React.ElementType; desc: string }[] = [
+    { value: 'calificador', label: 'Calificación',   Icon: ClipboardCheck, desc: 'WF01 — califica el siguiente batch de empresas' },
+    { value: 'radar',       label: 'Radar',          Icon: Radar,          desc: 'WF02 — detecta señales CAPEX (requiere empresa específica)' },
+    { value: 'prospector',  label: 'Prospección',    Icon: Users,          desc: 'WF03 — busca contactos con Apollo.io' },
+    { value: 'cascade',     label: 'Cascada completa', Icon: Layers,       desc: 'WF01 → WF02 → WF03 — pipeline completo (WF01 activa los siguientes)' },
+  ];
+
   async function ejecutarAhora() {
     setRunningNow(true);
     setRunError(null);
     setRunSuccess(false);
+    setLastExecId(null);
+
+    // Cascada: dispara solo WF01 — n8n se encarga de activar WF02 y WF03
+    // automáticamente para las empresas que califican.
+    const agentPayload = agentToRun === 'cascade' ? 'calificador' : agentToRun;
+    const todayLinea = (() => {
+      const todayIdx = getTodayIdx();
+      const dia = DIAS[todayIdx];
+      const linea = draftRotacion?.[dia] ?? 'BHS';
+      return linea === 'Descanso' || linea === 'Todas' || linea === 'ALL_TIER_A' ? 'BHS' : linea;
+    })();
+
     try {
-      const res = await fetch('/api/trigger', {
+      const result = await fetchJson<{ execution_id: string; pipeline_id: string }>('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ linea: 'ALL', batchSize: draftConfig?.batchSizes?.BHS ?? 10 }),
+        body: JSON.stringify({
+          agent:     agentPayload,
+          linea:     todayLinea,
+          batchSize: draftConfig?.batchSizes?.BHS ?? 10,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error lanzando escaneo');
+      setLastExecId(result.execution_id);
       setRunSuccess(true);
+      invalidateTray(); // wake the global tracker tray
+      toast.success(`${AGENT_OPTIONS.find(o => o.value === agentToRun)?.label ?? 'Agente'} iniciado`);
       setTimeout(() => setRunSuccess(false), 8000);
     } catch (e) {
-      setRunError(e instanceof Error ? e.message : 'Error desconocido');
+      const msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Error desconocido';
+      setRunError(msg);
+      toast.error(`Error: ${msg}`);
     } finally {
       setRunningNow(false);
     }
@@ -221,7 +261,30 @@ export default function SchedulePage() {
           </div>
 
           {/* Run now */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-3">
+            {/* Agent selector */}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {AGENT_OPTIONS.map(opt => {
+                const isActive = agentToRun === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    title={opt.desc}
+                    onClick={() => setAgentToRun(opt.value)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-orange-900/60 border-orange-600 text-orange-200'
+                        : 'bg-surface border-border text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    <opt.Icon size={12} />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <Button
               onClick={ejecutarAhora}
               disabled={runningNow}
@@ -233,9 +296,10 @@ export default function SchedulePage() {
                 <><PlayCircle size={15} /> Ejecutar ahora</>
               )}
             </Button>
+
             {runSuccess && (
               <div className="flex items-center gap-1.5 text-green-400 text-xs">
-                <CheckCircle size={12} /> Escaneo iniciado — revisa Resultados en unos minutos
+                <CheckCircle size={12} /> Iniciado — sigue el progreso abajo o en el tracker ↘
               </div>
             )}
             {runError && (
@@ -273,6 +337,18 @@ export default function SchedulePage() {
           </div>
         </div>
       </div>
+
+      {/* ── Inline tracker — shows the execution just fired ─────────────────── */}
+      {lastExecId && (
+        <div className="max-w-6xl mx-auto mt-4">
+          <div className="rounded-xl border border-orange-800/50 bg-orange-950/20 p-4 space-y-2">
+            <p className="text-xs font-semibold text-orange-300 uppercase tracking-wide">
+              Ejecución en curso
+            </p>
+            <AgentPipelineCard executionId={lastExecId} />
+          </div>
+        </div>
+      )}
 
       {/* ── Main grid ───────────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
