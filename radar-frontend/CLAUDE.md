@@ -1,1 +1,244 @@
 @AGENTS.md
+
+# Frontend — Matec Radar B2B
+
+## Stack
+
+Next.js 14 (App Router) · TypeScript · Tailwind CSS · Shadcn/ui · TanStack Query · Supabase · Prisma (SQLite dev fallback) · Playwright (e2e) · Vitest (unit/integration)
+
+---
+
+## Propósito
+
+Panel de control para el equipo comercial de Matec. Permite:
+- Disparar los 3 agentes n8n manualmente por línea de negocio
+- Ver señales de inversión detectadas por WF02 (Radar)
+- Ver contactos encontrados por WF03 (Prospector)
+- Ver resultados de calificación de WF01 (Calificador)
+- Programar escaneos automáticos
+
+**NO es el backend de los agentes** — el backend son los workflows de n8n. El frontend solo los dispara y visualiza.
+
+---
+
+## Variables de entorno requeridas (.env.local)
+
+```bash
+# ── N8N ───────────────────────────────────────────────────
+N8N_HOST=https://n8n.event2flow.com
+N8N_API_KEY=<n8n-api-key>
+
+# WF01 — Calificador (entry point)
+N8N_WORKFLOW_ID=jDtdafuyYt8TXISl
+N8N_WEBHOOK_PATH=calificador
+
+# WF02 — Radar de Inversión
+N8N_RADAR_WORKFLOW_ID=fko0zXYYl5X4PtHz
+N8N_RADAR_WEBHOOK_PATH=radar-scan
+
+# WF03 — Prospector
+N8N_PROSPECT_WORKFLOW_ID=RLUDpi3O5Rb6WEYJ
+N8N_PROSPECT_WEBHOOK_PATH=prospector
+
+# ── Supabase ── (self-hosted: supabase.valparaiso.cafe)
+SUPABASE_URL=https://supabase.valparaiso.cafe
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>    ← FALTA CONFIGURAR
+SUPABASE_DB_SCHEMA=public
+
+NEXT_PUBLIC_SUPABASE_URL=https://supabase.valparaiso.cafe
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>         ← FALTA CONFIGURAR
+
+# ── Driver de base de datos ────────────────────────────────
+# 'prisma' = SQLite local (dev)
+# 'supabase' = PostgreSQL en producción ← CAMBIAR cuando Supabase esté listo
+DB_DRIVER=prisma
+
+# ── Base de datos local (SQLite) ──────────────────────────
+DATABASE_URL="file:./prisma/dev.db"
+
+# ── Google Sheets (lectura) ───────────────────────────────
+BASE_DE_DATOS_SHEET_ID=13C6RJPORu6CPqr1iL0zXU-gUi3eTV-eYo8i-IV9K818
+LOG_SHEET_ID=1rtFoTi3ZwNHi9RBidFGcxOHtK6lOvCuhebUB1eS-MGo
+```
+
+**Para activar Supabase:**
+1. Ejecutar `supabase/migrations/20260408_001_public_schema.sql` en el SQL Editor de Supabase
+2. Copiar `service_role` y `anon` keys desde Settings → API
+3. Llenar las variables `SUPABASE_SERVICE_ROLE_KEY` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+4. Cambiar `DB_DRIVER=supabase`
+5. Correr: `npx tsx scripts/verify_supabase.ts`
+
+---
+
+## Arquitectura del código
+
+```
+app/
+├── page.tsx               ← Dashboard (KPIs, señales ORO, charts)
+├── scan/page.tsx          ← Disparar WF01 manual (6 líneas, batch)
+├── results/page.tsx       ← Señales de inversión (tabla filtrable)
+├── empresas/              ← Gestión de base de datos de empresas
+├── contactos/page.tsx     ← Contactos de Apollo (WF03)
+├── calificacion/page.tsx  ← [PENDIENTE] Resultados WF01 con scores
+├── schedule/page.tsx      ← Programar escaneos automáticos
+└── api/
+    ├── trigger/route.ts   ← POST → WF01 Calificador
+    ├── radar/route.ts     ← POST → WF02 Radar (manual)
+    ├── prospect/route.ts  ← POST → WF03 Prospector (manual)
+    ├── signals/route.ts   ← GET/POST señales de WF02
+    ├── companies/route.ts ← CRUD empresas
+    └── contacts/route.ts  ← CRUD contactos
+
+lib/
+├── db/
+│   ├── driver.ts          ← Lee DB_DRIVER, devuelve 'prisma' | 'supabase'
+│   ├── index.ts           ← Facade: despacha a Prisma o Supabase
+│   ├── prisma/            ← Implementación con Prisma (SQLite)
+│   ├── supabase/          ← Implementación con Supabase (PostgreSQL)
+│   └── types.ts           ← Tipos compartidos EmpresaRow, SenalRow, etc.
+├── n8n.ts                 ← Helpers para llamar los webhooks de n8n
+└── types.ts               ← Tipos globales (LineaNegocio, ResultadoRadar, etc.)
+```
+
+---
+
+## Bugs activos (v1.0) — no introducir más sin fix
+
+| Bug | Archivo | Descripción | Fix en |
+|-----|---------|-------------|--------|
+| F1 | `app/scan/page.tsx` | Solo 4 de 6 líneas en LINEA_OPTIONS | `PROMPT_Frontend_v2.md` → Bug 1 |
+| F2 | `lib/n8n.ts` | Campo `nombre` en vez de `empresa` al webhook WF01 | `PROMPT_Frontend_v2.md` → Bug 2 |
+| F3 | `app/api/prospect/route.ts` | No envía `tier` ni `paises[]` a WF03 | `PROMPT_Frontend_v2.md` → Bug 3 |
+| F4 | `lib/types.ts` | `LineaNegocio` incompleto (faltan 3 valores) | `PROMPT_Frontend_v2.md` → Bug 4 |
+
+---
+
+## Tipo LineaNegocio (6 valores correctos)
+
+```typescript
+export type LineaNegocio =
+  | 'BHS'
+  | 'Cartón'
+  | 'Intralogística'
+  | 'Cargo'
+  | 'Motos'
+  | 'Final de Línea'
+  | 'Solumat'
+  | 'ALL';
+```
+
+---
+
+## Formato de payload correcto para cada webhook
+
+### POST /api/trigger → WF01 Calificador
+```json
+{
+  "linea": "Final de Línea",
+  "batchSize": 10,
+  "empresas": [
+    {
+      "empresa": "Grupo Nutresa",
+      "company_domain": "grupnutresa.com",
+      "pais": "Colombia",
+      "linea_negocio": "Final de Línea",
+      "paises": ["Colombia", "Mexico"]
+    }
+  ]
+}
+```
+
+### POST /api/radar → WF02 Radar (disparo manual)
+```json
+{
+  "empresa": "Grupo Bimbo",
+  "pais": "Mexico",
+  "linea_negocio": "Final de Línea",
+  "tier": "ORO",
+  "company_domain": "grupobimbo.com",
+  "score_calificacion": 9
+}
+```
+
+### POST /api/prospect → WF03 Prospector (disparo manual)
+```json
+{
+  "linea": "Final de Línea",
+  "batchSize": 5,
+  "contactosPorEmpresa": 5,
+  "empresas": [
+    {
+      "empresa": "Grupo Bimbo",
+      "company_domain": "grupobimbo.com",
+      "pais": "Mexico",
+      "linea_negocio": "Final de Línea",
+      "tier": "ORO",
+      "paises": ["Mexico", "Colombia"]
+    }
+  ]
+}
+```
+
+---
+
+## Comandos de desarrollo
+
+```bash
+# Instalar dependencias
+npm install
+
+# Dev server
+npm run dev
+
+# Verificar Supabase
+npx tsx scripts/verify_supabase.ts
+
+# Migrar SQLite → Supabase
+npx tsx scripts/migrate_sqlite_to_supabase.ts
+
+# Importar empresas desde Excel
+node scripts/import_empresas.js
+
+# Tests unitarios e integración
+npm run test
+
+# Tests e2e (Playwright)
+npx playwright test
+
+# Tests e2e con UI visual
+npx playwright test --ui
+
+# Build (verifica TypeScript sin errores)
+npm run build
+
+# Lint
+npm run lint
+```
+
+---
+
+## Reglas de desarrollo
+
+1. Leer el archivo del módulo antes de editar — no asumir lo que hay
+2. No hardcodear URLs de n8n — usar las variables de entorno
+3. No usar `DB_DRIVER` directamente — siempre a través de `lib/db/index.ts`
+4. No exponer `SUPABASE_SERVICE_ROLE_KEY` al cliente — solo a routes server-side
+5. Todo nuevo componente UI: usar Shadcn/ui existente antes de crear uno nuevo
+6. Antes de cualquier PR: `npm run lint && npm run test && npm run build`
+
+---
+
+## Skills disponibles para Claude Code
+
+El proyecto tiene skills instalados en `.claude/skills/`:
+
+| Skill | Usar cuando |
+|-------|-------------|
+| `code-reviewer` | Revisar código antes de PR |
+| `senior-backend` | Diseñar API routes o queries |
+| `senior-frontend` | Crear/optimizar componentes React |
+| `senior-qa` | Escribir tests (Vitest + Playwright) |
+| `senior-devops` | CI/CD, deployment |
+| `senior-security` | Auditoría de seguridad |
+
+**Para activar una skill:** leer `SKILL.md` del directorio correspondiente antes de trabajar en esa área.

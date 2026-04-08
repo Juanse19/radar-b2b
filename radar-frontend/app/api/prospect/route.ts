@@ -10,6 +10,10 @@ export async function POST(req: NextRequest) {
       empresas = [] as string[],
       batchSize = 5,
       contactosPorEmpresa = 3,
+      // Bug F3 fix: tier y paises[] requeridos por WF03 para saber cuántos
+      // contactos buscar (ORO=5, PLATA=4, MONITOREO=3) y búsqueda multi-país
+      tier = 'ORO',
+      paises = [] as string[],
     } = body;
 
     if (!linea) {
@@ -35,6 +39,8 @@ export async function POST(req: NextRequest) {
       empresas: empresasParaN8N,
       batchSize,
       contactosPorEmpresa,
+      tier,
+      paises,
     });
 
     // Crear entradas de log para cada empresa — estado inicial "running"

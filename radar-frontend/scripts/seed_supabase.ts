@@ -13,11 +13,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
 
 const url    = process.env.SUPABASE_URL;
 const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const schema = process.env.SUPABASE_DB_SCHEMA ?? 'matec_radar';
+const schema = process.env.SUPABASE_DB_SCHEMA ?? 'public';
 
 if (!url || !key || key === 'FILL_IN_SERVICE_ROLE_KEY') {
   console.error('❌  Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local');

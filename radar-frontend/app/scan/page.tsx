@@ -11,6 +11,7 @@ import {
   Radar, Upload, Loader2, RotateCcw,
   Calendar, Search, CheckSquare, Square, FileUp, X,
   Plane, Package, Warehouse, Globe, Minus, Plus,
+  Truck, Bike, Factory,
 } from 'lucide-react';
 import { ExecutionStatusBadge } from '@/components/ExecutionStatus';
 import { PipelineStatus } from '@/components/scan/PipelineStatus';
@@ -64,6 +65,39 @@ const LINEA_OPTIONS: {
     activeBg: 'bg-emerald-950/60',
     activeBorder: 'border-emerald-500',
     badge: 'bg-emerald-900 text-emerald-300',
+  },
+  {
+    value: 'Final de Línea',
+    label: 'Final de Línea',
+    shortLabel: 'Final Línea',
+    desc: 'Alimentos, bebidas, palletizado',
+    Icon: Factory,
+    color: 'text-orange-400',
+    activeBg: 'bg-orange-950/60',
+    activeBorder: 'border-orange-500',
+    badge: 'bg-orange-900 text-orange-300',
+  },
+  {
+    value: 'Motos',
+    label: 'Motos — Ensambladoras',
+    shortLabel: 'Motos',
+    desc: 'Ensambladoras, motocicletas',
+    Icon: Bike,
+    color: 'text-rose-400',
+    activeBg: 'bg-rose-950/60',
+    activeBorder: 'border-rose-500',
+    badge: 'bg-rose-900 text-rose-300',
+  },
+  {
+    value: 'SOLUMAT',
+    label: 'Solumat — Plásticos',
+    shortLabel: 'Solumat',
+    desc: 'Plásticos, materiales industriales',
+    Icon: Truck,
+    color: 'text-violet-400',
+    activeBg: 'bg-violet-950/60',
+    activeBorder: 'border-violet-500',
+    badge: 'bg-violet-900 text-violet-300',
   },
   {
     value: 'ALL',

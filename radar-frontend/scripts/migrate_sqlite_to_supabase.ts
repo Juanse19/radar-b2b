@@ -16,11 +16,11 @@ import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
 
-dotenv.config({ path: resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: resolve(process.cwd(), '.env.local'), override: true });
 
 const url    = process.env.SUPABASE_URL;
 const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const schema = process.env.SUPABASE_DB_SCHEMA ?? 'matec_radar';
+const schema = process.env.SUPABASE_DB_SCHEMA ?? 'public';
 
 if (!url || !key || key === 'FILL_IN_SERVICE_ROLE_KEY') {
   console.error('❌  Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local');
@@ -74,7 +74,7 @@ async function main() {
     const inserted = await insertBatch('empresas', batch);
     for (let j = 0; j < batch.length; j++) {
       const sqliteId = sqliteEmpresas[i + j]!.id;
-      const supaId   = (inserted[j] as { id: number }).id;
+      const supaId   = (inserted[j] as unknown as { id: number }).id;
       empresaIdMap.set(sqliteId, supaId);
     }
     process.stdout.write(`  ${Math.min(i + BATCH, sqliteEmpresas.length)}/${sqliteEmpresas.length}\r`);
@@ -102,7 +102,7 @@ async function main() {
 
     const inserted = await insertBatch('ejecuciones', batch);
     for (let j = 0; j < batch.length; j++) {
-      ejecucionIdMap.set(sqliteEjecuciones[i + j]!.id, (inserted[j] as { id: number }).id);
+      ejecucionIdMap.set(sqliteEjecuciones[i + j]!.id, (inserted[j] as unknown as { id: number }).id);
     }
     process.stdout.write(`  ${Math.min(i + BATCH, sqliteEjecuciones.length)}/${sqliteEjecuciones.length}\r`);
   }

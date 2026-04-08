@@ -107,6 +107,10 @@ export async function triggerProspect(params: {
   empresas: string[];
   batchSize: number;
   contactosPorEmpresa: number;
+  /** Tier del prospecto — determina cuántos contactos busca WF03 (ORO=5, PLATA=4, MONITOREO=3) */
+  tier?: string;
+  /** Países para búsqueda multi-país (empresas multinacionales) */
+  paises?: string[];
 }): Promise<{ executionId: string }> {
   const webhookUrl = `${N8N_HOST}/webhook/${N8N_PROSPECT_WEBHOOK_PATH}`;
 
@@ -115,6 +119,8 @@ export async function triggerProspect(params: {
     empresas: params.empresas,
     batch_size: params.batchSize,
     contactos_por_empresa: params.contactosPorEmpresa,
+    tier: params.tier ?? 'ORO',
+    paises: params.paises ?? [],
     trigger_type: 'manual',
   };
 
