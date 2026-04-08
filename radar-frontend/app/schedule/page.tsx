@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -16,6 +16,7 @@ import type { ScheduleConfig, DiaSemana, LineaSchedule } from '@/lib/types';
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
+import { useLineasActivas } from '@/hooks/useLineasActivas';
 import { toast } from 'sonner';
 import type { AgentType } from '@/lib/db/types';
 
@@ -30,15 +31,12 @@ const DIAS_ABBR: Record<DiaSemana, string> = {
   Jueves: 'Jue', Viernes: 'Vie', Sábado: 'Sáb', Domingo: 'Dom',
 };
 
-// Solo las 3 líneas activas de Matec — Final de Línea, Motos, SOLUMAT
-// no se ofrecen en la rotación semanal.
-const LINEAS_SEMANA: { value: LineaSchedule; label: string }[] = [
-  { value: 'BHS',            label: 'BHS — Aeropuertos' },
-  { value: 'Cartón',         label: 'Cartón — Corrugadoras' },
-  { value: 'Intralogística', label: 'Intralogística — CEDI' },
-  { value: 'Todas',          label: 'Todas las líneas' },
-  { value: 'ALL_TIER_A',     label: 'Tier A (todas)' },
-  { value: 'Descanso',       label: 'Descanso' },
+// Static special options always present at the end of the weekly rotation
+// selector, regardless of what the DB returns.
+const LINEAS_SEMANA_EXTRA: { value: LineaSchedule; label: string }[] = [
+  { value: 'Todas',      label: 'Todas las líneas' },
+  { value: 'ALL_TIER_A', label: 'Tier A (todas)' },
+  { value: 'Descanso',   label: 'Descanso' },
 ];
 
 const DEFAULT_ROTACION: Partial<Record<DiaSemana, LineaSchedule>> = {
@@ -116,6 +114,18 @@ export default function SchedulePage() {
   // Execution id returned after firing — shows an inline tracker card.
   const [lastExecId, setLastExecId]       = useState<string | null>(null);
   const { invalidate: invalidateTray }    = useInflightExecutions();
+
+  const { lineas: lineasActivas } = useLineasActivas();
+
+  // Build the select options for the weekly rotation: DB-active lines first,
+  // then the fixed special options (Todas, ALL_TIER_A, Descanso).
+  const lineasSemana = useMemo<{ value: LineaSchedule; label: string }[]>(() => {
+    const dbLines = lineasActivas.map(l => ({
+      value: l.nombre as LineaSchedule,
+      label: l.nombre,
+    }));
+    return [...dbLines, ...LINEAS_SEMANA_EXTRA];
+  }, [lineasActivas]);
 
   const { data: schedule, isLoading } = useQuery<ScheduleConfig>({
     queryKey: ['schedule'],
@@ -541,7 +551,7 @@ export default function SchedulePage() {
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-surface-muted border-border">
-                            {LINEAS_SEMANA.map(l => (
+                            {lineasSemana.map(l => (
                               <SelectItem key={l.value} value={l.value} className="text-gray-100 text-xs">
                                 {l.label}
                               </SelectItem>

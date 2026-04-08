@@ -21,7 +21,8 @@ import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle } from
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
-import { LINEA_OPTIONS } from '@/lib/constants/lineas';
+import { LINEA_OPTIONS_ALL } from '@/lib/constants/lineas';
+import { useLineasActivas } from '@/hooks/useLineasActivas';
 import { cn } from '@/lib/utils';
 import type { LineaNegocio, Empresa } from '@/lib/types';
 import type { AgentType } from '@/lib/db/types';
@@ -55,6 +56,7 @@ const AGENT_LABEL: Record<AgentType, { title: string; subtitle: string; cta: str
 export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const meta = AGENT_LABEL[agent];
   const { anyRunningOfAgent, invalidate } = useInflightExecutions();
+  const { lineas: lineasActivas, isLoading: lineasLoading } = useLineasActivas();
 
   // ── State ────────────────────────────────────────────────────────────────
   const [linea, setLinea]                 = useState<LineaNegocio>('BHS');
@@ -196,31 +198,52 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Línea de negocio
         </label>
-        <div className="flex flex-wrap gap-2">
-          {LINEA_OPTIONS.map(opt => {
-            const isActive = linea === opt.value;
-            const cnt = opt.value === 'ALL'
-              ? Object.values(counts).reduce((a, b) => a + b, 0)
-              : (counts[opt.value] ?? 0);
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => setLinea(opt.value)}
-                className={cn(
-                  'flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors text-sm',
-                  isActive
-                    ? `${opt.activeBg} ${opt.activeBorder} ${opt.color}`
-                    : 'bg-surface border-border text-muted-foreground hover:border-border',
-                )}
-              >
-                <opt.Icon size={15} />
-                <span className="font-medium">{opt.shortLabel}</span>
-                <span className="text-xs opacity-70 tabular-nums">{cnt}</span>
-              </button>
-            );
-          })}
-        </div>
+        {lineasLoading ? (
+          <div className="flex flex-wrap gap-2">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div
+                key={i}
+                className="h-9 w-24 rounded-lg bg-surface-muted animate-pulse"
+              />
+            ))}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2">
+            {(() => {
+              // Match each DB linea to its static metadata (icon, colors).
+              // Falls back to a generic option if the name isn't in LINEA_OPTIONS_ALL.
+              const staticAll = LINEA_OPTIONS_ALL;
+              const dbNames = lineasActivas.map(l => l.nombre);
+              // Build the rendered list: DB-active lines + ALL at the end.
+              const opts = staticAll.filter(
+                o => o.value === 'ALL' || dbNames.includes(o.value),
+              );
+              return opts.map(opt => {
+                const isActive = linea === opt.value;
+                const cnt = opt.value === 'ALL'
+                  ? Object.values(counts).reduce((a, b) => a + b, 0)
+                  : (counts[opt.value] ?? 0);
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setLinea(opt.value)}
+                    className={cn(
+                      'flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-colors text-sm',
+                      isActive
+                        ? `${opt.activeBg} ${opt.activeBorder} ${opt.color}`
+                        : 'bg-surface border-border text-muted-foreground hover:border-border',
+                    )}
+                  >
+                    <opt.Icon size={15} />
+                    <span className="font-medium">{opt.shortLabel}</span>
+                    <span className="text-xs opacity-70 tabular-nums">{cnt}</span>
+                  </button>
+                );
+              });
+            })()}
+          </div>
+        )}
       </section>
 
       {/* Empresa picker */}

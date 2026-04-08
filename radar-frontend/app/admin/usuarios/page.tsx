@@ -10,6 +10,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, UserPlus, Check, X } from 'lucide-react';
 import { roleBadgeClass } from '@/components/AppShell';
+import { ROLE_LABELS, ROLE_DESCRIPTIONS } from '@/lib/auth/permissions';
+import type { UserRole } from '@/lib/auth/types';
 
 interface Usuario {
   id: string;
@@ -93,13 +95,20 @@ export default function UsuariosPage() {
                 onChange={e => setForm(p => ({ ...p, email: e.target.value }))} />
               <Input placeholder="Contraseña temporal" type="password" value={form.password}
                 onChange={e => setForm(p => ({ ...p, password: e.target.value }))} />
-              <select
-                value={form.rol}
-                onChange={e => setForm(p => ({ ...p, rol: e.target.value }))}
-                className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
-              >
-                {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-              </select>
+              <div className="space-y-1.5">
+                <select
+                  value={form.rol}
+                  onChange={e => setForm(p => ({ ...p, rol: e.target.value }))}
+                  className="w-full rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground"
+                >
+                  {ROLES.map(r => (
+                    <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                  ))}
+                </select>
+                <p className="text-[11px] text-muted-foreground leading-snug px-0.5">
+                  {ROLE_DESCRIPTIONS[form.rol as UserRole]}
+                </p>
+              </div>
             </div>
             <div className="flex gap-2">
               <Button size="sm" onClick={() => createMutation.mutate(form)}
@@ -138,13 +147,21 @@ export default function UsuariosPage() {
                     <td className="px-4 py-3 font-medium text-foreground">{u.nombre}</td>
                     <td className="px-4 py-3 text-muted-foreground">{u.email}</td>
                     <td className="px-4 py-3">
-                      <select
-                        value={u.rol}
-                        onChange={e => patchMutation.mutate({ id: u.id, updates: { rol: e.target.value } })}
-                        className={`rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer ${roleBadgeClass[u.rol] ?? roleBadgeClass.AUXILIAR} bg-transparent`}
-                      >
-                        {ROLES.map(r => <option key={r} value={r}>{r}</option>)}
-                      </select>
+                      <div className="flex flex-col gap-1">
+                        <select
+                          value={u.rol}
+                          onChange={e => patchMutation.mutate({ id: u.id, updates: { rol: e.target.value } })}
+                          className={`rounded-md px-2 py-1 text-xs font-semibold border cursor-pointer ${roleBadgeClass[u.rol] ?? roleBadgeClass.AUXILIAR} bg-transparent`}
+                          title={ROLE_DESCRIPTIONS[u.rol as UserRole]}
+                        >
+                          {ROLES.map(r => (
+                            <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+                          ))}
+                        </select>
+                        <span className="text-[10px] text-muted-foreground leading-snug max-w-[160px]">
+                          {ROLE_DESCRIPTIONS[u.rol as UserRole]}
+                        </span>
+                      </div>
                     </td>
                     <td className="px-4 py-3">
                       <select
