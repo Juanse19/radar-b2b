@@ -15,14 +15,36 @@ export async function GET() {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('system_roles')
-    .select('*, roles_permisos(count)')
-    .order('id');
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('system_roles')
+      .select('*, roles_permisos(count)')
+      .order('id');
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+    if (error) {
+      // Table does not exist yet — return empty list with informational note
+      if (
+        error.code === '42P01' ||
+        error.message?.includes('does not exist') ||
+        error.message?.includes('relation') ||
+        (error as { details?: string }).details?.includes('does not exist')
+      ) {
+        return NextResponse.json({
+          roles: [],
+          _info: 'Tablas de roles no creadas aún. Ejecuta la migración SQL en Supabase.',
+        });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ roles: data ?? [] });
+  } catch (err) {
+    return NextResponse.json({
+      roles: [],
+      _error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -42,31 +64,49 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'El campo label es requerido' }, { status: 400 });
   }
 
-  const db = getAdminDb();
+  try {
+    const db = getAdminDb();
 
-  // Check slug uniqueness (the DB has a UNIQUE constraint but give a friendlier message)
-  const { data: existing } = await db
-    .from('system_roles')
-    .select('id')
-    .eq('slug', slug.trim())
-    .maybeSingle();
+    // Check slug uniqueness (the DB has a UNIQUE constraint but give a friendlier message)
+    const { data: existing } = await db
+      .from('system_roles')
+      .select('id')
+      .eq('slug', slug.trim())
+      .maybeSingle();
 
-  if (existing) {
-    return NextResponse.json({ error: `El slug '${slug.trim()}' ya existe` }, { status: 409 });
+    if (existing) {
+      return NextResponse.json({ error: `El slug '${slug.trim()}' ya existe` }, { status: 409 });
+    }
+
+    const { data, error } = await db
+      .from('system_roles')
+      .insert({
+        slug:        slug.trim().toLowerCase(),
+        label:       label.trim(),
+        descripcion: descripcion?.trim() ?? null,
+        color:       color?.trim() ?? '#6366f1',
+        es_sistema:  false,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      if (
+        error.code === '42P01' ||
+        error.message?.includes('does not exist')
+      ) {
+        return NextResponse.json(
+          { error: 'Tablas de roles no creadas aún. Ejecuta la migración SQL en Supabase.' },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
   }
-
-  const { data, error } = await db
-    .from('system_roles')
-    .insert({
-      slug:        slug.trim().toLowerCase(),
-      label:       label.trim(),
-      descripcion: descripcion?.trim() ?? null,
-      color:       color?.trim() ?? '#6366f1',
-      es_sistema:  false,
-    })
-    .select()
-    .single();
-
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
 }

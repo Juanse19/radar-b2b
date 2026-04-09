@@ -20,29 +20,46 @@ export async function GET(
   }
 
   const { id } = await params;
-  const db = getAdminDb();
 
-  // Get all permissions + which are assigned to this role
-  const [allPermisos, assigned] = await Promise.all([
-    db.from('system_permisos').select('*').order('modulo').order('clave'),
-    db.from('roles_permisos').select('permiso_id').eq('role_id', id),
-  ]);
+  try {
+    const db = getAdminDb();
 
-  if (allPermisos.error) {
-    return NextResponse.json({ error: allPermisos.error.message }, { status: 500 });
+    // Get all permissions + which are assigned to this role
+    const [allPermisos, assigned] = await Promise.all([
+      db.from('system_permisos').select('*').order('modulo').order('clave'),
+      db.from('roles_permisos').select('permiso_id').eq('role_id', id),
+    ]);
+
+    const tablaMissing = (e: { code?: string; message?: string } | null) =>
+      e !== null &&
+      (e.code === '42P01' ||
+        e.message?.includes('does not exist'));
+
+    if (tablaMissing(allPermisos.error) || tablaMissing(assigned.error)) {
+      return NextResponse.json([]);   // empty — tables not yet created
+    }
+
+    if (allPermisos.error) {
+      return NextResponse.json({ error: allPermisos.error.message }, { status: 500 });
+    }
+    if (assigned.error) {
+      return NextResponse.json({ error: assigned.error.message }, { status: 500 });
+    }
+
+    const assignedIds = new Set((assigned.data ?? []).map((r) => r.permiso_id));
+
+    const result = (allPermisos.data ?? []).map((p) => ({
+      ...p,
+      asignado: assignedIds.has(p.id),
+    }));
+
+    return NextResponse.json(result);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
   }
-  if (assigned.error) {
-    return NextResponse.json({ error: assigned.error.message }, { status: 500 });
-  }
-
-  const assignedIds = new Set((assigned.data ?? []).map((r) => r.permiso_id));
-
-  const result = (allPermisos.data ?? []).map((p) => ({
-    ...p,
-    asignado: assignedIds.has(p.id),
-  }));
-
-  return NextResponse.json(result);
 }
 
 export async function POST(
@@ -63,19 +80,32 @@ export async function POST(
     return NextResponse.json({ error: 'permiso_id es requerido' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { error } = await db
-    .from('roles_permisos')
-    .insert({ role_id: Number(id), permiso_id: Number(permiso_id) });
+  try {
+    const db = getAdminDb();
+    const { error } = await db
+      .from('roles_permisos')
+      .insert({ role_id: Number(id), permiso_id: Number(permiso_id) });
 
-  if (error) {
-    if (error.code === '23505') {
-      return NextResponse.json({ ok: true }); // already assigned — idempotent
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ ok: true }); // already assigned — idempotent
+      }
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { error: 'Tablas de roles no creadas aún. Ejecuta la migración SQL en Supabase.' },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 
-  return NextResponse.json({ ok: true }, { status: 201 });
+    return NextResponse.json({ ok: true }, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function DELETE(
@@ -95,13 +125,25 @@ export async function DELETE(
     return NextResponse.json({ error: 'permiso_id query param es requerido' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { error } = await db
-    .from('roles_permisos')
-    .delete()
-    .eq('role_id', Number(id))
-    .eq('permiso_id', Number(permiso_id));
+  try {
+    const db = getAdminDb();
+    const { error } = await db
+      .from('roles_permisos')
+      .delete()
+      .eq('role_id', Number(id))
+      .eq('permiso_id', Number(permiso_id));
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return NextResponse.json({ ok: true }); // table gone — treat as already removed
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
+  }
 }

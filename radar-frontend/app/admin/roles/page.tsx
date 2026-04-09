@@ -98,6 +98,29 @@ interface SystemPermiso {
   asignado?: boolean;
 }
 
+// API response envelope (tables may not exist yet — backend returns empty + _info)
+interface RolesEnvelope   { roles: SystemRole[]; _info?: string; _error?: string }
+interface PermisosEnvelope { permisos: SystemPermiso[]; _info?: string; _error?: string }
+
+function normaliseRoles(raw: SystemRole[] | RolesEnvelope): { roles: SystemRole[]; info?: string } {
+  if (Array.isArray(raw)) return { roles: raw };
+  return { roles: raw.roles ?? [], info: raw._info ?? raw._error };
+}
+
+function normalisePermisos(raw: SystemPermiso[] | PermisosEnvelope): { permisos: SystemPermiso[]; info?: string } {
+  if (Array.isArray(raw)) return { permisos: raw };
+  return { permisos: (raw as PermisosEnvelope).permisos ?? [], info: (raw as PermisosEnvelope)._info ?? (raw as PermisosEnvelope)._error };
+}
+
+function MigrationBanner({ message }: { message: string }) {
+  return (
+    <div className="rounded-lg border border-amber-500/30 bg-amber-950/30 p-4 text-sm text-amber-300">
+      <p className="font-semibold mb-1">Tablas de roles/permisos no disponibles</p>
+      <p className="text-amber-400/80">{message}</p>
+    </div>
+  );
+}
+
 // ── Shared sub-components ───────────────────────────────────────────────────
 
 function PermissionCell({ allowed }: { allowed: boolean }) {
@@ -287,10 +310,11 @@ function RolesTab() {
   const [deleteTarget, setDeleteTarget] = useState<SystemRole | null>(null);
   const [form, setForm] = useState<RoleFormData>({ slug: '', label: '', descripcion: '', color: '#6366f1' });
 
-  const { data: roles = [], isLoading, error } = useQuery<SystemRole[]>({
+  const { data: rolesRaw, isLoading, error } = useQuery<SystemRole[] | RolesEnvelope>({
     queryKey: ['admin-roles'],
-    queryFn: () => fetchJson<SystemRole[]>('/api/admin/roles'),
+    queryFn: () => fetchJson<SystemRole[] | RolesEnvelope>('/api/admin/roles'),
   });
+  const { roles = [], info: rolesMigrationInfo } = rolesRaw ? normaliseRoles(rolesRaw) : { roles: [] as SystemRole[], info: undefined };
 
   const createMutation = useMutation({
     mutationFn: (payload: RoleFormData) =>
@@ -368,8 +392,10 @@ function RolesTab() {
 
   return (
     <div className="space-y-4">
+      {rolesMigrationInfo && <MigrationBanner message={rolesMigrationInfo} />}
+
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
+        <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!!rolesMigrationInfo}>
           <Plus size={14} className="mr-1.5" /> Crear rol
         </Button>
       </div>
@@ -570,10 +596,11 @@ function PermisosTab() {
   const [createOpen, setCreateOpen] = useState(false);
   const [form, setForm] = useState<PermisoFormData>({ clave: '', label: '', modulo: '' });
 
-  const { data: permisos = [], isLoading, error } = useQuery<SystemPermiso[]>({
+  const { data: permisosRaw, isLoading, error } = useQuery<SystemPermiso[] | PermisosEnvelope>({
     queryKey: ['admin-permisos'],
-    queryFn: () => fetchJson<SystemPermiso[]>('/api/admin/permisos'),
+    queryFn: () => fetchJson<SystemPermiso[] | PermisosEnvelope>('/api/admin/permisos'),
   });
+  const { permisos = [], info: permisosMigrationInfo } = permisosRaw ? normalisePermisos(permisosRaw) : { permisos: [] as SystemPermiso[], info: undefined };
 
   const createMutation = useMutation({
     mutationFn: (payload: PermisoFormData) =>
@@ -618,8 +645,10 @@ function PermisosTab() {
 
   return (
     <div className="space-y-4">
+      {permisosMigrationInfo && <MigrationBanner message={permisosMigrationInfo} />}
+
       <div className="flex justify-end">
-        <Button size="sm" onClick={() => setCreateOpen(true)}>
+        <Button size="sm" onClick={() => setCreateOpen(true)} disabled={!!permisosMigrationInfo}>
           <Plus size={14} className="mr-1.5" /> Nuevo permiso
         </Button>
       </div>
@@ -710,10 +739,11 @@ function AsignacionTab() {
   const [selectedRoleId, setSelectedRoleId] = useState<string>('');
   const [toggling, setToggling] = useState<number | null>(null);
 
-  const { data: roles = [], isLoading: rolesLoading } = useQuery<SystemRole[]>({
+  const { data: rolesRawAsig, isLoading: rolesLoading } = useQuery<SystemRole[] | RolesEnvelope>({
     queryKey: ['admin-roles'],
-    queryFn: () => fetchJson<SystemRole[]>('/api/admin/roles'),
+    queryFn: () => fetchJson<SystemRole[] | RolesEnvelope>('/api/admin/roles'),
   });
+  const { roles = [], info: asigMigrationInfo } = rolesRawAsig ? normaliseRoles(rolesRawAsig) : { roles: [] as SystemRole[], info: undefined };
 
   const { data: permisos = [], isLoading: permisosLoading } = useQuery<SystemPermiso[]>({
     queryKey: ['admin-role-permisos', selectedRoleId],
@@ -756,12 +786,14 @@ function AsignacionTab() {
 
   return (
     <div className="space-y-5">
+      {asigMigrationInfo && <MigrationBanner message={asigMigrationInfo} />}
+
       <div className="flex items-center gap-3">
         <label className="text-sm font-medium text-foreground shrink-0">Rol:</label>
         <Select
           value={selectedRoleId}
           onValueChange={(v) => setSelectedRoleId(v ?? '')}
-          disabled={rolesLoading}
+          disabled={rolesLoading || !!asigMigrationInfo}
         >
           <SelectTrigger className="w-52">
             <SelectValue placeholder="Seleccionar rol…" />

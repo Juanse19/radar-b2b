@@ -36,16 +36,31 @@ export async function PATCH(
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('system_roles')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('system_roles')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+    if (error) {
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { error: 'Tablas de roles no creadas aún. Ejecuta la migración SQL en Supabase.' },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json(data);
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
+  }
 }
 
 export async function DELETE(
@@ -59,25 +74,41 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const db = getAdminDb();
 
-  // Verify role exists and is not a system role
-  const { data: role, error: fetchError } = await db
-    .from('system_roles')
-    .select('es_sistema')
-    .eq('id', id)
-    .maybeSingle();
+  try {
+    const db = getAdminDb();
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
-  if (!role) return NextResponse.json({ error: 'Rol no encontrado' }, { status: 404 });
-  if (role.es_sistema) {
+    // Verify role exists and is not a system role
+    const { data: role, error: fetchError } = await db
+      .from('system_roles')
+      .select('es_sistema')
+      .eq('id', id)
+      .maybeSingle();
+
+    if (fetchError) {
+      if (fetchError.code === '42P01' || fetchError.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { error: 'Tablas de roles no creadas aún. Ejecuta la migración SQL en Supabase.' },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    }
+    if (!role) return NextResponse.json({ error: 'Rol no encontrado' }, { status: 404 });
+    if (role.es_sistema) {
+      return NextResponse.json(
+        { error: 'No se pueden eliminar roles de sistema' },
+        { status: 403 },
+      );
+    }
+
+    const { error } = await db.from('system_roles').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
     return NextResponse.json(
-      { error: 'No se pueden eliminar roles de sistema' },
-      { status: 403 },
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
     );
   }
-
-  const { error } = await db.from('system_roles').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
 }

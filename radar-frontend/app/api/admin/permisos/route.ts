@@ -15,15 +15,35 @@ export async function GET() {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('system_permisos')
-    .select('*')
-    .order('modulo')
-    .order('clave');
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('system_permisos')
+      .select('*')
+      .order('modulo')
+      .order('clave');
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+    if (error) {
+      if (
+        error.code === '42P01' ||
+        error.message?.includes('does not exist') ||
+        (error as { details?: string }).details?.includes('does not exist')
+      ) {
+        return NextResponse.json({
+          permisos: [],
+          _info: 'Tablas de permisos no creadas aún. Ejecuta la migración SQL en Supabase.',
+        });
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+
+    return NextResponse.json(data ?? []);
+  } catch (err) {
+    return NextResponse.json({
+      permisos: [],
+      _error: err instanceof Error ? err.message : String(err),
+    });
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -46,25 +66,37 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'El campo modulo es requerido' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('system_permisos')
-    .insert({
-      clave:       clave.trim().toLowerCase(),
-      label:       label.trim(),
-      modulo:      modulo.trim().toLowerCase(),
-      descripcion: descripcion?.trim() ?? null,
-    })
-    .select()
-    .single();
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('system_permisos')
+      .insert({
+        clave:       clave.trim().toLowerCase(),
+        label:       label.trim(),
+        modulo:      modulo.trim().toLowerCase(),
+        descripcion: descripcion?.trim() ?? null,
+      })
+      .select()
+      .single();
 
-  if (error) {
-    // Unique constraint violation
-    if (error.code === '23505') {
-      return NextResponse.json({ error: `La clave '${clave.trim()}' ya existe` }, { status: 409 });
+    if (error) {
+      if (error.code === '23505') {
+        return NextResponse.json({ error: `La clave '${clave.trim()}' ya existe` }, { status: 409 });
+      }
+      if (error.code === '42P01' || error.message?.includes('does not exist')) {
+        return NextResponse.json(
+          { error: 'Tablas de permisos no creadas aún. Ejecuta la migración SQL en Supabase.' },
+          { status: 503 },
+        );
+      }
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
-  }
 
-  return NextResponse.json(data, { status: 201 });
+    return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    return NextResponse.json(
+      { error: err instanceof Error ? err.message : 'Error inesperado' },
+      { status: 500 },
+    );
+  }
 }
