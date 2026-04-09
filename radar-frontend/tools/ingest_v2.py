@@ -15,9 +15,14 @@ Fuentes:
 """
 
 import csv
+import io
 import json
 import sys
 import time
+
+# Force UTF-8 output so accented characters print correctly on Windows
+sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 import urllib.parse
 import urllib.request
 from pathlib import Path
