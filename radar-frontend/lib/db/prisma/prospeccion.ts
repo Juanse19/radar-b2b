@@ -3,9 +3,10 @@ import { prisma } from './client';
 import type {
   ProspeccionLogRow,
   CrearProspeccionLogData,
-  GetProspeccionLogsFilter,
   ActualizarProspeccionLogData,
 } from '../types';
+
+type GetProspeccionLogsFilter = { linea?: string; estado?: string; limit?: number };
 
 function toRow(r: {
   id: number; empresa_nombre: string; linea: string;
@@ -13,9 +14,25 @@ function toRow(r: {
   contactos_encontrados: number; created_at: Date; finished_at: Date | null;
 }): ProspeccionLogRow {
   return {
-    ...r,
-    created_at:  r.created_at.toISOString(),
-    finished_at: r.finished_at?.toISOString() ?? null,
+    id:                     r.id,
+    empresa_id:             0,
+    ejecucion_id:           null,
+    n8n_execution_id:       r.n8n_execution_id,
+    sub_linea_id:           null,
+    estado:                 (r.estado ?? 'pendiente') as ProspeccionLogRow['estado'],
+    apollo_search_body:     null,
+    apollo_search_url:      null,
+    job_titles_usados:      null,
+    paises_buscados:        null,
+    max_contacts:           null,
+    contactos_encontrados:  r.contactos_encontrados,
+    motivo_sin_contactos:   null,
+    tokens_input:           null,
+    tokens_output:          null,
+    apollo_credits_usados:  null,
+    costo_usd:              null,
+    created_at:             r.created_at.toISOString(),
+    finished_at:            r.finished_at?.toISOString() ?? null,
   };
 }
 

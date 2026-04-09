@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
     });
 
     // Crear entradas de log para cada empresa — estado inicial "running"
-    const logEntries = await crearProspeccionLogs(
+    await crearProspeccionLogs(
       empresasParaN8N.map(nombre => ({
         empresa_nombre:   nombre,
         linea,
@@ -52,12 +52,9 @@ export async function POST(req: NextRequest) {
       })),
     );
 
-    const logIds = logEntries.map(l => l.id);
-
     return NextResponse.json({
       ...result,
       empresasEnviadas: empresasParaN8N.length,
-      logIds,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

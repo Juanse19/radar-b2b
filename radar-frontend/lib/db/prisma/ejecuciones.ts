@@ -9,16 +9,20 @@ function toRow(r: {
   started_at: Date; finished_at: Date | null;
 }): EjecucionRow {
   return {
-    id:               r.id,
-    n8n_execution_id: r.n8n_execution_id,
-    linea_negocio:    r.linea_negocio,
-    batch_size:       r.batch_size,
-    estado:           r.estado,
-    trigger_type:     r.trigger_type,
-    parametros:       r.parametros ? (JSON.parse(r.parametros) as Record<string, unknown>) : null,
-    error_msg:        r.error_msg,
-    started_at:       r.started_at.toISOString(),
-    finished_at:      r.finished_at?.toISOString() ?? null,
+    id:                        r.id,
+    n8n_execution_id:          r.n8n_execution_id,
+    workflow:                  'manual',
+    sub_linea_id:              null,
+    batch_size:                r.batch_size,
+    estado:                    r.estado as EjecucionRow['estado'],
+    trigger_type:              r.trigger_type,
+    parametros:                r.parametros ? (JSON.parse(r.parametros) as Record<string, unknown>) : null,
+    error_msg:                 r.error_msg,
+    total_empresas_procesadas: 0,
+    tokens_totales:            null,
+    costo_total_usd:           null,
+    started_at:                r.started_at.toISOString(),
+    finished_at:               r.finished_at?.toISOString() ?? null,
   };
 }
 

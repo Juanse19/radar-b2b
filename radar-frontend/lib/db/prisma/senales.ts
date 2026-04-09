@@ -11,7 +11,35 @@ function toRow(r: {
   motivo_descarte: string | null; ticket_estimado: string | null;
   razonamiento_agente: string | null; created_at: Date;
 }): SenalRow {
-  return { ...r, created_at: r.created_at.toISOString() };
+  return {
+    id:                    r.id,
+    empresa_id:            r.empresa_id ?? 0,
+    ejecucion_id:          r.ejecucion_id,
+    n8n_execution_id:      null,
+    tipo_senal:            r.tipo_senal,
+    descripcion_senal:     r.descripcion,
+    fecha_senal:           null,
+    criterio_fuente:       null,
+    criterio_capex:        null,
+    criterio_horizonte:    null,
+    criterio_monto:        null,
+    criterio_multi_fuentes: null,
+    score_radar:           r.score_radar,
+    composite_score:       null,
+    tier_compuesto:        null,
+    ventana_compra:        'desconocida',
+    prioridad_comercial:   null,
+    radar_activo:          r.radar_activo,
+    motivo_descarte:       r.motivo_descarte,
+    razonamiento_agente:   r.razonamiento_agente,
+    prompt_version:        null,
+    modelo_llm:            null,
+    tokens_input:          null,
+    tokens_output:         null,
+    tavily_queries:        null,
+    costo_usd:             null,
+    created_at:            r.created_at.toISOString(),
+  };
 }
 
 const ALLOWED_SORT = new Set([

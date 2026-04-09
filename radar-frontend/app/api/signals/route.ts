@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSenales, crearSenal } from '@/lib/db';
+import { getSenales, crearRadarScan } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
 
@@ -29,22 +29,22 @@ export async function GET(req: NextRequest) {
     if (senales.length > 0) {
       return NextResponse.json(senales.map(s => ({
         id:                 s.id,
-        empresa:            s.empresa_nombre,
-        pais:               s.empresa_pais ?? '',
-        linea:              s.linea_negocio,
-        tier:               s.tier ?? '',
+        empresa:            `empresa_id:${s.empresa_id}`,
+        pais:               '',
+        linea:              s.tipo_senal ?? '',
+        tier:               s.tier_compuesto ?? '',
         radarActivo:        s.radar_activo ? 'Sí' : 'No',
         tipoSenal:          s.tipo_senal          ?? '',
-        descripcion:        s.descripcion         ?? '',
-        fuente:             s.fuente              ?? '',
-        fuenteUrl:          s.fuente_url          ?? '',
+        descripcion:        s.descripcion_senal   ?? '',
+        fuente:             '',
+        fuenteUrl:          '',
         scoreRadar:         s.score_radar,
         scoreTier:          getScoreTier(s.score_radar),
         fechaEscaneo:       new Date(s.created_at).toLocaleDateString('es-CO'),
         ventanaCompra:      s.ventana_compra      ?? '',
         prioridadComercial: s.prioridad_comercial ?? '',
         motivoDescarte:     s.motivo_descarte     ?? '',
-        ticketEstimado:     s.ticket_estimado     ?? '',
+        ticketEstimado:     '',
         razonamientoAgente: s.razonamiento_agente ?? '',
       })));
     }
@@ -62,24 +62,19 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const senal = await crearSenal({
-      empresa_nombre:      body.empresa_nombre,
-      empresa_pais:        body.empresa_pais        ?? null,
-      linea_negocio:       body.linea_negocio,
-      tier:                body.tier                ?? null,
+    const senal = await crearRadarScan({
+      empresa_id:          body.empresa_id   ? Number(body.empresa_id)   : 0,
+      ejecucion_id:        body.ejecucion_id ? Number(body.ejecucion_id) : undefined,
+      n8n_execution_id:    body.n8n_execution_id ?? null,
       radar_activo:        body.radar_activo        ?? false,
       tipo_senal:          body.tipo_senal          ?? null,
-      descripcion:         body.descripcion         ?? null,
-      fuente:              body.fuente              ?? null,
-      fuente_url:          body.fuente_url          ?? null,
+      descripcion_senal:   body.descripcion         ?? null,
       score_radar:         Number(body.score_radar  ?? 0),
-      ventana_compra:      body.ventana_compra      ?? null,
+      composite_score:     body.composite_score     ? Number(body.composite_score) : undefined,
+      ventana_compra:      body.ventana_compra      ?? 'desconocida',
       prioridad_comercial: body.prioridad_comercial ?? null,
       motivo_descarte:     body.motivo_descarte     ?? null,
-      ticket_estimado:     body.ticket_estimado     ?? null,
       razonamiento_agente: body.razonamiento_agente ?? null,
-      empresa_id:          body.empresa_id   ? Number(body.empresa_id)   : null,
-      ejecucion_id:        body.ejecucion_id ? Number(body.ejecucion_id) : null,
     });
     return NextResponse.json(senal, { status: 201 });
   } catch (err) {

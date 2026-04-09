@@ -10,7 +10,36 @@ function toRow(r: {
   hubspot_id: string | null; apollo_id: string | null;
   created_at: Date; updated_at: Date;
 }): ContactoRow {
-  return { ...r, created_at: r.created_at.toISOString(), updated_at: r.updated_at.toISOString() };
+  // Legacy Prisma shape — adapts old fields to new ContactoRow schema
+  return {
+    id: r.id,
+    empresa_id: r.empresa_id ?? 0,
+    prospeccion_id: null,
+    first_name: r.nombre.split(' ')[0] ?? null,
+    last_name: r.nombre.split(' ').slice(1).join(' ') || null,
+    full_name: r.nombre,
+    title: r.cargo,
+    seniority: null,
+    departamento: null,
+    email: r.email,
+    email_status: null,
+    email_confidence: null,
+    phone_work_direct: r.telefono,
+    phone_mobile: null,
+    corporate_phone: null,
+    linkedin_url: r.linkedin_url,
+    city: null,
+    state: null,
+    country: null,
+    apollo_id: r.apollo_id,
+    apollo_person_raw: null,
+    hubspot_id: r.hubspot_id,
+    hubspot_status: (r.hubspot_status ?? 'pendiente') as ContactoRow['hubspot_status'],
+    hubspot_synced_at: null,
+    notas: null,
+    created_at: r.created_at.toISOString(),
+    updated_at: r.updated_at.toISOString(),
+  };
 }
 
 export async function getContactos(opts: GetContactosFilter = {}): Promise<ContactoRow[]> {
@@ -110,8 +139,6 @@ export async function actualizarContacto(id: number, data: ActualizarContactoDat
       email:          data.email          ?? undefined,
       telefono:       data.telefono       ?? undefined,
       linkedin_url:   data.linkedin_url   ?? undefined,
-      empresa_nombre: data.empresa_nombre ?? undefined,
-      linea_negocio:  data.linea_negocio  ?? undefined,
       hubspot_status: data.hubspot_status ?? undefined,
       hubspot_id:     data.hubspot_id     ?? undefined,
     },

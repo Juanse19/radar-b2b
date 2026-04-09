@@ -10,7 +10,11 @@ export async function GET() {
     let senales: Array<{ linea_negocio: string; score_radar: number; radar_activo: boolean }>;
 
     if (senalesDB.length > 0) {
-      senales = senalesDB;
+      senales = senalesDB.map(s => ({
+        linea_negocio: (s as { tier_compuesto?: string | null }).tier_compuesto ?? '',
+        score_radar:   s.score_radar,
+        radar_activo:  s.radar_activo,
+      }));
     } else {
       // Fallback a Google Sheets (dev sin datos en BD — timeout 8s en lib/sheets.ts)
       const results = await getResults({ limit: 500 });
