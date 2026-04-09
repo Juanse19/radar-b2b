@@ -1,5 +1,5 @@
 // app/admin/page.tsx — Admin dashboard
-import { Shield, Users, Layers, Globe, Activity, ShieldCheck } from 'lucide-react';
+import { Shield, Users, Layers, Globe, Activity, ShieldCheck, Building2 } from 'lucide-react';
 import { getAdminDb } from '@/lib/db/supabase/admin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -27,6 +27,7 @@ async function getStats() {
 const ADMIN_SECTIONS = [
   { href: '/admin/usuarios',      label: 'Usuarios',          Icon: Users,       desc: 'Gestión de acceso y roles del equipo' },
   { href: '/admin/roles',         label: 'Roles y Permisos',  Icon: ShieldCheck, desc: 'Matriz de acceso y capacidades por rol' },
+  { href: '/admin/empresas',      label: 'Empresas',          Icon: Building2,   desc: 'Base de datos comercial por línea de negocio' },
   { href: '/admin/lineas',        label: 'Líneas de negocio', Icon: Layers,      desc: 'Configurar líneas activas y metadatos' },
   { href: '/admin/fuentes',       label: 'Fuentes',           Icon: Globe,       desc: 'Fuentes de búsqueda para los agentes' },
   { href: '/admin/configuracion', label: 'Configuración',     Icon: Shield,      desc: 'Parámetros globales del sistema' },

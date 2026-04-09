@@ -7,7 +7,6 @@ import {
   Radar,
   Calendar,
   Table2,
-  Building2,
   Users,
   ChevronLeft,
   ChevronRight,
@@ -24,7 +23,6 @@ const navItems = [
   { href: '/scan',      label: 'Escanear',    icon: Radar },
   { href: '/schedule',  label: 'Cronograma',  icon: Calendar },
   { href: '/results',   label: 'Resultados',  icon: Table2 },
-  { href: '/empresas',  label: 'Empresas',    icon: Building2 },
   { href: '/contactos', label: 'Contactos',   icon: Users },
 ];
 

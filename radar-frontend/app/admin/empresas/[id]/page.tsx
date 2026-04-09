@@ -71,7 +71,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6 max-w-5xl">
       {/* Back + Header */}
       <div>
-        <Link href="/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-gray-200 hover:bg-surface-muted transition-colors">
+        <Link href="/admin/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-gray-200 hover:bg-surface-muted transition-colors">
           <ArrowLeft size={16} />
           Volver a Empresas
         </Link>

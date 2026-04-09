@@ -58,7 +58,7 @@ const ROUTE_LABELS: { path: string; label: string }[] = [
   { path: '/scan',      label: 'Escanear' },
   { path: '/results',   label: 'Resultados' },
   { path: '/contactos', label: 'Contactos' },
-  { path: '/empresas',  label: 'Empresas' },
+  { path: '/admin/empresas', label: 'Empresas' },
   { path: '/schedule',  label: 'Cronograma' },
   { path: '/admin',     label: 'Administración' },
 ];

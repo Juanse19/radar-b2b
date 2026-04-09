@@ -23,6 +23,7 @@ import { LineaBadge } from '@/components/LineaBadge';
 import { TierBadge }  from '@/components/TierBadge';
 import { EmptyState } from '@/components/EmptyState';
 import { fetchJson } from '@/lib/fetcher';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -496,6 +497,14 @@ export default function EmpresasPage() {
     <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
       <div className="max-w-6xl mx-auto space-y-8">
 
+        {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
+        <AdminBreadcrumb
+          crumbs={[
+            { label: 'Administración', href: '/admin' },
+            { label: 'Empresas' },
+          ]}
+        />
+
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="flex items-center gap-3">
@@ -656,7 +665,7 @@ export default function EmpresasPage() {
 
                   <div className="flex gap-1 justify-end">
                     <Link
-                      href={`/empresas/${empresa.id}`}
+                      href={`/admin/empresas/${empresa.id}`}
                       title="Ver detalle"
                       className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-blue-400 hover:bg-blue-950 transition-colors opacity-0 group-hover:opacity-100"
                     >

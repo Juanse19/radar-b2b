@@ -7,7 +7,7 @@
 //
 // Rules:
 //   ADMIN     → everything
-//   COMERCIAL → all operational pages, full CRUD, cannot access /admin
+//   COMERCIAL → all operational pages, full CRUD, cannot access /admin (except /admin/empresas)
 //   AUXILIAR  → read-only: /results and /contactos only
 
 import type { UserRole } from './types';
@@ -17,10 +17,10 @@ import type { UserRole } from './types';
 // More specific prefixes should come first if needed.
 
 export const ROUTE_ACCESS: Record<string, UserRole[]> = {
+  '/admin/empresas': ['ADMIN', 'COMERCIAL'],
   '/admin':     ['ADMIN'],
   '/scan':      ['ADMIN', 'COMERCIAL'],
   '/schedule':  ['ADMIN', 'COMERCIAL'],
-  '/empresas':  ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
   '/results':   ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
   '/contactos': ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
   '/':          ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
