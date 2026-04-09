@@ -64,6 +64,8 @@ skills-lock.json
 .agents/
 executions.json
 workflow.json
+.clone/
+.claude/worktrees/
 
 # ========================
 # Datos raw (no en repo)
