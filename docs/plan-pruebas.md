@@ -1,5 +1,25 @@
 # Plan de Pruebas — Matec Radar B2B
 
+## Nivel 0: Tests Automatizados — Frontend (Vitest + Playwright)
+
+### Vitest — Tests unitarios e integración
+
+```bash
+cd radar-frontend
+npx vitest run     # Corre los 101 tests (unit + integration)
+```
+
+Ubicación: `tests/unit/` y `tests/integration/`. Los tests de `tests/e2e/` están excluidos del runner Vitest via `vitest.config.ts` y se corren por separado con Playwright.
+
+### Playwright — Tests E2E
+
+```bash
+cd radar-frontend
+npx playwright test   # tests/e2e/
+```
+
+---
+
 ## Nivel 1: Pruebas por Nodo (Unitarias N8N)
 
 Verificar el output de nodos específicos vía API N8N después de una ejecución.
@@ -50,15 +70,16 @@ curl -X POST https://n8n.event2flow.com/webhook/calificador \
 | Empresa | Resultado esperado |
 |---------|-------------------|
 | Empresa con señal activa | score_radar > 0, Excel SharePoint escrito |
-| Empresa sin señal | score_radar = 0, NO dispara WF03 |
-| Empresa ORO | IF: Tier ORO = true → WF03 disparado |
+| Empresa sin señal (ARCHIVO) | score_radar bajo, tier_compuesto < 40, NO dispara WF03 |
+| Empresa ORO | tier_compuesto ≥ 70, WF03 disparado |
+| Empresa MONITOREO | tier_compuesto 40–69, WF03 disparado (fix Bug B aplicado) |
 
 ### WF03 — Casos de prueba
 
 | Input | Contactos esperados | GSheets escrito? |
 |-------|--------------------|-----------------:|
 | Empresa ORO (max_contacts=5) | 5 | Sí |
-| Empresa MONITOREO (max_contacts=2) | 2 | Sí |
+| Empresa MONITOREO (max_contacts=3) | 3 | Sí |
 | Empresa ARCHIVO (max_contacts=0) | 0 | No |
 
 ---
@@ -73,7 +94,7 @@ curl -X POST https://n8n.event2flow.com/webhook/calificador \
 1. Trigger desde frontend (`/scan`) con Smurfit Kappa, línea Cartón y Papel
 2. Verificar WF01 completa (< 30s): score=9, tier=ORO, Excel Carton escrito
 3. Verificar WF02 se dispara automáticamente (< 60s desde WF01)
-4. Verificar WF03 se dispara (TIER=ORO): 5 contactos en Prospection_Log
+4. Verificar WF03 se dispara (tier_compuesto ≠ ARCHIVO): 5 contactos en Prospection_Log para ORO
 5. Verificar que los resultados aparecen en frontend `/results`
 
 **Verificación API:**
@@ -106,7 +127,8 @@ Config: `radar-frontend/playwright.config.ts` — port 3004
 
 ```bash
 cd radar-frontend
-npm run test:e2e    # Si está configurado
+npx playwright test   # tests/e2e/ (excluidos de Vitest via vitest.config.ts)
+npm run test:e2e      # Alias si está configurado en package.json
 ```
 
 **Pantallas a cubrir:**

@@ -10,6 +10,7 @@
  */
 
 const https = require('https');
+const http  = require('http');
 const fs    = require('fs');
 const path  = require('path');
 const url   = require('url');
@@ -38,11 +39,13 @@ const MIGRATIONS = [
 
 function pgQuery(sql) {
   return new Promise((resolve, reject) => {
-    const parsed  = url.parse(SUPA_URL);
-    const payload = JSON.stringify({ query: sql });
-    const options = {
+    const parsed   = url.parse(SUPA_URL);
+    const isHttps  = parsed.protocol === 'https:';
+    const mod      = isHttps ? https : http;
+    const payload  = JSON.stringify({ query: sql });
+    const options  = {
       hostname: parsed.hostname,
-      port:     parsed.port || 443,
+      port:     parsed.port || (isHttps ? 443 : 80),
       path:     '/pg/query',
       method:   'POST',
       headers: {
@@ -52,7 +55,7 @@ function pgQuery(sql) {
         'Content-Length': Buffer.byteLength(payload),
       },
     };
-    const req = https.request(options, (res) => {
+    const req = mod.request(options, (res) => {
       let data = '';
       res.on('data', c => data += c);
       res.on('end', () => {

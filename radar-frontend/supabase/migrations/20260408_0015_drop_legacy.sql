@@ -24,5 +24,29 @@ DROP TABLE IF EXISTS public.contactos          CASCADE;
 DROP TABLE IF EXISTS public.ejecuciones        CASCADE;
 DROP TABLE IF EXISTS public.empresas           CASCADE;
 
+-- Drop partial tables from prior incomplete migrations (matec_radar schema)
+DROP TABLE IF EXISTS matec_radar.actividad             CASCADE;
+DROP TABLE IF EXISTS matec_radar.configuracion         CASCADE;
+DROP TABLE IF EXISTS matec_radar.fuentes               CASCADE;
+DROP TABLE IF EXISTS matec_radar.lineas_negocio        CASCADE;
+DROP TABLE IF EXISTS matec_radar.usuarios              CASCADE;
+
+-- Drop any types that may have been created in earlier partial runs
+DROP TYPE IF EXISTS matec_radar.prioridad_enum        CASCADE;
+DROP TYPE IF EXISTS matec_radar.ventana_compra_enum   CASCADE;
+DROP TYPE IF EXISTS matec_radar.impacto_enum          CASCADE;
+DROP TYPE IF EXISTS matec_radar.recurrencia_enum      CASCADE;
+DROP TYPE IF EXISTS matec_radar.multiplanta_enum      CASCADE;
+DROP TYPE IF EXISTS matec_radar.referente_enum        CASCADE;
+DROP TYPE IF EXISTS matec_radar.pipeline_enum         CASCADE;
+DROP TYPE IF EXISTS matec_radar.radar_activo_enum     CASCADE;
+DROP TYPE IF EXISTS matec_radar.pais_iso_enum         CASCADE;
+DROP TYPE IF EXISTS matec_radar.estado_ejecucion_enum CASCADE;
+DROP TYPE IF EXISTS matec_radar.estado_prospeccion_enum CASCADE;
+DROP TYPE IF EXISTS matec_radar.hubspot_status_enum   CASCADE;
+DROP TYPE IF EXISTS matec_radar.workflow_enum         CASCADE;
+DROP TYPE IF EXISTS matec_radar.meta_schema_version_enum CASCADE;
+
 -- Drop any leftover functions from the old schema
 DROP FUNCTION IF EXISTS matec_radar.set_updated_at() CASCADE;
+DROP FUNCTION IF EXISTS matec_radar.f_unaccent(text) CASCADE;
