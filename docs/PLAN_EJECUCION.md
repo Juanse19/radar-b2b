@@ -6,6 +6,24 @@
 
 ---
 
+## Estado actual (actualizado 2026-04-09)
+
+| Fase | Estado | Detalle |
+|------|--------|---------|
+| FASE 1a — WF03 Prospector v2.0 | ✅ COMPLETADO | Dual-write Supabase activo (commit 79c1451) |
+| FASE 1b — WF02 Radar fixes | ✅ COMPLETADO | Bugs A/B/C corregidos (commit 888f625) |
+| FASE 2 — Frontend v2.0 | ✅ COMPLETADO | Bugs F1/F2/F3/F4 fijos, 101 tests (commits 7dbcefb, af85de3) |
+| Supabase schema + dual-write | ✅ COMPLETADO (parcial) | Schema `matec_radar` creado, admin client, DB_DRIVER switcher, dual-write en los 3 WFs |
+| Supabase conexión activa | ⚠️ PENDIENTE | Requiere paso manual: exponer `matec_radar` en `PGRST_DB_SCHEMAS` en Supabase Studio |
+| FASE 1c — WF01 Calificador v2.0 | ⏳ PENDIENTE | Bugs D/E aún sin aplicar en n8n |
+| FASE 3 — Tests adicionales | ⏳ PENDIENTE | Playwright e2e pendiente |
+| FASE 4 — Code Review | ⏳ PENDIENTE | |
+| FASE 5 — Release v2.0.0 | ⏳ PENDIENTE | Esperando merge fix/wf03-v2 → main |
+
+**Rama activa:** `fix/wf03-v2` (11 commits adelante de main)
+
+---
+
 ## Cómo funciona la ejecución automatizada
 
 Claude Code tiene acceso al **MCP de n8n** conectado a `https://n8n.event2flow.com`.
@@ -37,7 +55,7 @@ FASE 4 — Code Review (paralelo) ───────────────�
 FASE 5 — Prueba cadena completa + Release v2.0.0 ───────┘
 ```
 
-**Nota:** La Fase 0 (Supabase) está en pausa. Empezamos con las mejoras de agentes.
+**Nota:** La Fase 0 (Supabase) está parcialmente completa — schema `matec_radar` creado y dual-write implementado en los 3 WFs. Pendiente: exponer schema en `PGRST_DB_SCHEMAS` (paso manual en Supabase Studio) y cambiar `DB_DRIVER=supabase`.
 
 ---
 
@@ -51,7 +69,7 @@ git pull origin develop
 
 ---
 
-## FASE 1a — WF03 Prospector v2.0 (20 min · Claude Code)
+## FASE 1a — WF03 Prospector v2.0 (20 min · Claude Code) ✅ COMPLETADO
 
 **Rama:** `fix/wf03-v2`
 **Workflow ID:** `RLUDpi3O5Rb6WEYJ`
@@ -95,7 +113,7 @@ git push origin fix/wf03-v2
 
 ---
 
-## FASE 1b — WF02 Radar v2.0 (45 min · Claude Code) ← MÁS CRÍTICA
+## FASE 1b — WF02 Radar v2.0 (45 min · Claude Code) ✅ COMPLETADO
 
 **Rama:** `fix/wf02-v2`
 **Workflow ID:** `fko0zXYYl5X4PtHz`
@@ -130,10 +148,10 @@ No generes archivos locales — trabaja directo en n8n via MCP.
    - Grupo Bimbo / Final de Línea / score_cal=9 → esperar `tier_compuesto="ORO"`, dispara WF03
    - Terminal de Carga Bogotá / BHS / MONITOREO → esperar `tier_compuesto="MONITOREO"`, también dispara WF03
 
-**Bugs que este fix resuelve:**
-- Bug A: `SCORE CAL` faltante → composite_score siempre era 0
-- Bug B: MONITOREO nunca prosperaba → ahora sí (threshold cambiado)
-- Bug C: `Construir Query Tavily` vacío → búsqueda genérica → señales incorrectas
+**Bugs resueltos (commit 888f625):**
+- Bug A: `SCORE CAL` faltante → composite_score siempre era 0 ✅ FIJO
+- Bug B: MONITOREO nunca prospectaba → ahora sí (threshold cambiado) ✅ FIJO
+- Bug C: `Construir Query Tavily` vacío → búsqueda genérica → señales incorrectas ✅ FIJO
 
 **Criterio de éxito:** Ambas pruebas completan sin error y WF03 se dispara.
 
@@ -225,7 +243,7 @@ Verificar en n8n → Executions:
 
 ---
 
-## FASE 2 — Frontend v2.0 (Día 2 · ~2.5 horas · Claude Code)
+## FASE 2 — Frontend v2.0 (Día 2 · ~2.5 horas · Claude Code) ✅ COMPLETADO
 
 **Rama:** `feature/frontend-v2`
 
@@ -360,13 +378,13 @@ git push origin main --tags
 ```
 
 **Checklist de release:**
-- [ ] WF01 responde inmediatamente al webhook (no timeout 30s)
-- [ ] WF02 calcula composite_score correctamente (con SCORE CAL)
-- [ ] WF02 dispara WF03 para MONITOREO (no solo ORO)
-- [ ] WF03 obtiene contactos correctos por nivel (C-LEVEL primero)
-- [ ] Frontend muestra las 6 líneas en la página Scan
-- [ ] GSheets Prospectos tiene contactos con Es_Multinacional y Persona_ID
-- [ ] No hay API keys hardcodeadas en ningún workflow
+- [ ] WF01 responde inmediatamente al webhook (no timeout 30s) — Bug D/E pendientes
+- [x] WF02 calcula composite_score correctamente (con SCORE CAL) — Bug A FIJO
+- [x] WF02 dispara WF03 para MONITOREO (no solo ORO) — Bug B FIJO
+- [x] WF03 obtiene contactos correctos por nivel (C-LEVEL primero) — v2.0 activo
+- [x] Frontend muestra las 6 líneas en la página Scan — Bug F1 FIJO
+- [x] GSheets Prospectos tiene contactos con Es_Multinacional y Persona_ID
+- [ ] No hay API keys hardcodeadas en ningún workflow — Bug E pendiente en WF01
 
 ---
 

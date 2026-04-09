@@ -127,12 +127,12 @@ composite < 40  → ARCHIVO   → sin prospección
 
 | Componente | Estado | Versión activa | Pendiente |
 |-----------|--------|---------------|-----------|
-| WF01 Calificador | ✅ Producción | v1.0 | v2.0 (6 mejoras) |
-| WF02 Radar | ✅ Producción | v1.0 | v2.0 (6 bugs críticos) |
-| WF03 Prospector | 📦 Listo para deploy | v2.0 JSON en docs/ | Solo importar en n8n |
-| Frontend Next.js | ✅ Funcional | v1.0 | v2.0 (Supabase + 6 líneas) |
-| Supabase | ⚠️ No conectado | — | Ejecutar SQL + agregar keys |
-| Base datos empresas | ✅ Local SQLite | 829 empresas | Migrar a Supabase |
+| WF01 Calificador | ✅ Producción | v1.0 | v2.0 (6 mejoras — Bugs D/E pendientes) |
+| WF02 Radar | ✅ Producción — Bugs A/B/C FIJOS | v1.0 + fixes | v2.0 (mejoras adicionales) |
+| WF03 Prospector | ✅ Dual-write Supabase activo | v2.0 | Importar JSON en n8n si no está |
+| Frontend Next.js | ✅ Funcional — Bugs F1/F2/F3/F4 FIJOS | v2.0 (101 tests) | Supabase PGRST_DB_SCHEMAS |
+| Supabase | ⚠️ Schema creado, pendiente config | matec_radar schema | Exponer schema en PGRST_DB_SCHEMAS |
+| Base datos empresas | ✅ SQLite activo + dual-write scaffolded | 1026 filas (+ variantes) | Activar DB_DRIVER=supabase |
 
 ---
 
@@ -140,36 +140,40 @@ composite < 40  → ARCHIVO   → sin prospección
 
 ### WF02 — 3 bugs que afectan producción
 
-**Bug A — SCORE CAL no se calcula en composite_score**
-`Format Final Columns1` no tiene campo `SCORE CAL`. El composite_score en WF03 siempre usa `score_cal=0`.
-Fix en `docs/PROMPT_Agent02_v2.md`.
+**Bug A — SCORE CAL no se calcula en composite_score** ✅ FIXED (commit 888f625)
+`Format Final Columns1` no tenía campo `SCORE CAL`. El composite_score en WF03 siempre usaba `score_cal=0`.
+Fix aplicado: campo `SCORE CAL` agregado a `Format Final Columns1`, nodo `Code: Calcular Composite` insertado.
 
-**Bug B — Solo ORO dispara prospección**
-`IF: Tier ORO para WF03` usa string equals "ORO" (case-sensitive). MONITOREO nunca prospecta.
-Fix: cambiar a `tier_compuesto !== "ARCHIVO"`.
+**Bug B — Solo ORO dispara prospección** ✅ FIXED (commit 888f625)
+`IF: Tier ORO para WF03` usaba string equals "ORO" (case-sensitive). MONITOREO nunca prospectaba.
+Fix aplicado: condición cambiada a `tier_compuesto !== "ARCHIVO"`.
 
-**Bug C — Construir Query Tavily está vacío**
-El nodo no construye ninguna query, solo pasa el JSON. Búsqueda usa query genérica sin keywords.
-Fix: código completo en `docs/PROMPT_Agent02_v2.md` → Cambio 1.
+**Bug C — Construir Query Tavily está vacío** ✅ FIXED (commit 888f625)
+El nodo no construía ninguna query, solo pasaba el JSON. Búsqueda usaba query genérica sin keywords.
+Fix aplicado: código completo con keywords por línea implementado en `Code: Construir Query Tavily`.
 
 ### WF01 — 2 bugs que afectan la cadena
 
-**Bug D — No envía paises[] para multinacionales**
+**Bug D — No envía paises[] para multinacionales** ⚠️ PENDIENTE
 WF03 no puede hacer búsqueda multi-país porque WF01 no pasa el array.
-Fix en `docs/PROMPT_Agent01_v2.md` → Cambio 5.
+Fix documentado en `docs/PROMPT_Agent01_v2.md` → Cambio 5.
 
-**Bug E — API keys Tavily hardcodeadas en WF01 y WF02**
+**Bug E — API keys Tavily hardcodeadas en WF01 y WF02** ⚠️ PENDIENTE
 Seguridad. Crear credencial n8n y referenciarla en ambos workflows.
 
-### Frontend — 2 bugs que afectan UX
+### Frontend — 4 bugs resueltos (todos FIXED)
 
-**Bug F — Solo 4 de 6 líneas en la página Scan**
-`LINEA_OPTIONS` no tiene Cargo, Motos, Final de Línea, Solumat.
-Fix en `docs/PROMPT_Frontend_v2.md` → Bug 1.
+**Bug F1 — Solo 4 de 6 líneas en la página Scan** ✅ FIXED (commit 7dbcefb)
+`LINEA_OPTIONS` no tenía Cargo, Motos, Final de Línea, Solumat. Agregados los 6 valores.
 
-**Bug G — Campo `empresa` enviado como `nombre` al webhook**
-`lib/n8n.ts` mapea `company_name → nombre` en vez de `empresa`. WF01 no lo reconoce.
-Fix en `docs/PROMPT_Frontend_v2.md` → Bug 2.
+**Bug F2 — Campo `empresa` enviado como `nombre` al webhook** ✅ FIXED (commit 7dbcefb)
+`lib/n8n.ts` mapeaba `company_name → nombre` en vez de `empresa`. WF01 no lo reconocía.
+
+**Bug F3 — Faltaban `tier` y `paises[]` en payload a WF03** ✅ FIXED (commit 7dbcefb)
+`app/api/prospect/route.ts` no enviaba `tier` ni `paises[]` al llamar a WF03.
+
+**Bug F4 — Tipo `LineaNegocio` incompleto** ✅ FIXED (commit 7dbcefb)
+`lib/types.ts` no tenía los 6 valores correctos de línea de negocio más `'ALL'`.
 
 ---
 
