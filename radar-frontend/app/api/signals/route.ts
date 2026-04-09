@@ -54,6 +54,10 @@ export async function GET(req: NextRequest) {
     const filtered = tier ? results.filter(r => getScoreTier(r.scoreRadar) === tier) : results;
     return NextResponse.json(filtered.map(r => ({ ...r, scoreTier: getScoreTier(r.scoreRadar) })));
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('does not exist') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      return NextResponse.json([]);
+    }
     console.error('[/api/signals] Error:', err);
     return NextResponse.json({ error: 'Error al obtener señales' }, { status: 500 });
   }

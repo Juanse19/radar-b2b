@@ -53,6 +53,15 @@ export async function GET() {
       lineaCounts,
     });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('does not exist') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      return NextResponse.json({
+        total: 0, activos: 0, oroHoy: 0,
+        tierCounts: { ORO: 0, Monitoreo: 0, Contexto: 0, 'Sin Señal': 0 },
+        lineaCounts: {},
+        _warning: 'Tabla senales no disponible',
+      });
+    }
     console.error('[/api/signals/stats] Error:', err);
     return NextResponse.json({ error: 'Error al calcular estadísticas' }, { status: 500 });
   }
