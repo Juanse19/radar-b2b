@@ -66,6 +66,9 @@ executions.json
 workflow.json
 .clone/
 .claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
+.playwright-mcp/
 
 # ========================
 # Datos raw (no en repo)

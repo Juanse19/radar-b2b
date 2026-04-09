@@ -1,7 +1,7 @@
 # Sprints — Historias de Usuario y Tareas
 **Proyecto:** T154000 - Soluciones Internas Team  
 **Developer:** Juan Sebastián Losada  
-**Última actualización:** 07-Abr-2026
+**Última actualización:** 09-Abr-2026
 
 ---
 
@@ -294,6 +294,45 @@
 
 ---
 
+### HU-28: Gestión de proyecto y trazabilidad — Semana 1 Sprint 03 🔄
+> Como developer, quiero registrar diariamente el trabajo realizado en un documento de trazabilidad, para justificar horas ante el equipo y mantener visibilidad del avance del proyecto.
+
+#### Lunes 7 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T01 | Análisis del archivo AGENTS.md: evaluación de su utilidad como guía operativa para construir y modificar workflows N8N (Abr 7) | ✅ Closed | 1h |
+| T02 | Documentación de utilidad del AGENTS.md: mapeo a casos de uso del proyecto Matec (fixes WF01/WF02/WF03, validación post-deploy, ciclo build→validate→deploy) (Abr 7) | ✅ Closed | 1h |
+| T03 | Planificación y diseño del esquema de Historias de Usuario para Azure DevOps: estructura HU + Task + horas, mapeo a sprint existente (Abr 7) | ✅ Closed | 2h |
+| T04 | Generación de 15 Historias de Usuario con 66 tareas desglosadas y horas estimadas por tarea para Sprint 01 y Sprint 02 (Abr 7) | ✅ Closed | 3h |
+| T05 | Creación del CSV de importación masiva `azure_devops_import_HUs.csv` con formato nativo Azure DevOps (Work Item Type, State, Effort, Iteration Path, Tags) (Abr 7) | ✅ Closed | 1h |
+
+**Subtotal Abr 7:** 8h
+
+#### Martes 8 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T06 | Análisis del estado real de cada HU del proyecto: clasificación Closed / Active / New basada en archivos existentes en el repo (Abr 8) | ✅ Closed | 1h |
+| T07 | Identificación de tareas pendientes críticas dentro de HUs cerradas: Logs_Fuentes headers, columnas segmentación Excel, renovación N8N API key, Tavily (Abr 8) | ✅ Closed | 1h |
+| T08 | Generación del documento `sprints-historias-usuario.md` con trazabilidad completa de Sprint 01, 02 y 03 con leyenda de estados (Abr 8) | ✅ Closed | 2h |
+| T09 | Generación del Daily Standup template (ayer/hoy) para comunicación con el equipo (Abr 8) | ✅ Closed | 0.5h |
+
+**Subtotal Abr 8:** 4.5h
+
+#### Miércoles 9 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T10 | Actualización del documento `sprints-historias-usuario.md` con trazabilidad de días anteriores (Abr 7 y Abr 8) (Abr 9) | ✅ Closed | 1h |
+| T11 | Creación del skill `/daily-tracker`: agente de trazabilidad diaria que actualiza automáticamente el documento con las tareas del día y genera el daily standup (Abr 9) | ✅ Closed | 1.5h |
+
+**Subtotal Abr 9:** 2.5h
+
+**Total HU-28 acumulado:** 15h
+
+---
+
 ### HU-24: Integración HubSpot ⏳
 > Como Paola Vaquero, quiero que los contactos Apollo se sincronicen automáticamente a HubSpot, para gestionar el seguimiento comercial desde una sola herramienta.
 
@@ -356,21 +395,43 @@
 |--------|---------|-----|-------------|--------|
 | Sprint 01 | Feb 10 – Mar 17 | HU-08 a HU-13 (6 HUs) | 166h | ✅ Cerrado |
 | Sprint 02 | Mar 18 – Abr 4 | HU-14 a HU-22 (9 HUs) | 264h | ✅ Cerrado |
-| Sprint 03 | Abr 7 – Abr 18 | HU-23 a HU-27 (5 HUs) | ~83h est. | 🔄 En curso |
-| **TOTAL** | | **20 HUs · 70 Tareas** | **~513h** | |
+| Sprint 03 | Abr 7 – Abr 18 | HU-23 a HU-28 (6 HUs) | ~98h est. (15h reales) | 🔄 En curso |
+| **TOTAL** | | **21 HUs · 81 Tareas** | **~528h** | |
 
 ---
 
-## Daily Standup — Martes 7 de abril de 2026
+## Daily Standup — Miércoles 9 de abril de 2026
 
-### ¿Qué hice ayer (lunes 6 de abril)?
-- Analicé y documenté el archivo `AGENTS.md` del framework WAT para definir su rol en el proyecto.
-- Generé el documento completo de **15 historias de usuario con 66 tareas** desglosadas para los Sprints 01 y 02, incluyendo horas por tarea.
-- Creé el archivo **CSV de importación masiva** (`azure_devops_import_HUs.csv`) listo para cargar en Azure DevOps.
-- Revisé el estado real de cada HU: identificando qué está completado, qué está en progreso y qué queda pendiente para Sprint 03.
+### ¿Qué hice ayer (martes 8 de abril)?
+- Clasifiqué el estado real de las 15 HUs del proyecto: cuáles están Closed, cuáles tienen tareas pendientes críticas y cuáles son Fase 2.
+- Generé el documento completo `sprints-historias-usuario.md` con trazabilidad de Sprint 01, 02 y 03, incluyendo leyenda de estados y daily standup.
+- Identifiqué tareas pendientes críticas: encabezados `Logs_Fuentes` en Excel SharePoint, columnas de segmentación cualitativa, renovación Tavily.
 
-### ¿Qué voy a hacer hoy (martes 7 de abril)?
-- Importar las historias de usuario al Azure DevOps usando el CSV generado (Sprint 01 y Sprint 02).
-- Crear el Sprint 03 en Azure DevOps y agregar las HU-23 a HU-27.
-- **Renovar la N8N API Key** en `n8n.event2flow.com` — expira el viernes 10 de abril (bloqueante crítico).
-- Coordinar con Felipe la renovación del plan Tavily para desbloquear las búsquedas del radar.
+### ¿Qué voy a hacer hoy (miércoles 9 de abril)?
+- Actualizar el documento con el trabajo de los días anteriores (Abr 7 y Abr 8) — **completado esta mañana**.
+- Crear el skill `/daily-tracker` para automatizar el registro diario — **completado esta mañana**.
+- 🔴 **Renovar la N8N API Key** — expira mañana viernes 10 de abril (bloqueante crítico).
+- Importar las HUs al Azure DevOps usando el CSV generado.
+- Crear Sprint 03 en Azure DevOps con HU-23 a HU-28.
+
+### ¿Hay algún bloqueo?
+- 🔴 **N8N API Key expira el 10 de abril (mañana)** — si no se renueva, ningún script de modificación de workflows funcionará.
+- ⚠️ **Tavily key agotada** — las búsquedas del radar están detenidas hasta renovar el plan (~$30/mes).
+
+---
+
+## Cómo usar `/daily-tracker`
+
+Para actualizar este documento con el trabajo de hoy, ejecuta en Claude Code:
+
+```
+/daily-tracker
+```
+
+O con argumentos directos:
+
+```
+/daily-tracker HU-28 | T12: Renovar N8N API key en n8n.event2flow.com (1h, done), T13: Importar HUs a Azure DevOps (2h, done)
+```
+
+La skill actualizará automáticamente la tabla de tareas y el daily standup.
