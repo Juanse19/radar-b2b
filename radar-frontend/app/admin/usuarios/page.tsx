@@ -3,7 +3,7 @@
 // Sprint 3.5 — Phase 4: full rewrite with Dialog modals, pagination, edit and delete.
 
 import { useState, useEffect } from 'react';
-import { Plus, MoreHorizontal, Pencil, Trash2, Loader2 } from 'lucide-react';
+import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, KeyRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +41,7 @@ import {
   useCreateUsuario,
   useUpdateUsuario,
   useDeleteUsuario,
+  useChangePassword,
   type AdminUser,
 } from '@/hooks/admin/useUsuarios';
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
@@ -333,18 +334,103 @@ function DeleteConfirmDialog({ user, onClose, onConfirm, isPending }: DeleteDial
   );
 }
 
+// ── Change Password Dialog ────────────────────────────────────────────────────
+
+interface ChangePasswordDialogProps {
+  user: AdminUser | null;
+  onClose: () => void;
+  onSubmit: (password: string) => void;
+  isPending: boolean;
+}
+
+function ChangePasswordDialog({ user, onClose, onSubmit, isPending }: ChangePasswordDialogProps) {
+  const [password, setPassword] = useState('');
+  const [confirm, setConfirm]   = useState('');
+
+  function reset() { setPassword(''); setConfirm(''); }
+
+  function handleOpenChange(isOpen: boolean) {
+    if (!isOpen) { reset(); onClose(); }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    onSubmit(password);
+  }
+
+  const isValid = password.length >= 8 && password === confirm;
+
+  return (
+    <Dialog open={!!user} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Cambiar contraseña</DialogTitle>
+          <DialogDescription>
+            {user ? `Usuario: ${user.nombre}` : ''}
+          </DialogDescription>
+        </DialogHeader>
+
+        <form id="change-pwd-form" onSubmit={handleSubmit} className="space-y-3 py-1">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Nueva contraseña</label>
+            <Input
+              type="password"
+              placeholder="Mínimo 8 caracteres"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              minLength={8}
+              required
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Confirmar contraseña</label>
+            <Input
+              type="password"
+              placeholder="Repetir contraseña"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              required
+            />
+            {confirm && password !== confirm && (
+              <p className="text-xs text-red-500">Las contraseñas no coinciden</p>
+            )}
+          </div>
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="change-pwd-form"
+            disabled={isPending || !isValid}
+            className="gap-2 bg-[#142e47] hover:bg-[#1a3a5c] text-white"
+          >
+            {isPending && <Loader2 className="size-3.5 animate-spin" />}
+            Cambiar contraseña
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminUsuariosPage() {
-  const [page, setPage]             = useState(1);
-  const [createOpen, setCreateOpen] = useState(false);
-  const [editUser, setEditUser]     = useState<AdminUser | null>(null);
-  const [deleteUser, setDeleteUser] = useState<AdminUser | null>(null);
+  const [page, setPage]               = useState(1);
+  const [createOpen, setCreateOpen]   = useState(false);
+  const [editUser, setEditUser]       = useState<AdminUser | null>(null);
+  const [deleteUser, setDeleteUser]   = useState<AdminUser | null>(null);
+  const [changePwdUser, setChangePwdUser] = useState<AdminUser | null>(null);
 
   const { data, isLoading } = useUsuarios(page);
   const createMutation = useCreateUsuario();
   const updateMutation = useUpdateUsuario();
   const deleteMutation = useDeleteUsuario();
+  const changePwd      = useChangePassword();
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -431,6 +517,10 @@ export default function AdminUsuariosPage() {
                           <Pencil className="size-3.5 mr-2" />
                           Editar
                         </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => setChangePwdUser(user)}>
+                          <KeyRound className="size-3.5 mr-2" />
+                          Cambiar contraseña
+                        </DropdownMenuItem>
                         <DropdownMenuItem
                           variant="destructive"
                           onClick={() => setDeleteUser(user)}
@@ -511,6 +601,20 @@ export default function AdminUsuariosPage() {
           })
         }
         isPending={deleteMutation.isPending}
+      />
+
+      {/* Dialog: Cambiar contraseña */}
+      <ChangePasswordDialog
+        user={changePwdUser}
+        onClose={() => setChangePwdUser(null)}
+        onSubmit={(pwd) => {
+          if (!changePwdUser) return;
+          changePwd.mutate(
+            { id: changePwdUser.id, password: pwd },
+            { onSuccess: () => setChangePwdUser(null) },
+          );
+        }}
+        isPending={changePwd.isPending}
       />
     </div>
   );

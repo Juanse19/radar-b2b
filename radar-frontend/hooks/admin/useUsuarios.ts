@@ -4,7 +4,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { fetchJson, fetchJsonSafe } from '@/lib/fetcher';
+import { fetchJson, fetchJsonSafe, ApiError } from '@/lib/fetcher';
 
 export interface AdminUser {
   id: string;
@@ -98,5 +98,24 @@ export function useDeleteUsuario() {
     },
     onError: (err: Error) =>
       toast.error(err.message || 'Error al eliminar usuario'),
+  });
+}
+
+export function useChangePassword() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      fetchJson(`/api/admin/usuarios/${id}/password`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password }),
+      }),
+    onSuccess: () => {
+      toast.success('Contraseña actualizada');
+      qc.invalidateQueries({ queryKey: ['admin', 'usuarios'] });
+    },
+    onError: (err: Error) => {
+      toast.error(err instanceof ApiError ? err.message : 'Error al cambiar contraseña');
+    },
   });
 }
