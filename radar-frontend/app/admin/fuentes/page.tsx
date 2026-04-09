@@ -8,7 +8,21 @@ import { fetchJson, ApiError } from '@/lib/fetcher';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Plus, Check, X, ToggleLeft, ToggleRight } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Loader2, Plus, PencilLine, ToggleLeft, ToggleRight } from 'lucide-react';
 
 interface Fuente {
   id: number;
@@ -22,11 +36,260 @@ interface Fuente {
 }
 
 const TIPOS = ['tavily', 'rss', 'scraping', 'api', 'manual'] as const;
+type Tipo = (typeof TIPOS)[number];
+
+const EMPTY_FORM = {
+  nombre: '',
+  url_base: '',
+  tipo: 'tavily' as Tipo,
+  priority_score: '5',
+  notas: '',
+};
+
+// ── Create Dialog ───────────────────────────────────────────────────────────
+
+function CreateFuenteDialog({
+  open,
+  onClose,
+  onSuccess,
+}: {
+  open: boolean;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState(EMPTY_FORM);
+
+  const createMutation = useMutation({
+    mutationFn: () =>
+      fetchJson('/api/admin/fuentes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, priority_score: Number(form.priority_score) }),
+      }),
+    onSuccess: () => {
+      toast.success('Fuente creada');
+      setForm(EMPTY_FORM);
+      onSuccess();
+    },
+    onError: (err) =>
+      toast.error(`Error: ${err instanceof ApiError ? err.message : 'Desconocido'}`),
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Nueva fuente de búsqueda</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid sm:grid-cols-2 gap-3 py-2">
+          <Input
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+            required
+          />
+          <Input
+            type="url"
+            placeholder="URL base"
+            value={form.url_base}
+            onChange={(e) => setForm((p) => ({ ...p, url_base: e.target.value }))}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <Select
+              value={form.tipo}
+              onValueChange={(v) => setForm((p) => ({ ...p, tipo: v as Tipo }))}
+            >
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            type="number"
+            min="1"
+            max="10"
+            placeholder="Prioridad (1-10)"
+            value={form.priority_score}
+            onChange={(e) => setForm((p) => ({ ...p, priority_score: e.target.value }))}
+          />
+          <textarea
+            placeholder="Notas (opcional)"
+            value={form.notas}
+            onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))}
+            rows={2}
+            className="sm:col-span-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={createMutation.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => createMutation.mutate()}
+            disabled={createMutation.isPending || !form.nombre}
+            className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+          >
+            {createMutation.isPending && <Loader2 size={13} className="animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Edit Dialog ─────────────────────────────────────────────────────────────
+
+function EditFuenteDialog({
+  item,
+  onClose,
+  onSuccess,
+}: {
+  item: Fuente | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({
+    nombre: item?.nombre ?? '',
+    url_base: item?.url_base ?? '',
+    tipo: (item?.tipo ?? 'tavily') as Tipo,
+    priority_score: String(item?.priority_score ?? 5),
+    notas: item?.notas ?? '',
+    activa: item?.activa ?? true,
+  });
+
+  // Sync form when item changes
+  const [lastItemId, setLastItemId] = useState<number | null>(null);
+  if (item && item.id !== lastItemId) {
+    setLastItemId(item.id);
+    setForm({
+      nombre: item.nombre,
+      url_base: item.url_base ?? '',
+      tipo: (item.tipo ?? 'tavily') as Tipo,
+      priority_score: String(item.priority_score),
+      notas: item.notas ?? '',
+      activa: item.activa,
+    });
+  }
+
+  const editMutation = useMutation({
+    mutationFn: () =>
+      fetchJson(`/api/admin/fuentes/${item!.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...form, priority_score: Number(form.priority_score) }),
+      }),
+    onSuccess: () => {
+      toast.success('Fuente actualizada');
+      onSuccess();
+    },
+    onError: (err) =>
+      toast.error(`Error: ${err instanceof ApiError ? err.message : 'Desconocido'}`),
+  });
+
+  return (
+    <Dialog open={!!item} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Editar fuente — {item?.nombre}</DialogTitle>
+        </DialogHeader>
+
+        <div className="grid sm:grid-cols-2 gap-3 py-2">
+          <Input
+            placeholder="Nombre"
+            value={form.nombre}
+            onChange={(e) => setForm((p) => ({ ...p, nombre: e.target.value }))}
+            required
+          />
+          <Input
+            type="url"
+            placeholder="URL base"
+            value={form.url_base}
+            onChange={(e) => setForm((p) => ({ ...p, url_base: e.target.value }))}
+          />
+          <div className="flex flex-col gap-1">
+            <label className="text-xs text-muted-foreground">Tipo</label>
+            <Select
+              value={form.tipo}
+              onValueChange={(v) => setForm((p) => ({ ...p, tipo: v as Tipo }))}
+            >
+              <SelectTrigger className="w-full h-9">
+                <SelectValue placeholder="Tipo" />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPOS.map((t) => (
+                  <SelectItem key={t} value={t}>
+                    {t}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <Input
+            type="number"
+            min="1"
+            max="10"
+            placeholder="Prioridad (1-10)"
+            value={form.priority_score}
+            onChange={(e) => setForm((p) => ({ ...p, priority_score: e.target.value }))}
+          />
+          <textarea
+            placeholder="Notas (opcional)"
+            value={form.notas}
+            onChange={(e) => setForm((p) => ({ ...p, notas: e.target.value }))}
+            rows={2}
+            className="sm:col-span-2 rounded-md border border-input bg-transparent px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+          />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={() => setForm((p) => ({ ...p, activa: !p.activa }))}
+              className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                form.activa
+                  ? 'text-green-400 hover:text-green-300'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {form.activa ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+              {form.activa ? 'Activa' : 'Inactiva'}
+            </button>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={editMutation.isPending}>
+            Cancelar
+          </Button>
+          <Button
+            onClick={() => editMutation.mutate()}
+            disabled={editMutation.isPending || !form.nombre}
+            className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+          >
+            {editMutation.isPending && <Loader2 size={13} className="animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ── Page ────────────────────────────────────────────────────────────────────
 
 export default function FuentesPage() {
   const qc = useQueryClient();
-  const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ nombre: '', url_base: '', tipo: 'tavily', priority_score: '5', notas: '' });
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editItem, setEditItem] = useState<Fuente | null>(null);
 
   const { data: fuentes = [], isLoading } = useQuery<Fuente[]>({
     queryKey: ['admin-fuentes'],
@@ -40,25 +303,17 @@ export default function FuentesPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       }),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ['admin-fuentes'] }); toast.success('Fuente actualizada'); },
-    onError: (err) => toast.error(`Error: ${err instanceof ApiError ? err.message : 'Desconocido'}`),
-  });
-
-  const createMutation = useMutation({
-    mutationFn: () =>
-      fetchJson('/api/admin/fuentes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...form, priority_score: Number(form.priority_score) }),
-      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-fuentes'] });
-      toast.success('Fuente creada');
-      setShowCreate(false);
-      setForm({ nombre: '', url_base: '', tipo: 'tavily', priority_score: '5', notas: '' });
+      toast.success('Fuente actualizada');
     },
-    onError: (err) => toast.error(`Error: ${err instanceof ApiError ? err.message : 'Desconocido'}`),
+    onError: (err) =>
+      toast.error(`Error: ${err instanceof ApiError ? err.message : 'Desconocido'}`),
   });
+
+  function refetch() {
+    qc.invalidateQueries({ queryKey: ['admin-fuentes'] });
+  }
 
   return (
     <div className="space-y-5 max-w-4xl">
@@ -67,45 +322,13 @@ export default function FuentesPage() {
           <h1 className="text-2xl font-bold text-foreground">Fuentes de búsqueda</h1>
           <p className="text-sm text-muted-foreground">Fuentes de información usadas por los agentes IA</p>
         </div>
-        <Button onClick={() => setShowCreate(v => !v)} className="gap-2 bg-blue-600 hover:bg-blue-700">
+        <Button
+          onClick={() => setCreateOpen(true)}
+          className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+        >
           <Plus size={15} /> Nueva fuente
         </Button>
       </div>
-
-      {showCreate && (
-        <Card className="border-blue-700/50 bg-blue-950/20">
-          <CardContent className="p-4 space-y-3">
-            <p className="text-sm font-semibold text-foreground">Nueva fuente</p>
-            <div className="grid sm:grid-cols-2 gap-3">
-              <Input placeholder="Nombre" value={form.nombre}
-                onChange={e => setForm(p => ({ ...p, nombre: e.target.value }))} />
-              <Input placeholder="URL base" value={form.url_base}
-                onChange={e => setForm(p => ({ ...p, url_base: e.target.value }))} />
-              <select value={form.tipo}
-                onChange={e => setForm(p => ({ ...p, tipo: e.target.value }))}
-                className="rounded-md border border-border bg-surface-muted px-3 py-2 text-sm text-foreground">
-                {TIPOS.map(t => <option key={t} value={t}>{t}</option>)}
-              </select>
-              <Input type="number" min="1" max="10" placeholder="Prioridad (1-10)" value={form.priority_score}
-                onChange={e => setForm(p => ({ ...p, priority_score: e.target.value }))} />
-              <Input placeholder="Notas" value={form.notas}
-                onChange={e => setForm(p => ({ ...p, notas: e.target.value }))}
-                className="sm:col-span-2" />
-            </div>
-            <div className="flex gap-2">
-              <Button size="sm" onClick={() => createMutation.mutate()}
-                disabled={createMutation.isPending || !form.nombre}
-                className="bg-blue-600 hover:bg-blue-700 gap-2">
-                {createMutation.isPending ? <Loader2 size={13} className="animate-spin" /> : <Check size={13} />}
-                Crear
-              </Button>
-              <Button size="sm" variant="outline" onClick={() => setShowCreate(false)} className="gap-2">
-                <X size={13} /> Cancelar
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
-      )}
 
       <Card>
         <CardContent className="p-0">
@@ -117,13 +340,18 @@ export default function FuentesPage() {
             <table className="w-full text-sm">
               <thead className="border-b border-border bg-surface-muted/50">
                 <tr className="text-left">
-                  {['Nombre', 'Tipo', 'Prioridad', 'URL', 'Activa'].map(h => (
-                    <th key={h} className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
+                  {['Nombre', 'Tipo', 'Prioridad', 'URL', 'Activa', ''].map((h, i) => (
+                    <th
+                      key={i}
+                      className="px-4 py-3 text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+                    >
+                      {h}
+                    </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/50">
-                {fuentes.map(f => (
+                {fuentes.map((f) => (
                   <tr key={f.id} className="hover:bg-surface-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">{f.nombre}</td>
                     <td className="px-4 py-3">
@@ -131,20 +359,36 @@ export default function FuentesPage() {
                         {f.tipo ?? '—'}
                       </span>
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">{f.priority_score}/10</td>
+                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
+                      {f.priority_score}/10
+                    </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[200px]">
                       {f.url_base ?? '—'}
                     </td>
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => patchMutation.mutate({ id: f.id, updates: { activa: !f.activa } })}
+                        onClick={() =>
+                          patchMutation.mutate({ id: f.id, updates: { activa: !f.activa } })
+                        }
                         className={`flex items-center gap-1 text-xs font-medium ${
-                          f.activa ? 'text-green-400 hover:text-green-300' : 'text-muted-foreground hover:text-foreground'
+                          f.activa
+                            ? 'text-green-400 hover:text-green-300'
+                            : 'text-muted-foreground hover:text-foreground'
                         }`}
                       >
                         {f.activa ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                         {f.activa ? 'Activa' : 'Inactiva'}
+                      </button>
+                    </td>
+                    <td className="px-4 py-3">
+                      <button
+                        type="button"
+                        onClick={() => setEditItem(f)}
+                        className="text-muted-foreground hover:text-foreground transition-colors"
+                        title="Editar"
+                      >
+                        <PencilLine size={15} />
                       </button>
                     </td>
                   </tr>
@@ -154,6 +398,24 @@ export default function FuentesPage() {
           )}
         </CardContent>
       </Card>
+
+      <CreateFuenteDialog
+        open={createOpen}
+        onClose={() => setCreateOpen(false)}
+        onSuccess={() => {
+          setCreateOpen(false);
+          refetch();
+        }}
+      />
+
+      <EditFuenteDialog
+        item={editItem}
+        onClose={() => setEditItem(null)}
+        onSuccess={() => {
+          setEditItem(null);
+          refetch();
+        }}
+      />
     </div>
   );
 }

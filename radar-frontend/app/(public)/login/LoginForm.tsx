@@ -2,23 +2,22 @@
 
 import { useActionState } from 'react';
 import { loginAction } from '@/lib/auth/actions';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Loader2 } from 'lucide-react';
+import { Loader2, AlertCircle } from 'lucide-react';
 
 export function LoginForm() {
   const [state, action, isPending] = useActionState(loginAction, {});
 
   return (
     <form action={action} className="space-y-4">
-      <div className="space-y-1.5">
+      {/* Email */}
+      <div className="flex flex-col gap-1.5">
         <label
           htmlFor="email"
-          className="block text-sm font-medium text-foreground"
+          className="text-sm font-medium text-foreground"
         >
-          Email
+          Correo electrónico
         </label>
-        <Input
+        <input
           id="email"
           name="email"
           type="email"
@@ -26,17 +25,19 @@ export function LoginForm() {
           placeholder="correo@empresa.com"
           required
           disabled={isPending}
+          className="border border-[#d2dce4] rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-[#71acd2] focus:border-transparent transition-all text-sm bg-white disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
-      <div className="space-y-1.5">
+      {/* Password */}
+      <div className="flex flex-col gap-1.5">
         <label
           htmlFor="password"
-          className="block text-sm font-medium text-foreground"
+          className="text-sm font-medium text-foreground"
         >
           Contraseña
         </label>
-        <Input
+        <input
           id="password"
           name="password"
           type="password"
@@ -44,21 +45,26 @@ export function LoginForm() {
           placeholder="••••••••"
           required
           disabled={isPending}
+          className="border border-[#d2dce4] rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-[#71acd2] focus:border-transparent transition-all text-sm bg-white disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
+      {/* Error alert */}
       {state.error && (
-        <p role="alert" className="rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm text-red-400">
+        <div
+          role="alert"
+          className="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700"
+        >
+          <AlertCircle size={15} className="shrink-0" />
           {state.error}
-        </p>
+        </div>
       )}
 
-      <Button
+      {/* Submit */}
+      <button
         type="submit"
-        variant="primary"
-        size="default"
-        className="w-full"
         disabled={isPending}
+        className="w-full h-11 bg-[#142e47] hover:bg-[#1e3d58] text-white font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
       >
         {isPending ? (
           <>
@@ -68,7 +74,7 @@ export function LoginForm() {
         ) : (
           'Iniciar sesión'
         )}
-      </Button>
+      </button>
     </form>
   );
 }

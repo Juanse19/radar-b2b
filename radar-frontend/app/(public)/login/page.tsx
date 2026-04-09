@@ -1,6 +1,5 @@
 import { getCurrentSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
-import { Radar } from 'lucide-react';
 import { LoginForm } from './LoginForm';
 
 export const metadata = {
@@ -12,29 +11,60 @@ export default async function LoginPage() {
   if (session) redirect('/');
 
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
-      <div className="w-full max-w-sm space-y-6">
-        {/* Header */}
-        <div className="text-center space-y-3">
-          <div className="flex justify-center">
-            <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-sidebar border border-white/10">
-              <Radar size={28} className="text-sidebar-primary" />
+    <div className="min-h-screen flex items-center justify-center p-4">
+      {/* Card container */}
+      <div className="w-full max-w-sm">
+        <div className="rounded-2xl overflow-hidden shadow-[0_12px_36px_rgba(20,46,71,0.12)]">
+
+          {/* ── Header navy ──────────────────────────────────────── */}
+          <div className="bg-[#142e47] px-8 py-6">
+            <div className="flex items-center gap-3">
+              {/* Radar icon */}
+              <div className="w-9 h-9 rounded-lg bg-[#71acd2]/20 flex items-center justify-center shrink-0">
+                <svg
+                  viewBox="0 0 24 24"
+                  className="w-5 h-5 text-[#71acd2]"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  aria-hidden="true"
+                >
+                  <circle cx="12" cy="12" r="2" />
+                  <circle cx="12" cy="12" r="5" opacity="0.5" />
+                  <circle cx="12" cy="12" r="9" opacity="0.25" />
+                  <line x1="12" y1="12" x2="19" y2="5" strokeWidth="1.5" />
+                </svg>
+              </div>
+
+              {/* Brand text */}
+              <div>
+                <p
+                  className="font-bold text-xl text-white tracking-wider leading-none"
+                  style={{ fontFamily: 'var(--font-display), Arial, sans-serif' }}
+                >
+                  MATEC
+                </p>
+                <p className="text-xs text-[#71acd2] font-medium tracking-wide mt-0.5">
+                  Radar B2B
+                </p>
+              </div>
             </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">
-              Matec Radar B2B
-            </h1>
-            <p className="mt-1 text-sm text-muted-foreground">
+
+          {/* ── Body blanco ──────────────────────────────────────── */}
+          <div className="bg-white px-8 pb-8 pt-6">
+            <p className="text-sm text-muted-foreground mb-4">
               Sistema de Inteligencia Comercial
             </p>
+            <div className="h-px bg-[#142e47]/10 mb-6" />
+            <LoginForm />
           </div>
         </div>
 
-        {/* Login card */}
-        <div className="rounded-2xl border border-border bg-surface-muted p-6 shadow-lg">
-          <LoginForm />
-        </div>
+        {/* Footer */}
+        <p className="text-xs text-muted-foreground text-center mt-6">
+          Matec S.A.S · Confidencial · 2026
+        </p>
       </div>
     </div>
   );

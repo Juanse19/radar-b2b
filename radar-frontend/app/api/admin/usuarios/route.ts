@@ -1,28 +1,40 @@
 // app/api/admin/usuarios/route.ts
 //
-// GET  /api/admin/usuarios       — list all users from public.usuarios
-// POST /api/admin/usuarios       — create user in Supabase Auth + public.usuarios
+// GET  /api/admin/usuarios?page=1&limit=10  — paginated list of users
+// POST /api/admin/usuarios                  — create user in Supabase Auth + public.usuarios
 //
 // Protected: only ADMIN role. Uses service-role client to bypass RLS.
 import { NextRequest, NextResponse } from 'next/server';
 import { ensureAdmin } from '@/lib/auth/session';
 import { getAdminDb } from '@/lib/db/supabase/admin';
 
-export async function GET() {
+export async function GET(req: NextRequest) {
   try {
     await ensureAdmin();
   } catch {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
+  const { searchParams } = req.nextUrl;
+  const page  = Math.max(1, parseInt(searchParams.get('page')  ?? '1',  10));
+  const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') ?? '10', 10)));
+  const offset = (page - 1) * limit;
+
   const db = getAdminDb();
-  const { data, error } = await db
+  const { data, error, count } = await db
     .from('usuarios')
-    .select('id, nombre, email, rol, estado_acceso, created_at, aprobado_en')
-    .order('created_at', { ascending: false });
+    .select('id, nombre, email, rol, estado_acceso, created_at, aprobado_en', { count: 'exact' })
+    .order('created_at', { ascending: false })
+    .range(offset, offset + limit - 1);
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+
+  return NextResponse.json({
+    usuarios:   data ?? [],
+    total:      count ?? 0,
+    page,
+    totalPages: Math.ceil((count ?? 0) / limit),
+  });
 }
 
 export async function POST(req: NextRequest) {

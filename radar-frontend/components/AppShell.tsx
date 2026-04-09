@@ -42,6 +42,15 @@ export function AppShell({
     }
   }, [mobileOpen]);
 
+  // No session → render only the main content area (login page, public routes)
+  if (!session) {
+    return (
+      <main className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden">
+        {children}
+      </main>
+    );
+  }
+
   return (
     <div className="flex h-screen overflow-hidden bg-background text-foreground">
       {/* ── Sidebar — desktop inline, mobile off-canvas drawer ─────────────── */}
