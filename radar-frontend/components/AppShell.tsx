@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import { usePathname } from 'next/navigation';
-import { Menu, X } from 'lucide-react';
 import { Navigation } from '@/components/Navigation';
+import { TopBar } from '@/components/TopBar';
 import { RunningExecutionsTray } from '@/components/tracker/RunningExecutionsTray';
 import { cn } from '@/lib/utils';
 import type { SessionUser } from '@/lib/auth/types';
@@ -75,25 +75,11 @@ export function AppShell({
 
       {/* ── Contenido principal — columna vertical que ocupa el viewport ───── */}
       <div className="flex h-screen flex-1 flex-col min-w-0">
-        {/* Top bar — visible solo en mobile (altura fija, no hace scroll) */}
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur md:hidden">
-          <button
-            type="button"
-            onClick={() => setMobileOpen(v => !v)}
-            aria-label={mobileOpen ? 'Cerrar menú' : 'Abrir menú'}
-            className="rounded-lg border border-border p-2 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-          >
-            {mobileOpen ? <X size={18} /> : <Menu size={18} />}
-          </button>
-          <div className="flex min-w-0 flex-col items-end">
-            <span className="text-[10px] font-semibold uppercase tracking-[0.25em] text-muted-foreground">
-              MATEC
-            </span>
-            <span className="truncate text-sm font-semibold text-foreground">
-              Radar B2B
-            </span>
-          </div>
-        </header>
+        {/* TopBar — visible siempre cuando hay sesión (desktop y mobile) */}
+        <TopBar
+          session={session}
+          onMobileMenuToggle={() => setMobileOpen(o => !o)}
+        />
 
         {/*
           <main> es el contenedor de scroll interno.

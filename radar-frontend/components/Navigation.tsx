@@ -1,5 +1,6 @@
 'use client';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -50,12 +51,13 @@ export function Navigation({ session }: { session: SessionUser | null }) {
         <div className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-white/6 p-3">
           {!collapsed && (
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.3em] text-white/50">
-                MATEC
-              </p>
-              <h1 className="page-heading mt-1 text-xl font-semibold text-white leading-tight">
-                Radar B2B
-              </h1>
+              <Image
+                src="/matec-logo.png"
+                alt="Matec"
+                width={100}
+                height={28}
+                className="object-contain"
+              />
               <p className="mt-1.5 text-xs leading-5 text-white/60">
                 Inteligencia Comercial LATAM
               </p>

@@ -1,5 +1,6 @@
 import { getCurrentSession } from '@/lib/auth/session';
 import { redirect } from 'next/navigation';
+import Image from 'next/image';
 import { LoginForm } from './LoginForm';
 
 export const metadata = {
@@ -19,22 +20,14 @@ export default async function LoginPage() {
           {/* ── Header navy ──────────────────────────────────────── */}
           <div className="bg-[#142e47] px-8 py-6">
             <div className="flex items-center gap-3">
-              {/* Radar icon */}
-              <div className="w-9 h-9 rounded-lg bg-[#71acd2]/20 flex items-center justify-center shrink-0">
-                <svg
-                  viewBox="0 0 24 24"
-                  className="w-5 h-5 text-[#71acd2]"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  aria-hidden="true"
-                >
-                  <circle cx="12" cy="12" r="2" />
-                  <circle cx="12" cy="12" r="5" opacity="0.5" />
-                  <circle cx="12" cy="12" r="9" opacity="0.25" />
-                  <line x1="12" y1="12" x2="19" y2="5" strokeWidth="1.5" />
-                </svg>
-              </div>
+              {/* Matec isotipo */}
+              <Image
+                src="/matec-isotipo.png"
+                alt="Matec"
+                width={36}
+                height={36}
+                className="rounded-lg object-contain"
+              />
 
               {/* Brand text */}
               <div>

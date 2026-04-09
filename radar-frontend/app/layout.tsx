@@ -24,8 +24,13 @@ const uiFont = Public_Sans({
 });
 
 export const metadata: Metadata = {
-  title: 'Radar B2B — Matec',
-  description: 'Panel de inteligencia comercial B2B para el equipo Matec LATAM',
+  title: 'Matec Radar B2B',
+  description: 'Sistema de Inteligencia Comercial LATAM',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/favicon-32x32.png',
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
