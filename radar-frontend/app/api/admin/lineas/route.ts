@@ -13,14 +13,23 @@ export async function GET() {
     return NextResponse.json({ error: 'Sin acceso' }, { status: 403 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('lineas_negocio')
-    .select('*')
-    .order('orden', { ascending: true });
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('lineas_negocio')
+      .select('*')
+      .order('orden', { ascending: true });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -35,13 +44,22 @@ export async function POST(req: NextRequest) {
 
   if (!nombre) return NextResponse.json({ error: 'nombre es requerido' }, { status: 400 });
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('lineas_negocio')
-    .insert({ nombre, descripcion, color_hex, icono, orden: orden ?? 0 })
-    .select()
-    .single();
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('lineas_negocio')
+      .insert({ nombre, descripcion, color_hex, icono, orden: orden ?? 0 })
+      .select()
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data, { status: 201 });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data, { status: 201 });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }

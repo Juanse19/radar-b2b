@@ -15,19 +15,28 @@ export async function GET(req: NextRequest) {
   const tipo  = searchParams.get('tipo');
   const email = searchParams.get('usuario_email');
 
-  const db = getAdminDb();
-  let query = db
-    .from('actividad')
-    .select('*')
-    .order('created_at', { ascending: false })
-    .limit(limit);
+  try {
+    const db = getAdminDb();
+    let query = db
+      .from('actividad')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(limit);
 
-  if (tipo)  query = query.eq('tipo', tipo);
-  if (email) query = query.ilike('usuario_email', `%${email}%`);
+    if (tipo)  query = query.eq('tipo', tipo);
+    if (email) query = query.ilike('usuario_email', `%${email}%`);
 
-  const { data, error } = await query;
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data ?? []);
+    const { data, error } = await query;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data ?? []);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }
 
 export async function POST(req: NextRequest) {

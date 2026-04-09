@@ -34,16 +34,25 @@ export async function PATCH(
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('usuarios')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('usuarios')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }
 
 export async function DELETE(
@@ -57,27 +66,36 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const db = getAdminDb();
+  try {
+    const db = getAdminDb();
 
-  // Fetch the auth_user_id before deleting the DB record
-  const { data: usuario, error: fetchError } = await db
-    .from('usuarios')
-    .select('auth_user_id')
-    .eq('id', id)
-    .single();
+    // Fetch the auth_user_id before deleting the DB record
+    const { data: usuario, error: fetchError } = await db
+      .from('usuarios')
+      .select('auth_user_id')
+      .eq('id', id)
+      .single();
 
-  if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
+    if (fetchError) return NextResponse.json({ error: fetchError.message }, { status: 500 });
 
-  // Delete from public.usuarios
-  const { error: dbError } = await db.from('usuarios').delete().eq('id', id);
-  if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
+    // Delete from public.usuarios
+    const { error: dbError } = await db.from('usuarios').delete().eq('id', id);
+    if (dbError) return NextResponse.json({ error: dbError.message }, { status: 500 });
 
-  // Delete from Supabase Auth if auth_user_id is available
-  if (usuario?.auth_user_id) {
-    await db.auth.admin.deleteUser(usuario.auth_user_id).catch(() => {
-      // Non-fatal: DB record already removed
-    });
+    // Delete from Supabase Auth if auth_user_id is available
+    if (usuario?.auth_user_id) {
+      await db.auth.admin.deleteUser(usuario.auth_user_id).catch(() => {
+        // Non-fatal: DB record already removed
+      });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
   }
-
-  return NextResponse.json({ ok: true });
 }

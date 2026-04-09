@@ -23,16 +23,25 @@ export async function PATCH(
     return NextResponse.json({ error: 'Nada que actualizar' }, { status: 400 });
   }
 
-  const db = getAdminDb();
-  const { data, error } = await db
-    .from('lineas_negocio')
-    .update(updates)
-    .eq('id', id)
-    .select()
-    .single();
+  try {
+    const db = getAdminDb();
+    const { data, error } = await db
+      .from('lineas_negocio')
+      .update(updates)
+      .eq('id', id)
+      .select()
+      .single();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json(data);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json(data);
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }
 
 export async function DELETE(
@@ -44,8 +53,17 @@ export async function DELETE(
   }
 
   const { id } = await params;
-  const db = getAdminDb();
-  const { error } = await db.from('lineas_negocio').delete().eq('id', id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-  return NextResponse.json({ ok: true });
+  try {
+    const db = getAdminDb();
+    const { error } = await db.from('lineas_negocio').delete().eq('id', id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
+    return NextResponse.json(
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
+    );
+  }
 }

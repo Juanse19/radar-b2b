@@ -26,35 +26,44 @@ export async function PATCH(
     );
   }
 
-  const db = getAdminDb();
+  try {
+    const db = getAdminDb();
 
-  // Fetch auth_user_id from the usuarios table
-  const { data: usuario, error: fetchError } = await db
-    .from('usuarios')
-    .select('auth_user_id, nombre')
-    .eq('id', id)
-    .single();
+    // Fetch auth_user_id from the usuarios table
+    const { data: usuario, error: fetchError } = await db
+      .from('usuarios')
+      .select('auth_user_id, nombre')
+      .eq('id', id)
+      .single();
 
-  if (fetchError || !usuario) {
-    return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
-  }
+    if (fetchError || !usuario) {
+      return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
+    }
 
-  if (!usuario.auth_user_id) {
+    if (!usuario.auth_user_id) {
+      return NextResponse.json(
+        { error: 'El usuario no tiene cuenta de autenticación asociada' },
+        { status: 422 },
+      );
+    }
+
+    // Change password via Supabase Auth Admin API
+    const { error: authError } = await db.auth.admin.updateUserById(
+      usuario.auth_user_id,
+      { password },
+    );
+
+    if (authError) {
+      return NextResponse.json({ error: authError.message }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
     return NextResponse.json(
-      { error: 'El usuario no tiene cuenta de autenticación asociada' },
-      { status: 422 },
+      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { status: isNetworkError ? 503 : 500 },
     );
   }
-
-  // Change password via Supabase Auth Admin API
-  const { error: authError } = await db.auth.admin.updateUserById(
-    usuario.auth_user_id,
-    { password },
-  );
-
-  if (authError) {
-    return NextResponse.json({ error: authError.message }, { status: 500 });
-  }
-
-  return NextResponse.json({ ok: true });
 }
