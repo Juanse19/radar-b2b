@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { triggerProspect } from '@/lib/n8n';
-import { getEmpresasParaEscaneo, prisma } from '@/lib/db';
+import { getEmpresasParaEscaneo, crearProspeccionLogs } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,6 +10,10 @@ export async function POST(req: NextRequest) {
       empresas = [] as string[],
       batchSize = 5,
       contactosPorEmpresa = 3,
+      // Bug F3 fix: tier y paises[] requeridos por WF03 para saber cuántos
+      // contactos buscar (ORO=5, PLATA=4, MONITOREO=3) y búsqueda multi-país
+      tier = 'ORO',
+      paises = [] as string[],
     } = body;
 
     if (!linea) {
@@ -35,28 +39,22 @@ export async function POST(req: NextRequest) {
       empresas: empresasParaN8N,
       batchSize,
       contactosPorEmpresa,
+      tier,
+      paises,
     });
 
     // Crear entradas de log para cada empresa — estado inicial "running"
-    const logEntries = await Promise.all(
-      empresasParaN8N.map(nombre =>
-        prisma.prospeccionLog.create({
-          data: {
-            empresa_nombre:   nombre,
-            linea,
-            n8n_execution_id: result.executionId,
-            estado:           'running',
-          },
-        }),
-      ),
+    await crearProspeccionLogs(
+      empresasParaN8N.map(nombre => ({
+        empresa_nombre:   nombre,
+        linea,
+        n8n_execution_id: result.executionId,
+      })),
     );
-
-    const logIds = logEntries.map(l => l.id);
 
     return NextResponse.json({
       ...result,
       empresasEnviadas: empresasParaN8N.length,
-      logIds,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

@@ -28,8 +28,8 @@ export async function POST(req: NextRequest) {
       empresasParaN8N = dbEmpresas.map(e => ({
         nombre:  e.company_name,
         dominio: e.company_domain,
-        pais:    e.pais,
-        linea:   e.linea_negocio,
+        pais:    e.pais ?? undefined,
+        linea:   body.linea,
       }));
     }
 

@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { prisma } from '@/lib/db';
-import { eliminarContacto, actualizarHubSpotStatus } from '@/lib/contacts';
-import type { HubSpotStatus } from '@/lib/types';
+import { actualizarContacto, eliminarContacto } from '@/lib/db';
 
 export async function PUT(
   req: NextRequest,
@@ -10,19 +8,14 @@ export async function PUT(
   const { id } = await params;
   try {
     const body = await req.json();
-    const contacto = await prisma.contacto.update({
-      where: { id: Number(id) },
-      data: {
-        nombre:         body.nombre ?? undefined,
-        cargo:          body.cargo ?? undefined,
-        email:          body.email ?? undefined,
-        telefono:       body.telefono ?? undefined,
-        linkedin_url:   body.linkedin_url ?? undefined,
-        empresa_nombre: body.empresa_nombre ?? undefined,
-        linea_negocio:  body.linea_negocio ?? undefined,
-        hubspot_status: body.hubspot_status ?? undefined,
-        hubspot_id:     body.hubspot_id ?? undefined,
-      },
+    const contacto = await actualizarContacto(Number(id), {
+      nombre:         body.nombre         ?? undefined,
+      cargo:          body.cargo          ?? undefined,
+      email:          body.email          ?? undefined,
+      telefono:       body.telefono       ?? undefined,
+      linkedin_url:   body.linkedin_url   ?? undefined,
+      hubspot_status: body.hubspot_status ?? undefined,
+      hubspot_id:     body.hubspot_id     ?? undefined,
     });
     return NextResponse.json(contacto);
   } catch (err) {
@@ -44,3 +37,4 @@ export async function DELETE(
     return NextResponse.json({ error: 'Error al eliminar contacto' }, { status: 500 });
   }
 }
+

@@ -23,18 +23,18 @@ export async function GET(req: NextRequest) {
     const rows = await getContactos({ linea, hubspotStatus: status, busqueda, empresaId, limit, offset });
     return NextResponse.json(rows.map(c => ({
       id:             c.id,
-      nombre:         c.nombre,
-      cargo:          c.cargo ?? '',
+      nombre:         c.full_name ?? `${c.first_name ?? ''} ${c.last_name ?? ''}`.trim(),
+      cargo:          c.title ?? '',
       email:          c.email ?? '',
-      telefono:       c.telefono ?? '',
+      telefono:       c.phone_work_direct ?? c.phone_mobile ?? '',
       linkedinUrl:    c.linkedin_url ?? '',
-      empresaNombre:  c.empresa_nombre ?? '',
-      lineaNegocio:   c.linea_negocio ?? '',
-      fuente:         c.fuente,
+      empresaNombre:  c.empresa?.company_name ?? '',
+      lineaNegocio:   '',
+      fuente:         'apollo',
       hubspotStatus:  c.hubspot_status,
       hubspotId:      c.hubspot_id ?? '',
       apolloId:       c.apollo_id ?? '',
-      createdAt:      c.created_at.toISOString(),
+      createdAt:      typeof c.created_at === 'string' ? c.created_at : (c.created_at as Date).toISOString(),
     })));
   } catch (err) {
     console.error('[/api/contacts GET] Error:', err);
@@ -45,8 +45,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    if (!body.nombre) {
-      return NextResponse.json({ error: 'El campo nombre es obligatorio' }, { status: 400 });
+    if (!body.empresa_id) {
+      return NextResponse.json({ error: 'El campo empresa_id es obligatorio' }, { status: 400 });
     }
     const contacto = await crearContacto(body);
     return NextResponse.json(contacto, { status: 201 });

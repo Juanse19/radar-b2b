@@ -1,0 +1,355 @@
+{
+  "name": "Agent 03 - Prospector v2.0",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prospector",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "e96c6a13-5ded-403f-8e7b-79eddd30d135",
+      "name": "Webhook Prospector",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [128, 304],
+      "webhookId": "94935cfd-5cb3-482a-9a8a-3bf5f60af64a"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{\"message\":\"Prospector started\",\"version\":\"2.0\"}",
+        "options": {}
+      },
+      "id": "172c3369-05c4-43c8-bfb0-73b0e24a8a6c",
+      "name": "Respond 200",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [352, 512]
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF03 Prospector v2.0 - Parse webhook input\n// Input formats:\n//   1. Frontend /api/prospect: { linea, empresas: [\"name1\",\"name2\"], pais?, paises?:[], tier?, contactos_por_empresa }\n//   2. WF02 trigger:          { empresa, pais, linea_negocio, tier, company_domain, score_* }\n//   3. WF02 uppercase:        { \"COMPANY NAME\", \"PAÍS\", \"LÍNEA DE NEGOCIO\", \"TIER\", ... }\nconst raw = $input.all()[0].json;\nconst body = raw.body || raw;\n\nlet empresas = [];\n\nif (body.empresas && Array.isArray(body.empresas)) {\n  empresas = body.empresas.map(e => {\n    if (typeof e === 'string') {\n      return {\n        empresa:        e,\n        pais:           body.pais || 'Colombia',\n        paises:         body.paises || [],\n        linea_negocio:  body.linea || body.linea_negocio || '',\n        tier:           body.tier || 'MONITOREO',\n        company_domain: body.company_domain || '',\n        score_calificacion: 0,\n        score_radar:    0,\n        composite_score: 0,\n      };\n    }\n    return e;\n  });\n} else if (body.empresa || body['COMPANY NAME']) {\n  empresas = [body];\n}\n\nif (!empresas.length) {\n  throw new Error('WF03: No empresas found. Expected { empresas:[...] } or { empresa: \"...\" }');\n}\n\nreturn empresas.flatMap(e => {\n  const tier = (e.tier_calculado || e.tier || e['TIER'] || 'MONITOREO').toUpperCase();\n  // v2: ORO=5, PLATA=4, MONITOREO=3, else skip\n  const maxContacts = tier === 'ORO' ? 5 : tier === 'PLATA' ? 4 : tier === 'MONITOREO' ? 3 : 0;\n  if (maxContacts === 0) return [];\n\n  const empresa     = e.empresa || e.company_name || e['COMPANY NAME'] || '';\n  const paisBase    = e.pais || e['PAÍS'] || 'Colombia';\n  const linea       = e.linea_negocio || e.linea || e['LÍNEA DE NEGOCIO'] || e['LINEA DE NEGOCIO'] || '';\n  const domain      = e.company_domain || e['DOMINIO'] || '';\n  const fecha       = new Date().toISOString().split('T')[0];\n\n  // If paises array provided → one item per country\n  const paises = (e.paises && e.paises.length > 0) ? e.paises : [paisBase];\n\n  return paises.map(pais => ({ json: {\n    empresa, pais, linea_negocio: linea, tier,\n    company_domain: domain,\n    score_calificacion: e.score_calificacion || e['SCORE_CAL']  || 0,\n    score_radar:        e.score_radar        || e['SCORE_RADAR'] || 0,\n    composite_score:    e.composite_score    || e['COMPOSITE']   || 0,\n    max_contacts: maxContacts,\n    fecha_prospeccion: fecha,\n    grupo_empresarial: e.grupo_empresarial || '',\n    es_multinacional: paises.length > 1,\n  }}));\n}).filter(Boolean);"
+      },
+      "id": "cacba60f-52b1-4e29-9e6a-287b753e7367",
+      "name": "Code: Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [560, 304]
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "abbc9e30-cba0-476e-abcb-30f65042763e",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [784, 304]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.all()[0].json;\nconst linea = (e.linea_negocio || '').toLowerCase()\n  .normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\n\n// v2.0: 6 líneas with curated titles per line\n// Sources: JobTitles_PorLineaNegocio.xlsx (ALTA priority)\nconst TITLES = {\n  BHS: [\n    'Chief Executive Officer','CEO','Chief Operating Officer','COO',\n    'Chief Technical Officer','Chief Infrastructure Officer',\n    'Director General Aeropuerto','Director de Infraestructura Aeropuerto',\n    'Director de Operaciones Aeropuerto','Director de Ingeniería Aeropuerto',\n    'Director de Mantenimiento','Director de Proyectos Estratégicos',\n    'Vice President Airport Operations','Vice President Infrastructure',\n    'Airport Operations Manager','Airport Infrastructure Manager',\n    'Airport Engineering Manager','Airport Technical Manager',\n    'Baggage Handling System Manager','BHS Manager',\n    'Cargo Terminal Manager','Air Cargo Operations Manager',\n    'Airport Facilities Manager','Airport Maintenance Manager',\n    'Gerente de Infraestructura Aeropuerto','Gerente de Operaciones Aeropuerto',\n    'Gerente de Proyectos Aeropuerto','Gerente BHS',\n    'Managing Director','Country Manager','Operations Director'\n  ],\n  CARTON_PAPEL: [\n    'Gerente General','Director General','Dueño','Owner',\n    'Director de Proyectos','Director Técnico','Director de Compras',\n    'Director de Operaciones','Gerente de Planta','Superintendente de Planta',\n    'Gerente de Mantenimiento','Project Manager','Gerente de Proyectos',\n    'Gerente de Compras','Plant Manager','Manufacturing Director'\n  ],\n  INTRALOGISTICA: [\n    'Chief Operations Officer','COO','CEO','VP Operations',\n    'Operations Director','Plant Director','Manufacturing Director',\n    'Supply Chain Director','Director de Operaciones','Director de Planta',\n    'Director de Manufactura','Operations Manager','Plant Manager',\n    'Manufacturing Manager','Engineering Manager','Project Manager',\n    'Capital Projects Manager','Supply Chain Manager','Logistics Manager',\n    'Intralogistics Manager','Automation Manager','Gerente de Planta',\n    'Gerente de Operaciones','Gerente de Producción','Gerente de Logística',\n    'Gerente de Proyectos','Gerente de Supply Chain','Gerente General'\n  ],\n  FINAL_LINEA: [\n    'CEO','COO','Gerente General','Director General',\n    'Director de Operaciones','Director de Supply Chain',\n    'Director de Manufactura','Director de Producción','Director de Logística',\n    'Plant Manager','Gerente de Planta','Operations Manager','Gerente de Operaciones',\n    'Supply Chain Manager','Gerente de Supply Chain',\n    'Manufacturing Manager','Gerente de Manufactura',\n    'Logistics Manager','Gerente de Logística',\n    'Packaging Manager','Gerente de Empaque',\n    'Head of Operations','Head of Supply Chain','Country Manager'\n  ],\n  MOTOS: [\n    'CEO','Gerente General','Director General',\n    'Director de Manufactura','Director de Operaciones','Director de Producción',\n    'Plant Manager','Gerente de Planta',\n    'Manufacturing Manager','Gerente de Manufactura',\n    'Production Manager','Gerente de Producción',\n    'Assembly Manager','Gerente de Ensamble',\n    'Operations Manager','Gerente de Operaciones'\n  ],\n  SOLUMAT: [\n    'CEO','Gerente General','Director General',\n    'Director de Operaciones','Director de Manufactura','Director de Producción',\n    'Plant Manager','Gerente de Planta',\n    'Manufacturing Manager','Gerente de Manufactura',\n    'Process Manager','Gerente de Procesos',\n    'Operations Manager','Gerente de Operaciones',\n    'Production Manager','Gerente de Producción'\n  ]\n};\n\n// Map linea_negocio string to 6 canonical keys\nlet lineaKey = 'INTRALOGISTICA'; // default\nif (linea.includes('bhs') || linea.includes('aeropuerto') || linea.includes('cargo') || linea.includes('uld')) {\n  lineaKey = 'BHS';\n} else if (linea.includes('cart') || linea.includes('corrugado') || linea.includes('papel')) {\n  lineaKey = 'CARTON_PAPEL';\n} else if (linea.includes('final') || linea.includes('alimento') || linea.includes('bebida')) {\n  lineaKey = 'FINAL_LINEA';\n} else if (linea.includes('moto')) {\n  lineaKey = 'MOTOS';\n} else if (linea.includes('solumat') || linea.includes('plastico') || linea.includes('material')) {\n  lineaKey = 'SOLUMAT';\n}\n\nconst titles = TITLES[lineaKey] || TITLES.INTRALOGISTICA;\n// per_page: get more candidates than max_contacts to allow scoring; cap at 25\nconst perPage = Math.min(25, (e.max_contacts || 3) * 4);\n\nconst searchBody = {\n  page: 1,\n  per_page: perPage,\n  person_seniorities: ['c_suite', 'vp', 'director', 'manager'],\n  person_titles: titles,\n};\n\n// Prefer domain search over name search (more precise)\nif (e.company_domain) {\n  searchBody.q_organization_domains_list = [e.company_domain];\n} else {\n  searchBody.q_organization_name = e.empresa;\n}\n\n// Add country filter — critical for international companies\nconst COUNTRY_MAP = {\n  'colombia': 'Colombia', 'mexico': 'Mexico', 'chile': 'Chile',\n  'peru': 'Peru', 'argentina': 'Argentina', 'brasil': 'Brazil',\n  'brazil': 'Brazil', 'guatemala': 'Guatemala', 'costa rica': 'Costa Rica',\n  'ecuador': 'Ecuador', 'panama': 'Panama'\n};\nconst paisNorm = (e.pais || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g, '');\nconst countryMapped = COUNTRY_MAP[paisNorm] || e.pais;\nif (countryMapped) {\n  searchBody.person_locations = [countryMapped];\n}\n\nreturn [{ json: { ...e, apollo_search_body: searchBody, _linea_key: lineaKey, _titles_count: titles.length } }];"
+      },
+      "id": "998b44fc-4ace-4fe2-a006-8e5db78e37fb",
+      "name": "Code: Build Apollo Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1008, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/mixed_people/api_search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {"name": "Content-Type", "value": "application/json"},
+            {"name": "Accept", "value": "application/json"}
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apollo_search_body) }}",
+        "options": {
+          "response": {"response": {"neverError": true}},
+          "timeout": 30000
+        }
+      },
+      "id": "1890d3b5-38c7-4247-95fa-f0c136a99abc",
+      "name": "HTTP: Apollo People Search",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1232, 304],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_APOLLO_CREDENTIAL_ID",
+          "name": "Apollo API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const apolloResp = $input.all()[0].json;\nconst ctx = $('Code: Build Apollo Query').first().json;\n\n// v2: handle rate limit (429) — mark for retry\nconst statusCode = apolloResp.statusCode || apolloResp.status || 200;\nif (statusCode === 429) {\n  return [{ json: { ...ctx, apollo_response: null, _rate_limited: true } }];\n}\nreturn [{ json: { ...ctx, apollo_response: apolloResp, _rate_limited: false } }];"
+      },
+      "id": "2ba8b975-be24-4172-95ca-ccaef77bee46",
+      "name": "Code: Merge Apollo Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1456, 304]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": false, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [
+            {
+              "id": "rate-limit-check",
+              "leftValue": "={{ $json._rate_limited }}",
+              "rightValue": true,
+              "operator": {"type": "boolean", "operation": "true"}
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f3a1b2c4-d5e6-7890-abcd-ef1234567890",
+      "name": "IF: Rate Limited?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1680, 304]
+    },
+    {
+      "parameters": {
+        "unit": "seconds",
+        "resume": "timeInterval",
+        "options": {"resumeOnError": false}
+      },
+      "id": "a1b2c3d4-e5f6-7890-abcd-123456789012",
+      "name": "Wait 30s (Rate Limit)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1904, 176],
+      "webhookId": "rate-limit-wait-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "// v2.0: Score and select top N contacts with Matec seniority hierarchy\nconst ctx = $input.all()[0].json;\nconst resp = ctx.apollo_response || {};\nconst raw = resp.people || resp.contacts || resp.results || resp.data || [];\nconst maxContacts = ctx.max_contacts || 3;\n\n// Matec seniority scoring: C-LEVEL > DIRECTOR > GERENTE > JEFE\nconst seniorityScore = { c_suite: 5, vp: 4, director: 3, manager: 2, individual_contributor: 1 };\n\n// Classify nivel exactly as Matec standard\nfunction classifyNivel(title, seniority) {\n  const t = (title || '').toLowerCase();\n  const s = (seniority || '').toLowerCase();\n  const clevel = ['chief executive','chief operations','chief operating','gerente general',\n    'director general','managing director','country general manager','country manager'];\n  if (clevel.some(x => t.includes(x))) return 'C-LEVEL';\n  if (t.startsWith('ceo') || t.includes(' ceo') || t.startsWith('coo') || t.includes(' coo')) return 'C-LEVEL';\n  if (s === 'c_suite') return 'C-LEVEL';\n  if (t.includes('director') || t.includes('vice president') || t.includes(' vp ') || s === 'vp') return 'DIRECTOR';\n  if (t.includes('gerente') || t.includes('manager') || t.includes('head of') || s === 'director' || s === 'manager') return 'GERENTE';\n  return 'JEFE';\n}\n\nconst NIVEL_ORDER = { 'C-LEVEL': 4, 'DIRECTOR': 3, 'GERENTE': 2, 'JEFE': 1 };\n\nconst scored = raw.map(p => {\n  const nivel = classifyNivel(p.title, p.seniority);\n  const hasEmail = !!(p.email || p.has_email || p.work_email);\n  const hasLinkedin = !!(p.linkedin_url);\n  return {\n    ...p, _nivel: nivel,\n    _priority: (NIVEL_ORDER[nivel] || 0) * 10 + (hasEmail ? 3 : 0) + (hasLinkedin ? 1 : 0)\n  };\n}).sort((a, b) => b._priority - a._priority);\n\n// Select top maxContacts — ensure at least 1 per seniority level if available\nconst selected = scored.slice(0, maxContacts);\n\nif (!selected.length) {\n  return [{ json: { ...ctx, contacts_found: 0, contacts: [], prospection_status: 'NO_CONTACTS_FOUND' } }];\n}\n\nconst contacts = selected.map(p => {\n  const phones = p.phone_numbers || [];\n  const nivel  = p._nivel;\n  return {\n    nombre:        p.first_name || '',\n    apellido:      p.last_name || p.last_name_obfuscated || '',\n    cargo:         p.title || p.headline || '',\n    nivel,\n    email:         p.email || p.work_email || '',\n    email_status:  p.email_status || (p.email ? 'verified' : (p.has_email ? 'available' : 'not_found')),\n    linkedin:      p.linkedin_url || '',\n    tel_empresa:   (p.organization && (p.organization.phone || (p.organization.primary_phone && p.organization.primary_phone.number))) || '',\n    tel_directo:   (phones.find(t => t.type === 'work_direct' || t.type === 'direct') || {}).sanitized_number || '',\n    tel_movil:     (phones.find(t => t.type === 'mobile') || {}).sanitized_number || '',\n    grupo:         (p.organization && p.organization.parent_organization && p.organization.parent_organization.name) || ctx.grupo_empresarial || '',\n    ciudad:        p.city || (p.organization && p.organization.city) || '',\n    apollo_id:     p.id || '',\n    has_email:     !!(p.email || p.has_email),\n    has_linkedin:  !!(p.linkedin_url),\n  };\n});\n\nreturn [{ json: { ...ctx, contacts_found: contacts.length, contacts, prospection_status: 'CONTACTS_FOUND' } }];"
+      },
+      "id": "df07cc47-e6ea-4aba-bc82-e4a34bfe8716",
+      "name": "Code: Filter & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1904, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [
+            {
+              "id": "d47ef5d8-f768-4b97-b160-21250e501015",
+              "leftValue": "={{ $json.prospection_status }}",
+              "rightValue": "CONTACTS_FOUND",
+              "operator": {"type": "string", "operation": "equals"}
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e87266f8-9966-4a7d-b1a6-8cb6c97975ef",
+      "name": "IF: Tiene Contactos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2128, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\nconst contacts = data.contacts || [];\nreturn contacts.map((c, idx) => ({ json: {\n  ID:               data.empresa.substring(0,20).replace(/\\s+/g,'-').toUpperCase() + '-' + data.pais.substring(0,3).toUpperCase() + '-' + String(idx + 1).padStart(3, '0'),\n  Empresa:          data.empresa,\n  Pais:             data.pais,\n  Nombre:           c.nombre,\n  Apellido:         c.apellido,\n  Cargo:            c.cargo,\n  Nivel:            c.nivel,\n  Email_Verificado: c.email,\n  Estado_Email:     c.email_status,\n  LinkedIn:         c.linkedin,\n  Tel_Empresa:      c.tel_empresa,\n  Tel_Directo:      c.tel_directo,\n  Tel_Movil:        c.tel_movil,\n  Grupo:            c.grupo,\n  Ciudad:           c.ciudad,\n  Persona_ID:       c.apollo_id,\n  Fecha:            data.fecha_prospeccion,\n  Linea_Negocio:    data.linea_negocio,\n  Tier:             data.tier,\n  Es_Multinacional: data.es_multinacional ? 'Si' : 'No',\n}}));"
+      },
+      "id": "d9f6a389-b6dc-4085-8c5e-ac03a9cf7394",
+      "name": "Code: Expand to Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2352, 304]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rtFoTi3ZwNHi9RBidFGcxOHtK6lOvCuhebUB1eS-MGo",
+          "mode": "id"
+        },
+        "sheetName": {"__rl": true, "value": "Prospectos", "mode": "name"},
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {"id":"ID","displayName":"ID","required":false,"defaultMatch":false,"canBeUsedToMatch":true,"display":true,"type":"string"},
+            {"id":"Empresa","displayName":"Empresa","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Pais","displayName":"Pais","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Nombre","displayName":"Nombre","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Apellido","displayName":"Apellido","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Cargo","displayName":"Cargo","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Nivel","displayName":"Nivel","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Email_Verificado","displayName":"Email_Verificado","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Estado_Email","displayName":"Estado_Email","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"LinkedIn","displayName":"LinkedIn","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Tel_Empresa","displayName":"Tel_Empresa","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Tel_Directo","displayName":"Tel_Directo","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Tel_Movil","displayName":"Tel_Movil","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Grupo","displayName":"Grupo","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Ciudad","displayName":"Ciudad","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Persona_ID","displayName":"Persona_ID","required":false,"defaultMatch":false,"canBeUsedToMatch":true,"display":true,"type":"string"},
+            {"id":"Fecha","displayName":"Fecha","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Linea_Negocio","displayName":"Linea_Negocio","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Tier","displayName":"Tier","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Es_Multinacional","displayName":"Es_Multinacional","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "21da0a89-bc74-4472-94f0-4ff0236b15de",
+      "name": "Log Prospectos GSheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2576, 304],
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "Yv0pMNMe4juimTet", "name": "Google Sheets account 3"}
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\nreturn [{ json: {\n  ID:              data.empresa,\n  Empresa_Dominio: data.company_domain || data.empresa,\n  Sub_Linea:       data.linea_negocio,\n  Pais:            data.pais,\n  Estado_Ciudad:   '',\n  Dominio:         data.company_domain || '',\n  Razon:           'Apollo no devolvió contactos para los títulos buscados',\n  Re_escanear:     'Si',\n  Fecha:           data.fecha_prospeccion,\n  Tier:            data.tier,\n}}];"
+      },
+      "id": "648bf83d-a9a5-490b-a82e-28ccd6d0acef",
+      "name": "Code: Sin Contactos Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2352, 496]
+    },
+    {
+      "parameters": {
+        "operation": "append",
+        "documentId": {
+          "__rl": true,
+          "value": "1rtFoTi3ZwNHi9RBidFGcxOHtK6lOvCuhebUB1eS-MGo",
+          "mode": "id"
+        },
+        "sheetName": {"__rl": true, "value": "Sin Contactos", "mode": "name"},
+        "columns": {
+          "mappingMode": "autoMapInputData",
+          "value": {},
+          "matchingColumns": [],
+          "schema": [
+            {"id":"ID","displayName":"ID","required":false,"defaultMatch":false,"canBeUsedToMatch":true,"display":true,"type":"string"},
+            {"id":"Empresa_Dominio","displayName":"Empresa_Dominio","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Sub_Linea","displayName":"Sub_Linea","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Pais","displayName":"Pais","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Estado_Ciudad","displayName":"Estado_Ciudad","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Dominio","displayName":"Dominio","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Razon","displayName":"Razon","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Re_escanear","displayName":"Re_escanear","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Fecha","displayName":"Fecha","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"},
+            {"id":"Tier","displayName":"Tier","required":false,"defaultMatch":false,"canBeUsedToMatch":false,"display":true,"type":"string"}
+          ]
+        },
+        "options": {}
+      },
+      "id": "155a5cdd-b977-4fc7-aadb-27623e957313",
+      "name": "Log Sin Contactos GSheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.4,
+      "position": [2576, 496],
+      "credentials": {
+        "googleSheetsOAuth2Api": {"id": "Yv0pMNMe4juimTet", "name": "Google Sheets account 3"}
+      }
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "a5d0b2a9-ec03-493d-97ed-72a28658af83",
+      "name": "Wait Between Companies",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [2800, 400],
+      "webhookId": "5f87f965-14e1-41b1-be53-c9fba0e9d897"
+    }
+  ],
+  "connections": {
+    "Webhook Prospector": {
+      "main": [[
+        {"node": "Respond 200", "type": "main", "index": 0},
+        {"node": "Code: Parse Input", "type": "main", "index": 0}
+      ]]
+    },
+    "Code: Parse Input": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [{"node": "Code: Build Apollo Query", "type": "main", "index": 0}]
+      ]
+    },
+    "Code: Build Apollo Query": {
+      "main": [[{"node": "HTTP: Apollo People Search", "type": "main", "index": 0}]]
+    },
+    "HTTP: Apollo People Search": {
+      "main": [[{"node": "Code: Merge Apollo Response", "type": "main", "index": 0}]]
+    },
+    "Code: Merge Apollo Response": {
+      "main": [[{"node": "IF: Rate Limited?", "type": "main", "index": 0}]]
+    },
+    "IF: Rate Limited?": {
+      "main": [
+        [{"node": "Wait 30s (Rate Limit)", "type": "main", "index": 0}],
+        [{"node": "Code: Filter & Format", "type": "main", "index": 0}]
+      ]
+    },
+    "Wait 30s (Rate Limit)": {
+      "main": [[{"node": "HTTP: Apollo People Search", "type": "main", "index": 0}]]
+    },
+    "Code: Filter & Format": {
+      "main": [[{"node": "IF: Tiene Contactos", "type": "main", "index": 0}]]
+    },
+    "IF: Tiene Contactos": {
+      "main": [
+        [{"node": "Code: Expand to Rows", "type": "main", "index": 0}],
+        [{"node": "Code: Sin Contactos Row", "type": "main", "index": 0}]
+      ]
+    },
+    "Code: Expand to Rows": {
+      "main": [[{"node": "Log Prospectos GSheets", "type": "main", "index": 0}]]
+    },
+    "Log Prospectos GSheets": {
+      "main": [[{"node": "Wait Between Companies", "type": "main", "index": 0}]]
+    },
+    "Code: Sin Contactos Row": {
+      "main": [[{"node": "Log Sin Contactos GSheets", "type": "main", "index": 0}]]
+    },
+    "Log Sin Contactos GSheets": {
+      "main": [[{"node": "Wait Between Companies", "type": "main", "index": 0}]]
+    },
+    "Wait Between Companies": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "agent03-v2.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "matec-agent03-v2"
+  }
+}

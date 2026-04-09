@@ -1,4 +1,13 @@
-export type LineaNegocio = 'BHS' | 'Cartón' | 'Intralogística' | 'Final de Línea' | 'Motos' | 'SOLUMAT' | 'ALL';
+/** Keys de línea de negocio — deben coincidir con el mapeo interno de WF01/WF02/WF03 */
+export type LineaNegocio =
+  | 'BHS'           // BHS, Aeropuertos, Cargo, ULD
+  | 'Cartón'        // Cartón, Corrugado, Papel
+  | 'Intralogística'// CEDI, WMS, Supply Chain
+  | 'Cargo'         // Cargo LATAM, carga aérea
+  | 'Final de Línea'// Alimentos, Bebidas, Palletizado
+  | 'Motos'         // Ensambladoras, Motocicletas
+  | 'Solumat'       // Plásticos, Materiales industriales
+  | 'ALL';          // Todas las líneas
 
 export type TierEmpresa = 'Tier A' | 'Tier B-Alta' | 'Tier B' | 'Tier B-Baja' | 'Tier C' | 'Tier D';
 

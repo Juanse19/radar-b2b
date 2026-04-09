@@ -18,7 +18,7 @@ interface SystemStatusProps {
 }
 
 const STEP_LABELS = ['Calificador', 'Radar', 'Prospector'];
-const STEP_COLORS = ['bg-blue-400', 'bg-emerald-400', 'bg-violet-400'];
+const STEP_COLORS = ['bg-blue-500', 'bg-emerald-500', 'bg-violet-500'];
 const STEP_THRESHOLDS = [0, 15, 45];
 
 function isTimestampId(id: string): boolean {
@@ -54,6 +54,7 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
   }, [allDone]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (execStatus?.status === 'success') setAllDone(true);
   }, [execStatus]);
 
@@ -76,7 +77,7 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
           ? STEP_COLORS[i]
           : isActive
           ? STEP_COLORS[i]
-          : 'bg-gray-600';
+          : 'bg-gray-300';
         return (
           <div key={label} className="flex items-center gap-1">
             <span
@@ -88,16 +89,16 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
             <span
               className={`text-xs hidden lg:inline transition-colors duration-300 ${
                 isDone
-                  ? 'text-green-400'
+                  ? 'text-emerald-600'
                   : isActive
-                  ? 'text-blue-300'
-                  : 'text-gray-600'
+                  ? 'text-blue-600'
+                  : 'text-muted-foreground'
               }`}
             >
               {label}
             </span>
             {i < STEP_LABELS.length - 1 && (
-              <span className="text-gray-700 text-xs hidden lg:inline">›</span>
+              <span className="text-muted-foreground text-xs hidden lg:inline">›</span>
             )}
           </div>
         );
@@ -118,7 +119,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
 
   if (isLoading) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Loader2 size={12} className="animate-spin" />
         Verificando N8N...
       </div>
@@ -127,7 +128,7 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
 
   if (!latest) {
     return (
-      <div className="flex items-center gap-1.5 text-xs text-gray-500">
+      <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Clock size={12} />
         Sin ejecuciones recientes
       </div>
@@ -147,26 +148,26 @@ export function SystemStatus({ activeExecutionId }: SystemStatusProps) {
     <div className="flex items-center gap-2 text-xs flex-wrap">
       {isRunning && (
         <>
-          <Loader2 size={12} className="animate-spin text-blue-400" />
-          <span className="text-blue-400">N8N corriendo...</span>
+          <Loader2 size={12} className="animate-spin text-blue-600" />
+          <span className="text-blue-600">N8N corriendo...</span>
         </>
       )}
       {isSuccess && (
         <>
-          <CheckCircle2 size={12} className="text-green-400" />
-          <span className="text-gray-400">Último scan: {fecha}</span>
+          <CheckCircle2 size={12} className="text-emerald-600" />
+          <span className="text-muted-foreground">Último scan: {fecha}</span>
         </>
       )}
       {isError && (
         <>
-          <XCircle size={12} className="text-red-400" />
-          <span className="text-red-400">Error en último scan</span>
+          <XCircle size={12} className="text-red-600" />
+          <span className="text-red-600">Error en último scan</span>
         </>
       )}
       {/* Mini pipeline indicator when there's an active execution */}
       {activeExecutionId && (
         <>
-          <span className="text-gray-700">·</span>
+          <span className="text-muted-foreground">·</span>
           <MiniPipelineIndicator executionId={activeExecutionId} />
         </>
       )}

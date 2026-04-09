@@ -74,9 +74,9 @@ export default function DashboardPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
+          <h1 className="page-heading text-2xl font-semibold text-primary">Dashboard</h1>
           <div className="flex items-center gap-3 mt-1">
-            <p className="text-gray-400 text-sm">Señales de inversión B2B — Matec</p>
+            <p className="text-muted-foreground text-sm">Señales de inversión B2B — Matec LATAM</p>
             <SystemStatus activeExecutionId={activeExecution} />
           </div>
         </div>
@@ -90,9 +90,9 @@ export default function DashboardPage() {
           <Button
             onClick={lanzarEscaneoRapido}
             disabled={!!activeExecution}
-            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-60"
+            variant="primary"
           >
-            <Radar size={16} className="mr-2" />
+            <Radar size={16} />
             Escaneo rápido
           </Button>
         </div>
@@ -108,18 +108,18 @@ export default function DashboardPage() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="bg-gray-900 border-gray-800">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-white text-base">Señales activas por línea</CardTitle>
+            <CardTitle className="text-base">Señales activas por línea</CardTitle>
           </CardHeader>
           <CardContent>
             <SignalsByLineChart data={stats?.lineaCounts ?? {}} />
           </CardContent>
         </Card>
 
-        <Card className="bg-gray-900 border-gray-800">
+        <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-white text-base">Distribución por tier</CardTitle>
+            <CardTitle className="text-base">Distribución por tier</CardTitle>
           </CardHeader>
           <CardContent>
             <ScoreDistributionChart
@@ -130,10 +130,10 @@ export default function DashboardPage() {
       </div>
 
       {/* Feed señales ORO */}
-      <Card className="bg-gray-900 border-gray-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="text-white text-base flex items-center gap-2">
-            <span className="text-yellow-400">★</span>
+          <CardTitle className="text-base flex items-center gap-2">
+            <span className="text-yellow-500">★</span>
             Señales ORO — Top por Score
           </CardTitle>
         </CardHeader>

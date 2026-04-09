@@ -14,7 +14,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
           checked={table.getIsAllPageRowsSelected()}
           onCheckedChange={v => table.toggleAllPageRowsSelected(!!v)}
           aria-label="Seleccionar todo"
-          className="border-gray-600"
+          className="border-border"
         />
       ),
       cell: ({ row }) => (
@@ -23,7 +23,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
           onCheckedChange={v => row.toggleSelected(!!v)}
           onClick={e => e.stopPropagation()}
           aria-label="Seleccionar fila"
-          className="border-gray-600"
+          className="border-border"
         />
       ),
       enableSorting: false,
@@ -34,9 +34,9 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
       header: 'Nombre',
       cell: ({ row }) => (
         <div>
-          <p className="font-medium text-white text-sm">{row.original.nombre}</p>
+          <p className="font-medium text-foreground text-sm">{row.original.nombre}</p>
           {row.original.cargo && (
-            <p className="text-xs text-gray-400">{row.original.cargo}</p>
+            <p className="text-xs text-muted-foreground">{row.original.cargo}</p>
           )}
         </div>
       ),
@@ -45,7 +45,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
       accessorKey: 'empresaNombre',
       header: 'Empresa',
       cell: ({ getValue }) => (
-        <span className="text-sm text-gray-300 truncate block max-w-[160px]" title={getValue<string>()}>
+        <span className="text-sm text-muted-foreground truncate block max-w-[160px]" title={getValue<string>()}>
           {getValue<string>() || '—'}
         </span>
       ),
@@ -79,7 +79,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
       accessorKey: 'telefono',
       header: 'Teléfono',
       cell: ({ getValue }) => (
-        <span className="text-xs text-gray-400">{getValue<string>() || '—'}</span>
+        <span className="text-xs text-muted-foreground">{getValue<string>() || '—'}</span>
       ),
     },
     {
@@ -100,7 +100,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
             target="_blank"
             rel="noopener noreferrer"
             onClick={e => e.stopPropagation()}
-            className="text-gray-500 hover:text-gray-300"
+            className="text-muted-foreground hover:text-muted-foreground"
             title="LinkedIn"
           >
             <ExternalLink size={13} />

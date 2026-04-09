@@ -17,7 +17,7 @@ Se eligió separar el monolito original (75 nodos) en 3 workflows independientes
 ## Flujo de Datos Detallado
 
 ```
-Google Sheets (829 empresas)
+Google Sheets (1026 empresas)
           │
           ▼
 [Frontend /scan] ──POST /webhook/calificador──▶ [WF01 Calificador]
@@ -29,21 +29,25 @@ Google Sheets (829 empresas)
                                     Tier ORO/MON/ARC   │
                                     6 Excel SharePoint │
                                     GSheets Cal_Log    │
+                                    Supabase (dual-write) │
                                                       │ score ≥ 5
                                                       ▼
                                               [WF02 Radar]
-                                            Tavily búsqueda
+                                            Tavily búsqueda (keywords por línea)
                                             AI RADAR1 análisis
                                             Score PROM 0-100
+                                            Composite score (con SCORE CAL)
                                             6 Excel SharePoint
                                             Pinecone vectorial
-                                            Gmail (ORO)
-                                                      │ TIER = ORO
+                                            Gmail (score_radar ≥ 80)
+                                            Supabase (dual-write) │
+                                                      │ tier_compuesto != ARCHIVO
                                                       ▼
                                               [WF03 Prospector]
                                             Apollo People Search
-                                            5 contactos / empresa
+                                            ORO=5 / MONITOREO=3 contactos
                                             GSheets Prospection_Log
+                                            Supabase (dual-write: contactos + prospecciones)
 ```
 
 ---
@@ -57,10 +61,55 @@ Google Sheets (829 empresas)
 | WF03 ID N8N | `RLUDpi3O5Rb6WEYJ` |
 | GSheets Resultados | `1rtFoTi3ZwNHi9RBidFGcxOHtK6lOvCuhebUB1eS-MGo` |
 | GSheets Base Datos | `13C6RJPORu6CPqr1iL0zXU-gUi3eTV-eYo8i-IV9K818` |
+| Supabase URL | `https://supabase.valparaiso.cafe` |
+| Supabase schema | `matec_radar` |
 | Pinecone índice | `matec-radar` (namespace: `proyectos_2026`) |
 | OpenAI credential | `OpenAi account 3` (id: `21AmZDFfjIkvbK67`) |
 | Excel credential | `Microsoft Excel account 2` (id: `aXCgjM196D6Oj5tf`) |
 | GSheets credential | `Google Sheets account 3` (id: `Yv0pMNMe4juimTet`) |
+
+---
+
+## Frontend Stack
+
+| Componente | Versión / Detalle |
+|-----------|------------------|
+| Framework | Next.js 16.2 (App Router) |
+| CSS | Tailwind CSS v4 — CSS-first config via `@import "tailwindcss"` |
+| TypeScript | Strict mode activado |
+| Tests | Vitest — 101 tests pasando |
+| Design system | Tokens de color en `globals.css` (no colores Tailwind hardcodeados) |
+| Tema | Light theme completo (dark-mode removido del scope actual) |
+
+El frontend usa el dispatcher `lib/db/index.ts` que enruta a SQLite (Prisma) o Supabase según la variable `DB_DRIVER`.
+
+---
+
+## Supabase Integration
+
+**Estado:** Schema creado, dual-write scaffolded. Pendiente paso manual de admin.
+
+| Item | Estado |
+|------|--------|
+| Schema `matec_radar` creado | ✅ |
+| Admin client (`lib/db/supabase-admin.ts`) | ✅ |
+| DB driver switcher (`DB_DRIVER` env var) | ✅ |
+| Dual-write WF01/WF02/WF03 vía CTE persist nodes | ✅ |
+| Migration script SQLite → Supabase | ✅ (`tools/migrate_to_supabase.py`) |
+| Exponer schema en `PGRST_DB_SCHEMAS` | ⚠️ Pendiente — acción manual en Supabase Studio |
+
+**Para activar Supabase como fuente primaria:**
+1. Ir a Supabase Studio → Settings → API → agregar `matec_radar` a `PGRST_DB_SCHEMAS`
+2. Ejecutar el SQL de migración en Supabase Studio
+3. Cambiar en `.env.local`: `DB_DRIVER=supabase`
+
+**Variables de entorno requeridas:**
+```
+NEXT_PUBLIC_SUPABASE_URL=https://supabase.valparaiso.cafe
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>   # solo en server-side, nunca exponer al cliente
+DB_DRIVER=prisma   # cambiar a "supabase" cuando esté configurado
+```
 
 ---
 
