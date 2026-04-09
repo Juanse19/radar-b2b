@@ -547,7 +547,7 @@ function RolesTab() {
           <DialogFooter>
             <DialogClose render={<Button variant="outline" />}>Cancelar</DialogClose>
             <Button
-              variant="destructive"
+              variant="danger"
               onClick={() => deleteTarget && deleteMutation.mutate(deleteTarget.id)}
               disabled={deleteMutation.isPending}
             >
@@ -760,7 +760,7 @@ function AsignacionTab() {
         <label className="text-sm font-medium text-foreground shrink-0">Rol:</label>
         <Select
           value={selectedRoleId}
-          onValueChange={setSelectedRoleId}
+          onValueChange={(v) => setSelectedRoleId(v ?? '')}
           disabled={rolesLoading}
         >
           <SelectTrigger className="w-52">
