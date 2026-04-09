@@ -6,7 +6,7 @@
 
 ## ¿Qué hace el sistema?
 
-El Radar B2B monitorea automáticamente las 829 empresas de la base de datos Matec en busca de señales de inversión (licitaciones, expansiones de planta, proyectos CAPEX). Cuando detecta una oportunidad, también encuentra los contactos clave para contactar.
+El Radar B2B monitorea automáticamente las 1026+ empresas de la base de datos Matec en busca de señales de inversión (licitaciones, expansiones de planta, proyectos CAPEX). Cuando detecta una oportunidad, también encuentra los contactos clave para contactar.
 
 **Sin intervención manual:**
 - Califica cada empresa con un score 0-10
@@ -26,12 +26,13 @@ No requiere login en la versión actual.
 ## Páginas Principales
 
 ### 📋 Empresas (`/empresas`)
-Lista completa de las 829 empresas. Usa los filtros para ver solo las de tu línea:
+Lista completa de las 1026+ empresas. Usa los filtros para ver solo las de tu línea:
 - **Línea de negocio:** BHS, Cartón, Intralogística, etc.
 - **Tier:** ORO (alta prioridad), MONITOREO, ARCHIVO
 
 ### 🔍 Escanear (`/scan`)
-Disparar el análisis para una o varias empresas:
+Disparar el análisis para una o varias empresas. Las 6 líneas están disponibles: BHS, Cartón y Papel, Intralogística, Final de Línea, Motos y Solumat.
+
 1. Seleccionar empresas de la lista
 2. Elegir línea de negocio
 3. Hacer clic en **Iniciar Escaneo**
@@ -57,11 +58,11 @@ Contactos encontrados en Apollo.io para empresas ORO:
 
 ## Tiers: ¿Qué significa cada uno?
 
-| Tier | Score | Qué hacer |
-|------|-------|-----------|
-| **ORO** ≥ 8 | Alta prioridad — señal fuerte de inversión | Contactar esta semana |
-| **MONITOREO** 5–7 | Potencial medio — monitorear cada 30 días | Seguimiento mensual |
-| **ARCHIVO** < 5 | Baja prioridad — sin señal activa | Sin acción inmediata |
+| Tier | Score | Qué hace el sistema | Qué hacer tú |
+|------|-------|---------------------|--------------|
+| **ORO** ≥ 8 | Alta prioridad — señal fuerte de inversión | Busca 5 contactos Apollo y prospecta | Contactar esta semana |
+| **MONITOREO** 5–7 | Potencial medio — monitorear cada 30 días | Busca 3 contactos Apollo y prospecta | Seguimiento mensual |
+| **ARCHIVO** < 5 | Baja prioridad — sin señal activa | Sin prospección | Sin acción inmediata |
 
 ---
 

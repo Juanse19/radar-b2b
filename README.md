@@ -44,7 +44,7 @@ http://localhost:3000        Google Sheets + SharePoint Excel
 │   Busca señales de inversión (Tavily)       │
 │   Guarda en Pinecone + alerta Gmail ORO     │
 └─────────────┬───────────────────────────────┘
-              │ TIER = ORO
+              │ tier_compuesto ≠ ARCHIVO
               ▼
 ┌─────────────────────────────────────────────┐
 │           AGENTE 03 — Prospector            │
@@ -60,10 +60,11 @@ http://localhost:3000        Google Sheets + SharePoint Excel
 
 | Capa | Tecnología |
 |------|-----------|
-| Frontend | Next.js 14 (App Router), React 19, TypeScript |
-| Estilos | Tailwind CSS, shadcn/ui |
+| Frontend | Next.js 16.2 (App Router), React 19, TypeScript |
+| Estilos | Tailwind CSS v4 (CSS-first, sin tailwind.config.js), shadcn/ui |
 | Backend API | Next.js Route Handlers (`/app/api/`) |
-| Base de datos | Prisma ORM + SQLite (dev) / PostgreSQL (prod) |
+| Base de datos | Prisma ORM + SQLite (dev) / Supabase (matec_radar schema) via `DB_DRIVER` switcher |
+| Supabase | Self-hosted `https://supabase.valparaiso.cafe` — schema `matec_radar` |
 | Orquestación IA | N8N (n8n.event2flow.com) — 3 workflows |
 | Modelo IA | OpenAI gpt-4.1-mini |
 | Búsqueda web | Tavily API |
@@ -75,12 +76,28 @@ http://localhost:3000        Google Sheets + SharePoint Excel
 
 ---
 
+## Supabase
+
+Base de datos self-hosted en `https://supabase.valparaiso.cafe` bajo el schema `matec_radar`.
+
+**Tablas:** `empresas`, `senales`, `contactos`, `ejecuciones`, `prospecciones`
+
+**Estado (Abril 2026):** scaffolding listo. Para activar:
+1. Ejecutar el SQL de migración en Supabase Studio
+2. Agregar `matec_radar` a `PGRST_DB_SCHEMAS` en el docker-compose
+3. Configurar `DB_DRIVER=supabase` + claves en `.env.local`
+
+El frontend selecciona la implementación de DB en tiempo de ejecución via `lib/db/index.ts` según la variable `DB_DRIVER`.
+
+---
+
 ## Inicio Rápido
 
 ```bash
 cd radar-frontend
 npm install
 cp ../.env.example .env          # Completar variables reales
+# DB_DRIVER=prisma usa SQLite local; DB_DRIVER=supabase usa Supabase matec_radar
 npm run dev                       # http://localhost:3000
 ```
 
@@ -102,6 +119,12 @@ N8N_PROSPECT_WORKFLOW_ID=RLUDpi3O5Rb6WEYJ # WF03 Prospector
 
 # Base de datos
 DATABASE_URL="file:./prisma/dev.db"
+DB_DRIVER=prisma                             # prisma (SQLite dev) | supabase
+
+# Supabase (requerido si DB_DRIVER=supabase)
+SUPABASE_URL=https://supabase.valparaiso.cafe
+SUPABASE_ANON_KEY=...
+SUPABASE_SERVICE_ROLE_KEY=...
 ```
 
 ---
@@ -115,6 +138,8 @@ npm run dev          # Dev server (http://localhost:3000)
 npm run build        # Build de producción
 npm run lint         # ESLint
 npm run test         # Tests unitarios (Vitest)
+npx vitest run       # Vitest una sola vez (101 tests)
+npx playwright test  # Tests E2E (tests/e2e/, excluidos de Vitest)
 ```
 
 Prisma:
@@ -149,12 +174,19 @@ matec-radar-b2b/
 │   │   └── schedule/            # Programación de escaneos
 │   ├── lib/
 │   │   ├── n8n.ts               # Cliente N8N (webhooks + API)
-│   │   ├── db.ts                # Cliente Prisma
+│   │   ├── db/
+│   │   │   ├── index.ts         # DB_DRIVER switcher (prisma | supabase)
+│   │   │   ├── prisma/          # Implementación Prisma
+│   │   │   └── supabase/        # Implementación Supabase (client.ts, admin.ts)
 │   │   ├── types.ts             # Tipos TypeScript del dominio
 │   │   ├── sheets.ts            # Google Sheets (lectura BD Matec)
 │   │   └── utils.ts             # Utilidades
-│   └── prisma/
-│       └── schema.prisma        # Modelos: Empresa, Ejecucion, Senal, Contacto
+│   ├── prisma/
+│   │   └── schema.prisma        # Modelos: Empresa, Ejecucion, Senal, Contacto
+│   └── tests/
+│       ├── unit/                # Tests unitarios Vitest
+│       ├── integration/         # Tests de integración Vitest
+│       └── e2e/                 # Tests E2E Playwright (excluidos de Vitest)
 │
 ├── n8n/                         # Agentes N8N — scripts de creación y fixes
 │   ├── wf01-calificador/        # Agente 01: Calificador
@@ -182,7 +214,7 @@ matec-radar-b2b/
 ## Módulos del Frontend
 
 ### Empresas (`/empresas`)
-Tabla de las 829+ empresas de la base de datos Matec con filtros por línea de negocio, tier y estado. Permite seleccionar empresas para el escaneo.
+Tabla de las 1026+ empresas de la base de datos Matec con filtros por línea de negocio, tier y estado. Permite seleccionar empresas para el escaneo.
 
 ### Scan (`/scan`)
 Trigger manual del Agente 01 (Calificador). Selección de empresas y línea de negocio, con estado de ejecución en tiempo real.
@@ -219,7 +251,7 @@ Sistema PROM: fuente oficial (+25), CAPEX (+20), horizonte 12m (+20), monto decl
 composite = (score_cal / 10 × 40) + (score_radar / 100 × 60)
 ```
 - composite ≥ 70 → **ORO** → 5 contactos Apollo
-- composite 40–69 → **MONITOREO** → 2 contactos Apollo
+- composite 40–69 → **MONITOREO** → 3 contactos Apollo
 - composite < 40 → **ARCHIVO** → sin prospección
 
 ---
@@ -232,7 +264,7 @@ Tres workflows en producción:
 |----------|----|---------|---------|
 | WF01 Calificador | `jDtdafuyYt8TXISl` | `/webhook/calificador` | Manual / Frontend |
 | WF02 Radar | `fko0zXYYl5X4PtHz` | `/webhook/radar-scan` | WF01 (score ≥ 5) |
-| WF03 Prospector | `RLUDpi3O5Rb6WEYJ` | `/webhook/prospector` | WF02 (TIER = ORO) |
+| WF03 Prospector | `RLUDpi3O5Rb6WEYJ` | `/webhook/prospector` | WF02 (tier_compuesto ≠ ARCHIVO) |
 
 Los scripts en `n8n/` permiten recrear o modificar los workflows via API N8N. Los JSON exportados (con credenciales) **no se versionan**.
 
