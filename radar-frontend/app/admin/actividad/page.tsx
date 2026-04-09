@@ -7,6 +7,7 @@ import { fetchJson } from '@/lib/fetcher';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Loader2, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 interface ActividadEntry {
   id: number;
@@ -41,6 +42,13 @@ export default function ActividadPage() {
 
   return (
     <div className="space-y-5 max-w-5xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Actividad' },
+        ]}
+      />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Log de actividad</h1>
         <p className="text-sm text-muted-foreground">Auditoría de acciones del sistema</p>

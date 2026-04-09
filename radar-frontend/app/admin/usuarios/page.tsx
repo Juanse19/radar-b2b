@@ -43,6 +43,7 @@ import {
   useDeleteUsuario,
   type AdminUser,
 } from '@/hooks/admin/useUsuarios';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 // ── Badge helpers ─────────────────────────────────────────────────────────────
 
@@ -347,6 +348,13 @@ export default function AdminUsuariosPage() {
 
   return (
     <div className="space-y-6 max-w-5xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Usuarios' },
+        ]}
+      />
+
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

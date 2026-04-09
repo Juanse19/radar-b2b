@@ -9,6 +9,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Loader2, Save, Pencil, X } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 interface ConfigEntry {
   clave: string;
@@ -62,6 +63,13 @@ export default function ConfiguracionPage() {
 
   return (
     <div className="space-y-5 max-w-3xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Configuración' },
+        ]}
+      />
+
       <div>
         <h1 className="text-2xl font-bold text-foreground">Configuración</h1>
         <p className="text-sm text-muted-foreground">Parámetros globales del sistema Matec Radar B2B</p>

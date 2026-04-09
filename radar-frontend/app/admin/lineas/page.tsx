@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Loader2, Plus, PencilLine, ToggleLeft, ToggleRight } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 interface LineaNegocio {
   id: number;
@@ -278,6 +279,13 @@ export default function LineasPage() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Líneas de Negocio' },
+        ]}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Líneas de negocio</h1>

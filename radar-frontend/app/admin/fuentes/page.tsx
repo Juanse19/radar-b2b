@@ -23,6 +23,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Loader2, Plus, PencilLine, ToggleLeft, ToggleRight } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 
 interface Fuente {
   id: number;
@@ -317,6 +318,13 @@ export default function FuentesPage() {
 
   return (
     <div className="space-y-5 max-w-4xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Fuentes' },
+        ]}
+      />
+
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-foreground">Fuentes de búsqueda</h1>

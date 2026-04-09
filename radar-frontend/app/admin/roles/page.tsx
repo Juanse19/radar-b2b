@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Shield, CheckCircle, XCircle, Users, Loader2 } from 'lucide-react';
+import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Select,
@@ -231,6 +232,13 @@ export default function RolesPage() {
 
   return (
     <div className="space-y-6 max-w-4xl">
+      <AdminBreadcrumb
+        crumbs={[
+          { label: 'Administración', href: '/admin' },
+          { label: 'Roles y Permisos' },
+        ]}
+      />
+
       <header>
         <div className="flex items-center gap-2 mb-1">
           <Shield size={20} className="text-purple-400" />
