@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * run_migrations.js
  * Runs SQL migration files against Supabase via the pg-meta API.
