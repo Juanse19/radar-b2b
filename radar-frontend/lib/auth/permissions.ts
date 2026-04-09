@@ -44,7 +44,7 @@ export type Action =
   | 'admin.manage_config'
   | 'admin.view_logs';
 
-const ACTION_ROLES: Record<Action, UserRole[]> = {
+export const ACTION_ROLES: Record<Action, UserRole[]> = {
   'scan.trigger':         ['ADMIN', 'COMERCIAL'],
   'scan.rescan':          ['ADMIN', 'COMERCIAL'],
   'schedule.create':      ['ADMIN', 'COMERCIAL'],
@@ -88,3 +88,4 @@ export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   COMERCIAL: 'Acceso operacional completo: escaneo, señales, contactos y empresas',
   AUXILIAR:  'Solo lectura: puede consultar resultados y contactos',
 };
+
