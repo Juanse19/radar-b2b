@@ -28,7 +28,22 @@ export async function GET(req: NextRequest) {
     }
 
     const empresas = await getEmpresasByLinea(linea, limit, offset);
-    return NextResponse.json(empresas);
+    // Map DB row → Empresa interface (nombre, dominio, linea, pais as full name)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const mapped = empresas.map((e: any) => ({
+      id:      e.id,
+      nombre:  e.company_name  ?? e.nombre ?? '',
+      dominio: e.company_domain ?? e.dominio ?? null,
+      pais:    e.pais_nombre   ?? e.pais    ?? null,
+      linea:   e.linea_negocio ?? e.linea   ?? null,
+      tier:    e.tier          ?? e.tier_actual ?? null,
+      status:  e.status        ?? 'pending',
+      // keep raw fields too for compatibility
+      company_name:   e.company_name,
+      company_domain: e.company_domain,
+      linea_negocio:  e.linea_negocio,
+    }));
+    return NextResponse.json(mapped);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     // Log completo en servidor para debugging (visible en terminal del dev server)
