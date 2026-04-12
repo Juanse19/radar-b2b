@@ -11,13 +11,13 @@
 
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle } from 'lucide-react';
+import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database } from 'lucide-react';
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
@@ -53,10 +53,34 @@ const AGENT_LABEL: Record<AgentType, { title: string; subtitle: string; cta: str
   },
 };
 
+/** Parse a CSV string into Empresa-compatible objects (no DB id needed). */
+function parseCsvEmpresas(raw: string): Empresa[] {
+  const lines = raw.split(/\r?\n/).filter(l => l.trim());
+  // Detect if first line looks like a header (contains letters that aren't a company name pattern)
+  const firstLower = lines[0]?.toLowerCase() ?? '';
+  const isHeader =
+    firstLower.startsWith('nombre') ||
+    firstLower.startsWith('empresa') ||
+    firstLower.startsWith('company') ||
+    firstLower.startsWith('name');
+  const dataLines = isHeader ? lines.slice(1) : lines;
+  return dataLines
+    .map((line, i) => {
+      const cols = line.split(/[,;|\t]/).map(c => c.trim().replace(/^"|"$/g, ''));
+      const nombre  = cols[0] ?? '';
+      const pais    = cols[1] ?? 'Colombia';
+      const dominio = cols[2] ?? undefined;
+      if (!nombre) return null;
+      return { id: -(i + 1), nombre, pais, dominio, linea: undefined } as unknown as Empresa;
+    })
+    .filter(Boolean) as Empresa[];
+}
+
 export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const meta = AGENT_LABEL[agent];
   const { anyRunningOfAgent, invalidate } = useInflightExecutions();
   const { lineas: lineasActivas, isLoading: lineasLoading } = useLineasActivas();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // ── State ────────────────────────────────────────────────────────────────
   const [linea, setLinea]                 = useState<LineaNegocio>('BHS');
@@ -68,12 +92,39 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const [firing, setFiring]               = useState(false);
   const [lastExecutionId, setLastExecutionId] = useState<string | null>(null);
   const [error, setError]                 = useState<string | null>(null);
+  // CSV import mode
+  const [csvMode, setCsvMode]             = useState(false);
+  const [csvEmpresas, setCsvEmpresas]     = useState<Empresa[]>([]);
+  const [csvFileName, setCsvFileName]     = useState<string | null>(null);
 
-  // Reset selection when línea changes.
+  // Reset selection when línea or mode changes.
   useEffect(() => {
     setSelected([]);
     setSearch('');
   }, [linea]);
+
+  // ── CSV helpers ──────────────────────────────────────────────────────────
+  function handleCsvFile(file: File) {
+    setCsvFileName(file.name);
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      const text = e.target?.result as string;
+      const parsed = parseCsvEmpresas(text);
+      setCsvEmpresas(parsed);
+      if (parsed.length === 0) {
+        toast.error('El CSV no contiene empresas válidas');
+      } else {
+        toast.success(`${parsed.length} empresas cargadas desde CSV`);
+      }
+    };
+    reader.readAsText(file, 'utf-8');
+  }
+
+  function clearCsv() {
+    setCsvEmpresas([]);
+    setCsvFileName(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  }
 
   // ── Queries: line counts + empresas list ─────────────────────────────────
   const { data: counts = {} } = useQuery<CountsMap>({
@@ -109,13 +160,15 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const maxBatch    = Math.min(50, totalLinea || 50);
   const hasInflight = anyRunningOfAgent(agent);
 
-  // Radar requires manual selection (no auto-pick from DB). Calificador/Prospector
-  // can fire with just a batchSize (auto-pick from DB when nothing is selected).
-  const canFire = !firing
-    && !hasInflight
-    && (agent === 'radar'
-        ? selected.length >= 1
-        : (selected.length > 0 || batchSize > 0));
+  // Effective empresa list: CSV mode overrides manual selection.
+  const effectiveEmpresas = csvMode ? csvEmpresas : selected;
+
+  // canFire: all agents support manual (selection) + auto (batchSize) + CSV modes.
+  const canFire = !firing && !hasInflight && (
+    csvMode
+      ? csvEmpresas.length > 0
+      : (effectiveEmpresas.length > 0 || batchSize > 0)
+  );
 
   // ── Selection helpers ────────────────────────────────────────────────────
   function toggleEmpresa(empresa: Empresa) {
@@ -133,17 +186,17 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
     setFiring(true);
     setLastExecutionId(null);
 
+    // Determine the empresa list to use.
+    const fireEmpresas = csvMode ? csvEmpresas : effectiveEmpresas;
+
     try {
-      const body: Record<string, unknown> = {
-        agent,
-        linea,
-      };
+      const body: Record<string, unknown> = { agent, linea };
 
       if (agent === 'radar') {
-        if (selected.length > 1) {
-          // Multi-radar: fire one request per company and show aggregate toast.
+        if (fireEmpresas.length > 1) {
+          // Multi-radar: fire one request per company sequentially.
           const results: FireResponse[] = [];
-          for (const e of selected) {
+          for (const e of fireEmpresas) {
             const r = await fetchJson<FireResponse>('/api/agent', {
               method:  'POST',
               headers: { 'Content-Type': 'application/json' },
@@ -151,7 +204,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
                 agent, linea,
                 options: {
                   empresa:            e.nombre,
-                  pais:               e.pais,
+                  pais:               e.pais ?? 'Colombia',
                   company_domain:     e.dominio,
                   tier,
                   score_calificacion: 9,
@@ -161,29 +214,36 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
             results.push(r);
           }
           setLastExecutionId(results[0]!.execution_id);
-          toast.success(`Radar disparado para ${selected.length} empresas`);
+          toast.success(`Radar disparado para ${fireEmpresas.length} empresas`);
           invalidate();
           return;
         }
-        // Single empresa
-        const e = selected[0] ?? { nombre: '', pais: 'Colombia', dominio: undefined };
-        body.options = {
-          empresa:            e.nombre,
-          pais:               e.pais,
-          company_domain:     e.dominio,
-          tier,
-          score_calificacion: 9,
-        };
+        if (fireEmpresas.length === 1) {
+          const e = fireEmpresas[0]!;
+          body.options = {
+            empresa:            e.nombre,
+            pais:               e.pais ?? 'Colombia',
+            company_domain:     e.dominio,
+            tier,
+            score_calificacion: 9,
+          };
+        } else {
+          // Batch auto-mode for radar: pick batchSize random from DB.
+          body.batchSize = batchSize;
+          body.options   = { tier, score_calificacion: 9 };
+        }
       } else if (agent === 'prospector') {
-        body.empresas  = selected.map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais, linea: e.linea }));
-        body.batchSize = selected.length || batchSize;
+        const mapEmpresas = (arr: Empresa[]) =>
+          arr.map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais ?? 'Colombia', linea: e.linea }));
+        body.empresas  = fireEmpresas.length > 0 ? mapEmpresas(fireEmpresas) : undefined;
+        body.batchSize = fireEmpresas.length || batchSize;
         body.options   = { contactosPorEmpresa, tier };
       } else {
         // calificador
-        body.empresas  = selected.length > 0
-          ? selected.map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais, linea: e.linea }))
-          : undefined;
-        body.batchSize = selected.length || batchSize;
+        const mapEmpresas = (arr: Empresa[]) =>
+          arr.map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais ?? 'Colombia', linea: e.linea }));
+        body.empresas  = fireEmpresas.length > 0 ? mapEmpresas(fireEmpresas) : undefined;
+        body.batchSize = fireEmpresas.length || batchSize;
       }
 
       const result = await fetchJson<FireResponse>('/api/agent', {
@@ -194,7 +254,6 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
       setLastExecutionId(result.execution_id);
       toast.success(`${meta.title} disparado · pipeline ${result.pipeline_id.slice(0, 8)}`);
-      // Wake the global tracker tray so it picks up the new execution immediately.
       invalidate();
 
     } catch (err) {
@@ -270,96 +329,187 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         )}
       </section>
 
-      {/* Empresa picker */}
-      <section className="space-y-2">
-        <div className="flex items-center justify-between gap-2 flex-wrap">
-          <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            Empresas ({selected.length} seleccionadas)
-            {agent === 'radar' && selected.length === 0 && (
-              <span className="ml-1 normal-case font-normal text-amber-600">— selecciona al menos 1</span>
+      {/* Source mode toggle: Base de datos | CSV */}
+      <section>
+        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-muted/60 border border-border w-fit">
+          <button
+            type="button"
+            onClick={() => { setCsvMode(false); clearCsv(); }}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors',
+              !csvMode ? 'bg-surface text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
             )}
-          </label>
-          <div className="flex items-center gap-2">
-            {filteredEmpresas.length > 0 && (
-              <>
-                <button type="button" onClick={selectAll}   className="text-xs text-blue-600 hover:underline">Seleccionar todas</button>
-                <button type="button" onClick={deselectAll} className="text-xs text-muted-foreground hover:underline">Limpiar</button>
-              </>
+          >
+            <Database size={13} /> Base de datos
+          </button>
+          <button
+            type="button"
+            onClick={() => { setCsvMode(true); setSelected([]); }}
+            className={cn(
+              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-colors',
+              csvMode ? 'bg-surface text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground',
+            )}
+          >
+            <Upload size={13} /> Importar CSV
+          </button>
+        </div>
+      </section>
+
+      {/* CSV import panel */}
+      {csvMode ? (
+        <section className="space-y-3">
+          <div>
+            <p className="text-xs text-muted-foreground mb-2">
+              Formato: <code className="bg-surface-muted px-1 rounded text-[11px]">nombre, país, dominio</code> (una empresa por línea). Las empresas <strong>no se guardan</strong> en la base de datos.
+            </p>
+            {/* Drop zone / file picker */}
+            <div
+              className="relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border hover:border-blue-600/50 bg-surface-muted/20 px-4 py-8 cursor-pointer transition-colors"
+              onClick={() => fileInputRef.current?.click()}
+              onDragOver={e => e.preventDefault()}
+              onDrop={e => {
+                e.preventDefault();
+                const file = e.dataTransfer.files[0];
+                if (file) handleCsvFile(file);
+              }}
+            >
+              <FileText size={28} className="text-muted-foreground" />
+              <p className="text-sm text-muted-foreground text-center">
+                {csvFileName
+                  ? <span className="text-foreground font-medium">{csvFileName}</span>
+                  : 'Arrastra un CSV aquí o haz clic para seleccionar'}
+              </p>
+              {csvEmpresas.length > 0 && (
+                <span className="text-xs text-green-400 font-medium">{csvEmpresas.length} empresas listas para escanear</span>
+              )}
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".csv,.txt"
+                className="hidden"
+                onChange={e => {
+                  const file = e.target.files?.[0];
+                  if (file) handleCsvFile(file);
+                }}
+              />
+            </div>
+            {csvEmpresas.length > 0 && (
+              <button
+                type="button"
+                onClick={clearCsv}
+                className="mt-2 flex items-center gap-1 text-xs text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                <X size={12} /> Limpiar CSV
+              </button>
             )}
           </div>
-        </div>
-        {agent === 'radar' && selected.length > 1 && (
-          <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">
-            Se dispararán {selected.length} solicitudes de Radar — una por empresa.
-          </p>
-        )}
 
-        <div className="relative">
-          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Buscar empresa o país…"
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-
-        <Card>
-          <CardContent className="p-0 max-h-64 overflow-y-auto">
-            {loadingEmpresas ? (
-              <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-                <Loader2 size={14} className="animate-spin" /> Cargando empresas…
-              </div>
-            ) : filteredEmpresas.length === 0 ? (
-              <div className="p-6 text-center text-sm text-muted-foreground">
-                {linea === 'ALL'
-                  ? 'Selecciona una línea para ver empresas'
-                  : 'Sin empresas — importa el catálogo'}
-              </div>
-            ) : (
-              <ul className="divide-y divide-border/40">
-                {filteredEmpresas.slice(0, 100).map(empresa => {
-                  const isSelected = selected.some(e => e.id === empresa.id);
-                  const Icon = isSelected ? CheckSquare : Square;
-                  return (
-                    <li key={empresa.id}>
-                      <button
-                        type="button"
-                        onClick={() => toggleEmpresa(empresa)}
-                        className={cn(
-                          'w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors',
-                          isSelected ? 'bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-surface-muted/40',
-                        )}
-                      >
-                        <Icon size={14} className={isSelected ? 'text-blue-600' : 'text-muted-foreground'} />
-                        <span className="flex-1 truncate text-foreground">{empresa.nombre}</span>
-                        {empresa.pais && (
-                          <span className="text-xs text-muted-foreground">{empresa.pais}</span>
-                        )}
-                      </button>
+          {/* Preview of parsed CSV */}
+          {csvEmpresas.length > 0 && (
+            <Card>
+              <CardContent className="p-0 max-h-48 overflow-y-auto">
+                <ul className="divide-y divide-border/40">
+                  {csvEmpresas.map((e, i) => (
+                    <li key={i} className="flex items-center gap-3 px-3 py-2 text-sm">
+                      <CheckSquare size={13} className="text-blue-500 shrink-0" />
+                      <span className="flex-1 truncate text-foreground">{e.nombre}</span>
+                      {e.pais && <span className="text-xs text-muted-foreground">{e.pais}</span>}
+                      {e.dominio && <span className="text-xs text-muted-foreground/60 font-mono">{e.dominio}</span>}
                     </li>
-                  );
-                })}
-              </ul>
-            )}
-          </CardContent>
-        </Card>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
+        </section>
+      ) : (
+        /* BD empresa picker */
+        <section className="space-y-2">
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Empresas ({selected.length} seleccionadas)
+            </label>
+            <div className="flex items-center gap-2">
+              {filteredEmpresas.length > 0 && (
+                <>
+                  <button type="button" onClick={selectAll}   className="text-xs text-blue-600 hover:underline">Seleccionar todas</button>
+                  <button type="button" onClick={deselectAll} className="text-xs text-muted-foreground hover:underline">Limpiar</button>
+                </>
+              )}
+            </div>
+          </div>
+          {agent === 'radar' && effectiveEmpresas.length > 1 && (
+            <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+              Se dispararán {effectiveEmpresas.length} solicitudes de Radar — una por empresa.
+            </p>
+          )}
 
-        {filteredEmpresas.length > 100 && (
-          <p className="text-xs text-muted-foreground">
-            Mostrando 100 de {filteredEmpresas.length}. Refina con la búsqueda.
-          </p>
-        )}
-      </section>
+          <div className="relative">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              placeholder="Buscar empresa o país…"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <Card>
+            <CardContent className="p-0 max-h-64 overflow-y-auto">
+              {loadingEmpresas ? (
+                <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
+                  <Loader2 size={14} className="animate-spin" /> Cargando empresas…
+                </div>
+              ) : filteredEmpresas.length === 0 ? (
+                <div className="p-6 text-center text-sm text-muted-foreground">
+                  {linea === 'ALL'
+                    ? 'Selecciona una línea para ver empresas'
+                    : 'Sin empresas — importa el catálogo'}
+                </div>
+              ) : (
+                <ul className="divide-y divide-border/40">
+                  {filteredEmpresas.slice(0, 100).map(empresa => {
+                    const isSelected = selected.some(e => e.id === empresa.id);
+                    const Icon = isSelected ? CheckSquare : Square;
+                    return (
+                      <li key={empresa.id}>
+                        <button
+                          type="button"
+                          onClick={() => toggleEmpresa(empresa)}
+                          className={cn(
+                            'w-full flex items-center gap-3 px-3 py-2 text-left text-sm transition-colors',
+                            isSelected ? 'bg-blue-50 dark:bg-blue-950/20' : 'hover:bg-surface-muted/40',
+                          )}
+                        >
+                          <Icon size={14} className={isSelected ? 'text-blue-600' : 'text-muted-foreground'} />
+                          <span className="flex-1 truncate text-foreground">{empresa.nombre}</span>
+                          {empresa.pais && (
+                            <span className="text-xs text-muted-foreground">{empresa.pais}</span>
+                          )}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </CardContent>
+          </Card>
+
+          {filteredEmpresas.length > 100 && (
+            <p className="text-xs text-muted-foreground">
+              Mostrando 100 de {filteredEmpresas.length}. Refina con la búsqueda.
+            </p>
+          )}
+        </section>
+      )}
 
       {/* Agent-specific options */}
       <section className="space-y-3">
-        {/* Batch size: for calificador/prospector controls auto-pick from DB;
-            for radar it's informational (shows selection count) */}
-        {agent !== 'radar' && (
+        {/* Batch size: shown for all agents when in BD mode and no manual selection */}
+        {!csvMode && effectiveEmpresas.length === 0 && (
           <div className="flex items-center gap-3">
             <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Lote (auto)
+              Lote (aleatorio)
             </label>
             <div className="flex items-center gap-1">
               <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
@@ -373,11 +523,14 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
               </Button>
             </div>
             <span className="text-xs text-muted-foreground">
-              {selected.length > 0
-                ? `(manual: ${selected.length} seleccionadas)`
-                : `empresas auto-seleccionadas de BD`}
+              empresas aleatorias de la línea
             </span>
           </div>
+        )}
+        {!csvMode && effectiveEmpresas.length > 0 && (
+          <p className="text-xs text-muted-foreground">
+            {effectiveEmpresas.length} empresa{effectiveEmpresas.length > 1 ? 's' : ''} seleccionada{effectiveEmpresas.length > 1 ? 's' : ''} manualmente
+          </p>
         )}
 
         {agent === 'prospector' && (
