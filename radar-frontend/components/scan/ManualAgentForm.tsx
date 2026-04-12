@@ -60,7 +60,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
   // ── State ────────────────────────────────────────────────────────────────
   const [linea, setLinea]                 = useState<LineaNegocio>('BHS');
-  const [batchSize, setBatchSize]         = useState(agent === 'prospector' ? 5 : 10);
+  const [batchSize, setBatchSize]         = useState(5);
   const [contactosPorEmpresa, setContactosPorEmpresa] = useState(3);
   const [tier, setTier]                   = useState<'ORO' | 'MONITOREO' | 'PLATA'>('ORO');
   const [search, setSearch]               = useState('');
@@ -106,27 +106,25 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
     );
   }, [empresas, search]);
 
-  const isSingleEmpresa = agent === 'radar';
-  const maxBatch        = Math.min(50, totalLinea || 50);
-  const hasInflight     = anyRunningOfAgent(agent);
+  const maxBatch    = Math.min(50, totalLinea || 50);
+  const hasInflight = anyRunningOfAgent(agent);
 
-  // For radar, the "first selected empresa" is what we send.
-  // For calificador/prospector, the selected list is what we send.
+  // Radar requires manual selection (no auto-pick from DB). Calificador/Prospector
+  // can fire with just a batchSize (auto-pick from DB when nothing is selected).
   const canFire = !firing
     && !hasInflight
-    && (isSingleEmpresa
-        ? selected.length === 1
+    && (agent === 'radar'
+        ? selected.length >= 1
         : (selected.length > 0 || batchSize > 0));
 
   // ── Selection helpers ────────────────────────────────────────────────────
   function toggleEmpresa(empresa: Empresa) {
     setSelected(prev => {
       const exists = prev.some(e => e.id === empresa.id);
-      if (isSingleEmpresa) return exists ? [] : [empresa];
       return exists ? prev.filter(e => e.id !== empresa.id) : [...prev, empresa];
     });
   }
-  function selectAll()   { if (!isSingleEmpresa) setSelected([...filteredEmpresas]); }
+  function selectAll()   { setSelected([...filteredEmpresas]); }
   function deselectAll() { setSelected([]); }
 
   // ── Fire ─────────────────────────────────────────────────────────────────
@@ -142,7 +140,33 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
       };
 
       if (agent === 'radar') {
-        const e = selected[0]!;
+        if (selected.length > 1) {
+          // Multi-radar: fire one request per company and show aggregate toast.
+          const results: FireResponse[] = [];
+          for (const e of selected) {
+            const r = await fetchJson<FireResponse>('/api/agent', {
+              method:  'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body:    JSON.stringify({
+                agent, linea,
+                options: {
+                  empresa:            e.nombre,
+                  pais:               e.pais,
+                  company_domain:     e.dominio,
+                  tier,
+                  score_calificacion: 9,
+                },
+              }),
+            });
+            results.push(r);
+          }
+          setLastExecutionId(results[0]!.execution_id);
+          toast.success(`Radar disparado para ${selected.length} empresas`);
+          invalidate();
+          return;
+        }
+        // Single empresa
+        const e = selected[0] ?? { nombre: '', pais: 'Colombia', dominio: undefined };
         body.options = {
           empresa:            e.nombre,
           pais:               e.pais,
@@ -250,10 +274,13 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
       <section className="space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-            {isSingleEmpresa ? 'Empresa (1)' : `Empresas (${selected.length} seleccionadas)`}
+            Empresas ({selected.length} seleccionadas)
+            {agent === 'radar' && selected.length === 0 && (
+              <span className="ml-1 normal-case font-normal text-amber-600">— selecciona al menos 1</span>
+            )}
           </label>
           <div className="flex items-center gap-2">
-            {!isSingleEmpresa && filteredEmpresas.length > 0 && (
+            {filteredEmpresas.length > 0 && (
               <>
                 <button type="button" onClick={selectAll}   className="text-xs text-blue-600 hover:underline">Seleccionar todas</button>
                 <button type="button" onClick={deselectAll} className="text-xs text-muted-foreground hover:underline">Limpiar</button>
@@ -261,6 +288,11 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
             )}
           </div>
         </div>
+        {agent === 'radar' && selected.length > 1 && (
+          <p className="text-xs text-violet-600 dark:text-violet-400 font-medium">
+            Se dispararán {selected.length} solicitudes de Radar — una por empresa.
+          </p>
+        )}
 
         <div className="relative">
           <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
@@ -322,10 +354,12 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
       {/* Agent-specific options */}
       <section className="space-y-3">
-        {(agent === 'calificador' || agent === 'prospector') && (
+        {/* Batch size: for calificador/prospector controls auto-pick from DB;
+            for radar it's informational (shows selection count) */}
+        {agent !== 'radar' && (
           <div className="flex items-center gap-3">
             <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Batch size
+              Lote (auto)
             </label>
             <div className="flex items-center gap-1">
               <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
@@ -338,7 +372,11 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
                 <Plus size={12} />
               </Button>
             </div>
-            <span className="text-xs text-muted-foreground">de máx. {maxBatch} por línea</span>
+            <span className="text-xs text-muted-foreground">
+              {selected.length > 0
+                ? `(manual: ${selected.length} seleccionadas)`
+                : `empresas auto-seleccionadas de BD`}
+            </span>
           </div>
         )}
 
