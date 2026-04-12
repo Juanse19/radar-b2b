@@ -1,4 +1,4 @@
-import { test, expect, request } from '@playwright/test';
+import { test, expect } from '@playwright/test';
 
 /**
  * Tests de API — verifican los endpoints directamente sin UI

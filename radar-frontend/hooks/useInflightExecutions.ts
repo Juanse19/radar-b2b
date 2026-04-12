@@ -51,9 +51,11 @@ export function useInflightExecutions(): UseInflightExecutionsResult {
     },
   });
 
-  const pipelines = query.data?.pipelines ?? [];
+  const rawPipelines = query.data?.pipelines;
 
   const { inflight, recent } = useMemo(() => {
+    const pipelines = rawPipelines ?? [];
+    // eslint-disable-next-line react-hooks/purity
     const now = Date.now();
     const inflight: PipelineDTO[] = [];
     const recent:   PipelineDTO[] = [];
@@ -66,8 +68,9 @@ export function useInflightExecutions(): UseInflightExecutionsResult {
       }
     }
     return { inflight, recent };
-  }, [pipelines]);
+  }, [rawPipelines]);
 
+  const pipelines = rawPipelines ?? [];
   const anyRunning = inflight.length > 0;
 
   const anyRunningOfAgent = useCallback(

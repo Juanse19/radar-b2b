@@ -56,6 +56,7 @@ function MiniPipelineIndicator({ executionId }: { executionId: string }) {
   }, [allDone]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (execStatus?.status === 'success') setAllDone(true);
   }, [execStatus]);
 

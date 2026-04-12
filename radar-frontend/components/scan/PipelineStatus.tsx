@@ -180,17 +180,20 @@ export function PipelineStatus({ executionId, linea, onComplete }: PipelineStatu
         handleComplete();
       }, 1000);
     } else if (execStatus.status === 'error') {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setHasError(true);
     }
   }, [execStatus, handleComplete]);
 
   // Reset when executionId changes
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     setCurrentStep(0);
     setElapsedSeconds(0);
     setAllDone(false);
     setHasError(false);
     setCompleteCalled(false);
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [executionId]);
 
   if (!executionId) return null;

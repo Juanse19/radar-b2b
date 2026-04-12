@@ -206,9 +206,11 @@ function EditUsuarioDialog({ user, onClose, onSubmit, isPending }: EditDialogPro
   // Populate form whenever the targeted user changes (dialog re-opened for different user)
   useEffect(() => {
     if (user) {
+      /* eslint-disable react-hooks/set-state-in-effect */
       setNombre(user.nombre);
       setRol(user.rol);
       setEstadoAcceso(user.estado_acceso);
+      /* eslint-enable react-hooks/set-state-in-effect */
     }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 

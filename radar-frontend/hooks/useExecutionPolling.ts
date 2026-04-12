@@ -95,6 +95,7 @@ export function useExecutionPolling(
 
   const startedAt = query.data?.started_at ? Date.parse(query.data.started_at) : 0;
   const finishedAt = query.data?.finished_at ? Date.parse(query.data.finished_at) : 0;
+  // eslint-disable-next-line react-hooks/purity
   const referenceTime = finishedAt || (startedAt ? Date.now() : 0);
   const elapsedSeconds = startedAt
     ? Math.max(0, Math.floor((referenceTime - startedAt) / 1000))

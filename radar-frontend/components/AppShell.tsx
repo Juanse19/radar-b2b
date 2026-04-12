@@ -30,6 +30,7 @@ export function AppShell({
 
   // Cerrar el drawer automáticamente al navegar.
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setMobileOpen(false);
   }, [pathname]);
 

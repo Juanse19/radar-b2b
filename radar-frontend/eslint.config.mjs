@@ -12,6 +12,9 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Node.js scripts — use CommonJS require() and don't need strict TS rules.
+    "prisma/**",
+    "scripts/**",
   ]),
 ]);
 

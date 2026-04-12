@@ -31,7 +31,6 @@ export function getAdminDb(): AnyClient {
 }
 
 // Proxy so callers can write `adminDb.from(...)` without calling getAdminDb() explicitly.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const adminDb: AnyClient = new Proxy({} as AnyClient, {
   get(_target, prop) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
