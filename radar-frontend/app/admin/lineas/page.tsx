@@ -331,26 +331,42 @@ export default function LineasPage() {
                         {l.nombre}
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-muted-foreground text-xs">
+                    {/* Descripción truncada con tooltip */}
+                    <td
+                      className="px-4 py-3 text-muted-foreground text-xs truncate max-w-[200px]"
+                      title={l.descripcion ?? undefined}
+                    >
                       {l.descripcion ?? '—'}
                     </td>
+                    {/* Color: swatch + hex en gris pequeño */}
                     <td className="px-4 py-3">
-                      <span className="font-mono text-xs text-muted-foreground">{l.color_hex}</span>
+                      <div className="flex items-center gap-2">
+                        <span
+                          className="inline-block w-4 h-4 rounded-full border border-border shrink-0"
+                          style={{ backgroundColor: l.color_hex }}
+                        />
+                        <span className="font-mono text-xs text-muted-foreground">{l.color_hex}</span>
+                      </div>
                     </td>
                     <td className="px-4 py-3 text-muted-foreground tabular-nums">{l.orden}</td>
+                    {/* Toggle activo/inactivo */}
                     <td className="px-4 py-3">
                       <button
                         type="button"
                         onClick={() =>
                           patchMutation.mutate({ id: l.id, updates: { activo: !l.activo } })
                         }
-                        className={`flex items-center gap-1 text-xs font-medium transition-colors ${
+                        title={l.activo ? 'Desactivar línea' : 'Activar línea'}
+                        className={`flex items-center gap-1.5 text-xs font-medium transition-colors rounded-md px-2 py-1 ${
                           l.activo
-                            ? 'text-green-400 hover:text-green-300'
-                            : 'text-muted-foreground hover:text-foreground'
+                            ? 'text-green-600 bg-green-500/10 hover:bg-green-500/20'
+                            : 'text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground'
                         }`}
                       >
-                        {l.activo ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
+                        {l.activo
+                          ? <ToggleRight size={18} className="text-green-500" />
+                          : <ToggleLeft size={18} />
+                        }
                         {l.activo ? 'Activa' : 'Inactiva'}
                       </button>
                     </td>

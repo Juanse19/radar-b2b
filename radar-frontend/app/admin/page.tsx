@@ -1,5 +1,5 @@
 // app/admin/page.tsx — Admin dashboard
-import { Shield, Users, Layers, Globe, Activity, ShieldCheck, Building2 } from 'lucide-react';
+import { Shield, Users, Layers, Globe, Activity, ShieldCheck, Building2, ChevronRight } from 'lucide-react';
 import { getAdminDb } from '@/lib/db/supabase/admin';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import Link from 'next/link';
@@ -34,6 +34,23 @@ const ADMIN_SECTIONS = [
   { href: '/admin/actividad',     label: 'Actividad',         Icon: Activity,    desc: 'Log de auditoría y eventos del sistema' },
 ];
 
+function TipoBadge({ tipo }: { tipo: string }) {
+  const map: Record<string, string> = {
+    login:           'bg-green-500/15 text-green-300 border-green-500/30',
+    logout:          'bg-gray-500/15 text-gray-400 border-gray-500/30',
+    disparo_agente:  'bg-blue-500/15 text-blue-300 border-blue-500/30',
+    error:           'bg-red-500/15 text-red-300 border-red-500/30',
+    warn:            'bg-amber-500/15 text-amber-300 border-amber-500/30',
+    config_change:   'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  };
+  const cls = map[tipo] ?? 'bg-surface-muted text-muted-foreground border-border';
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {tipo}
+    </span>
+  );
+}
+
 export default async function AdminPage() {
   const stats = await getStats();
 
@@ -62,11 +79,14 @@ export default async function AdminPage() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {ADMIN_SECTIONS.map(({ href, label, Icon, desc }) => (
           <Link key={href} href={href} className="group">
-            <Card className="h-full border-border bg-surface transition-colors hover:border-blue-700/60 hover:bg-blue-950/10">
+            <Card className="h-full border-border bg-surface transition-all duration-200 hover:border-blue-700/60 hover:bg-blue-950/10 hover:shadow-md hover:shadow-blue-950/20">
               <CardHeader className="pb-2">
-                <CardTitle className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Icon size={16} className="text-muted-foreground group-hover:text-blue-400 transition-colors" />
-                  {label}
+                <CardTitle className="flex items-center justify-between text-sm font-semibold text-foreground">
+                  <span className="flex items-center gap-2">
+                    <Icon size={16} className="text-muted-foreground group-hover:text-blue-400 transition-colors" />
+                    {label}
+                  </span>
+                  <ChevronRight size={14} className="text-muted-foreground/0 group-hover:text-blue-400/70 transition-all duration-200 -translate-x-1 group-hover:translate-x-0" />
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -80,14 +100,19 @@ export default async function AdminPage() {
       {/* Recent activity */}
       {stats.reciente.length > 0 && (
         <div>
-          <h2 className="text-sm font-semibold text-foreground mb-3">Actividad reciente</h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-sm font-semibold text-foreground">Actividad reciente</h2>
+            <Link href="/admin/actividad" className="text-xs text-blue-400 hover:text-blue-300 transition-colors">
+              Ver todo →
+            </Link>
+          </div>
           <div className="rounded-xl border border-border divide-y divide-border/50">
             {stats.reciente.map((a: { id: number; tipo: string; usuario_email: string | null; created_at: string }) => (
-              <div key={a.id} className="flex items-center justify-between px-4 py-2.5 text-sm">
-                <span className="text-foreground">{a.tipo}</span>
+              <div key={a.id} className="flex items-center justify-between px-4 py-2.5 text-sm hover:bg-surface-muted/20 transition-colors">
+                <TipoBadge tipo={a.tipo} />
                 <div className="flex items-center gap-3 text-xs text-muted-foreground">
                   <span>{a.usuario_email ?? '—'}</span>
-                  <span>{new Date(a.created_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>
+                  <span className="tabular-nums">{new Date(a.created_at).toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' })}</span>
                 </div>
               </div>
             ))}

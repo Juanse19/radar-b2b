@@ -2,8 +2,8 @@
 // app/admin/usuarios/page.tsx
 // Sprint 3.5 — Phase 4: full rewrite with Dialog modals, pagination, edit and delete.
 
-import { useState, useEffect } from 'react';
-import { Plus, MoreHorizontal, Pencil, Trash2, Loader2, KeyRound } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Plus, Pencil, Trash2, Loader2, KeyRound, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -24,12 +24,6 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
-import {
   Select,
   SelectContent,
   SelectItem,
@@ -45,6 +39,32 @@ import {
   type AdminUser,
 } from '@/hooks/admin/useUsuarios';
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
+
+// ── Avatar helper ─────────────────────────────────────────────────────────────
+
+function UserAvatar({ nombre, rol }: { nombre: string; rol: AdminUser['rol'] }) {
+  const initials = nombre
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0].toUpperCase())
+    .join('');
+
+  const bgClasses: Record<AdminUser['rol'], string> = {
+    ADMIN:     'bg-purple-600 text-white',
+    COMERCIAL: 'bg-blue-600 text-white',
+    AUXILIAR:  'bg-gray-500 text-white',
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center justify-center w-8 h-8 rounded-full text-xs font-bold shrink-0 ${bgClasses[rol]}`}
+      aria-hidden="true"
+    >
+      {initials || '?'}
+    </span>
+  );
+}
 
 // ── Badge helpers ─────────────────────────────────────────────────────────────
 
@@ -423,6 +443,7 @@ function ChangePasswordDialog({ user, onClose, onSubmit, isPending }: ChangePass
 
 export default function AdminUsuariosPage() {
   const [page, setPage]               = useState(1);
+  const [searchQuery, setSearchQuery] = useState('');
   const [createOpen, setCreateOpen]   = useState(false);
   const [editUser, setEditUser]       = useState<AdminUser | null>(null);
   const [deleteUser, setDeleteUser]   = useState<AdminUser | null>(null);
@@ -433,6 +454,19 @@ export default function AdminUsuariosPage() {
   const updateMutation = useUpdateUsuario();
   const deleteMutation = useDeleteUsuario();
   const changePwd      = useChangePassword();
+
+  const filteredUsers = useMemo(() => {
+    const users = data?.usuarios ?? [];
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return users;
+    return users.filter(
+      (u) =>
+        u.nombre.toLowerCase().includes(q) ||
+        u.email.toLowerCase().includes(q),
+    );
+  }, [data?.usuarios, searchQuery]);
+
+  const skeletonColSpan = 7;
 
   return (
     <div className="space-y-6 max-w-5xl">
@@ -460,37 +494,53 @@ export default function AdminUsuariosPage() {
         </Button>
       </div>
 
+      {/* Search bar */}
+      <div className="relative max-w-xs">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground pointer-events-none" />
+        <Input
+          placeholder="Buscar por nombre o email…"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-8"
+        />
+      </div>
+
       {/* Table */}
-      <div className="rounded-xl border border-border bg-card overflow-hidden">
-        <Table>
+      <div className="rounded-xl border border-border bg-card overflow-x-auto">
+        <Table className="w-full min-w-[640px]">
           <TableHeader>
             <TableRow className="bg-muted/50">
+              <TableHead className="w-10 px-4" />
               <TableHead className="px-4">Nombre</TableHead>
               <TableHead className="px-4">Email</TableHead>
               <TableHead className="px-4">Rol</TableHead>
               <TableHead className="px-4">Estado</TableHead>
               <TableHead className="px-4">Creado</TableHead>
-              <TableHead className="w-10 px-4" />
+              <TableHead className="px-4 text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {isLoading ? (
               Array.from({ length: 5 }).map((_, i) => (
                 <TableRow key={i}>
-                  <TableCell className="px-4" colSpan={6}>
+                  <TableCell className="px-4" colSpan={skeletonColSpan}>
                     <Skeleton className="h-5 w-full" />
                   </TableCell>
                 </TableRow>
               ))
-            ) : (data?.usuarios ?? []).length === 0 ? (
+            ) : filteredUsers.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="px-4 py-8 text-center text-sm text-muted-foreground">
-                  No hay usuarios registrados.
+                <TableCell colSpan={skeletonColSpan} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                  {searchQuery ? 'No se encontraron usuarios con esa búsqueda.' : 'No hay usuarios registrados.'}
                 </TableCell>
               </TableRow>
             ) : (
-              (data?.usuarios ?? []).map((user) => (
+              filteredUsers.map((user) => (
                 <TableRow key={user.id}>
+                  {/* Avatar */}
+                  <TableCell className="px-4">
+                    <UserAvatar nombre={user.nombre} rol={user.rol} />
+                  </TableCell>
                   <TableCell className="px-4 font-medium text-foreground">
                     {user.nombre}
                   </TableCell>
@@ -506,32 +556,34 @@ export default function AdminUsuariosPage() {
                   <TableCell className="px-4 text-sm text-muted-foreground">
                     {new Date(user.created_at).toLocaleDateString('es-CO')}
                   </TableCell>
+                  {/* Actions — always-visible icon buttons */}
                   <TableCell className="px-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger
-                        className="flex items-center justify-center rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
-                        aria-label={`Acciones para ${user.nombre}`}
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setEditUser(user)}
+                        title="Editar usuario"
+                        className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
-                        <MoreHorizontal className="size-4" />
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        <DropdownMenuItem onClick={() => setEditUser(user)}>
-                          <Pencil className="size-3.5 mr-2" />
-                          Editar
-                        </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => setChangePwdUser(user)}>
-                          <KeyRound className="size-3.5 mr-2" />
-                          Cambiar contraseña
-                        </DropdownMenuItem>
-                        <DropdownMenuItem
-                          variant="destructive"
-                          onClick={() => setDeleteUser(user)}
-                        >
-                          <Trash2 className="size-3.5 mr-2" />
-                          Eliminar
-                        </DropdownMenuItem>
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                        <Pencil className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setChangePwdUser(user)}
+                        title="Cambiar contraseña"
+                        className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <KeyRound className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setDeleteUser(user)}
+                        title="Eliminar usuario"
+                        className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-red-50 hover:text-red-600 dark:hover:bg-red-950/30 transition-colors"
+                      >
+                        <Trash2 className="size-4" />
+                      </button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))

@@ -39,6 +39,37 @@ interface Fuente {
 const TIPOS = ['tavily', 'rss', 'scraping', 'api', 'manual'] as const;
 type Tipo = (typeof TIPOS)[number];
 
+const TIPO_BADGE: Record<string, string> = {
+  tavily:   'bg-blue-500/15 text-blue-300 border-blue-500/30',
+  rss:      'bg-orange-500/15 text-orange-300 border-orange-500/30',
+  scraping: 'bg-amber-500/15 text-amber-300 border-amber-500/30',
+  api:      'bg-violet-500/15 text-violet-300 border-violet-500/30',
+  manual:   'bg-gray-500/15 text-gray-400 border-gray-500/30',
+};
+
+function TipoBadge({ tipo }: { tipo: string | null }) {
+  if (!tipo) return <span className="text-muted-foreground">—</span>;
+  const cls = TIPO_BADGE[tipo] ?? 'bg-surface-muted text-muted-foreground border-border';
+  return (
+    <span className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${cls}`}>
+      {tipo}
+    </span>
+  );
+}
+
+function PriorityBadge({ score }: { score: number }) {
+  const cls = score >= 8
+    ? 'text-green-400'
+    : score >= 5
+    ? 'text-amber-400'
+    : 'text-muted-foreground';
+  return (
+    <span className={`tabular-nums text-sm font-semibold ${cls}`}>
+      {score}<span className="text-xs font-normal text-muted-foreground">/10</span>
+    </span>
+  );
+}
+
 const EMPTY_FORM = {
   nombre: '',
   url_base: '',
@@ -363,12 +394,10 @@ export default function FuentesPage() {
                   <tr key={f.id} className="hover:bg-surface-muted/30 transition-colors">
                     <td className="px-4 py-3 font-medium text-foreground">{f.nombre}</td>
                     <td className="px-4 py-3">
-                      <span className="rounded-full px-2 py-0.5 text-xs font-medium bg-surface-muted border border-border text-muted-foreground">
-                        {f.tipo ?? '—'}
-                      </span>
+                      <TipoBadge tipo={f.tipo} />
                     </td>
-                    <td className="px-4 py-3 tabular-nums text-muted-foreground">
-                      {f.priority_score}/10
+                    <td className="px-4 py-3">
+                      <PriorityBadge score={f.priority_score} />
                     </td>
                     <td className="px-4 py-3 text-xs text-muted-foreground truncate max-w-[200px]">
                       {f.url_base ?? '—'}
