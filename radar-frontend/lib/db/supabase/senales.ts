@@ -13,6 +13,7 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
     scoreGte, scoreLt, from, to,
     sort = 'score_radar', order = 'desc',
     limit = 100, offset = 0,
+    empresaId,
   } = filter;
 
   const safeSort = ALLOWED_SORT.has(sort) ? sort : 'score_radar';
@@ -28,6 +29,7 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
   if (scoreLt  !== undefined)    q = q.lt('score_radar',  scoreLt);
   if (from)                      q = q.gte('created_at',  from);
   if (to)                        q = q.lte('created_at',  to);
+  if (empresaId !== undefined)   q = q.eq('empresa_id',   empresaId);
 
   const { data, error } = await q;
   if (error) throw new Error(`Supabase getSenales: ${error.message}`);

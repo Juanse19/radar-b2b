@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContactos, getContactosCount, crearContacto } from '@/lib/contacts';
 import type { HubSpotStatus } from '@/lib/types';
+import { getCurrentSession } from '@/lib/auth/session';
 
 export async function GET(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = req.nextUrl;
   const count   = searchParams.get('count') === 'true';
   const linea   = searchParams.get('linea') ?? undefined;
@@ -43,6 +47,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role === 'AUXILIAR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const body = await req.json();
     if (!body.nombre) {

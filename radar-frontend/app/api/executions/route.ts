@@ -22,10 +22,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getPipelines } from '@/lib/db';
 import { getRecentExecutions } from '@/lib/n8n';
+import { getCurrentSession } from '@/lib/auth/session';
 
 const N8N_WORKFLOW_ID = process.env.N8N_WORKFLOW_ID || 'jDtdafuyYt8TXISl';
 
 export async function GET(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const limit  = Math.min(Number(searchParams.get('limit') ?? '20'), 50);
   const status = searchParams.get('status') === 'running' ? 'running' : 'all';

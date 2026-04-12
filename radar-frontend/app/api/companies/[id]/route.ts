@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { actualizarEmpresa, eliminarEmpresa, getEmpresaStatus } from '@/lib/db';
+import { getCurrentSession } from '@/lib/auth/session';
 
 type Params = { params: Promise<{ id: string }> };
 
 export async function PUT(req: NextRequest, { params }: Params) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role === 'AUXILIAR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const { id: idStr } = await params;
     const id = Number(idStr);
@@ -32,6 +37,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
 }
 
 export async function DELETE(_req: NextRequest, { params }: Params) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role !== 'ADMIN') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const { id: idStr } = await params;
     const id = Number(idStr);

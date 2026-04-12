@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmpresasByLinea, getEmpresasCount, crearEmpresa } from '@/lib/db';
+import { getCurrentSession } from '@/lib/auth/session';
 
 /**
  * GET /api/companies?linea=BHS&limit=50
@@ -9,6 +10,9 @@ import { getEmpresasByLinea, getEmpresasCount, crearEmpresa } from '@/lib/db';
  *   → { BHS: 130, Cartón: 150, Intralogística: 220 }
  */
 export async function GET(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = new URL(req.url);
   const count  = searchParams.get('count');
   const linea  = searchParams.get('linea') ?? 'ALL';
@@ -54,6 +58,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (session.role === 'AUXILIAR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const body = await req.json();
     const { company_name, company_domain, company_url, pais, ciudad, linea_negocio, tier } = body;

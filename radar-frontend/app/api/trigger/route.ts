@@ -3,8 +3,12 @@ import { triggerScan } from '@/lib/n8n';
 import { getEmpresasParaEscaneo, registrarEjecucion } from '@/lib/db';
 import type { TriggerParams } from '@/lib/types';
 import type { EmpresaPayload } from '@/lib/n8n';
+import { getCurrentSession } from '@/lib/auth/session';
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json() as TriggerParams & {
       empresas?: { nombre: string; dominio?: string; pais?: string; linea?: string }[];

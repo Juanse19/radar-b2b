@@ -128,6 +128,7 @@ export interface GetSenalesFilter {
   order?: 'asc' | 'desc';
   limit?: number;
   offset?: number;
+  empresaId?: number;
 }
 
 export interface GetContactosFilter {

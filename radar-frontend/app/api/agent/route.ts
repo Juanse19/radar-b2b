@@ -71,8 +71,8 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // Resolve session for audit logging (best-effort — never blocks the request)
-  const session = await getCurrentSession().catch(() => null);
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
   try {
     switch (body.agent) {
@@ -116,18 +116,23 @@ async function fireCalificador(body: BaseAgentBody, session: Awaited<ReturnType<
     empresas:            empresasParaN8N,
   });
 
-  const ejecucion = await registrarEjecucion({
-    n8n_execution_id: result.executionId,
-    linea_negocio:    body.linea,
-    batch_size:       batchSize,
-    trigger_type:     'manual',
-    agent_type:       'calificador',
-    parametros: {
-      dateFilterFrom:   body.options?.dateFilterFrom ?? '2025-07-01',
-      empresasEnviadas: empresasParaN8N.length,
-      origenEmpresas:   body.empresas ? 'frontend' : 'db',
-    },
-  });
+  let ejecucion: { id: number; pipeline_id: string } = { id: 0, pipeline_id: crypto.randomUUID() };
+  try {
+    ejecucion = await registrarEjecucion({
+      n8n_execution_id: result.executionId,
+      linea_negocio:    body.linea,
+      batch_size:       batchSize,
+      trigger_type:     'manual',
+      agent_type:       'calificador',
+      parametros: {
+        dateFilterFrom:   body.options?.dateFilterFrom ?? '2025-07-01',
+        empresasEnviadas: empresasParaN8N.length,
+        origenEmpresas:   body.empresas ? 'frontend' : 'db',
+      },
+    });
+  } catch (dbErr) {
+    console.error('[fireCalificador] registrarEjecucion failed (non-blocking):', dbErr);
+  }
 
   void logActividad(session, 'disparo_agente',
     `Calificador — ${body.linea} (${empresasParaN8N.length} empresas)`, 'ok',
@@ -165,19 +170,24 @@ async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof
     score_calificacion: score,
   });
 
-  const ejecucion = await registrarEjecucion({
-    n8n_execution_id: result.executionId,
-    linea_negocio:    linea || undefined,
-    batch_size:       1,
-    trigger_type:     'manual',
-    agent_type:       'radar',
-    parametros: {
-      empresa,
-      pais,
-      tier,
-      score_calificacion: score,
-    },
-  });
+  let ejecucion: { id: number; pipeline_id: string } = { id: 0, pipeline_id: crypto.randomUUID() };
+  try {
+    ejecucion = await registrarEjecucion({
+      n8n_execution_id: result.executionId,
+      linea_negocio:    linea || undefined,
+      batch_size:       1,
+      trigger_type:     'manual',
+      agent_type:       'radar',
+      parametros: {
+        empresa,
+        pais,
+        tier,
+        score_calificacion: score,
+      },
+    });
+  } catch (dbErr) {
+    console.error('[fireRadar] registrarEjecucion failed (non-blocking):', dbErr);
+  }
 
   void logActividad(session, 'disparo_agente',
     `Radar — ${empresa} (${linea})`, 'ok',
@@ -219,19 +229,24 @@ async function fireProspector(body: BaseAgentBody, session: Awaited<ReturnType<t
     paises:              body.options?.paises ?? [],
   });
 
-  const ejecucion = await registrarEjecucion({
-    n8n_execution_id: result.executionId,
-    linea_negocio:    body.linea,
-    batch_size:       empresasParaN8N.length,
-    trigger_type:     'manual',
-    agent_type:       'prospector',
-    parametros: {
-      contactosPorEmpresa,
-      tier:    body.options?.tier   ?? 'ORO',
-      paises:  body.options?.paises ?? [],
-      empresasEnviadas: empresasParaN8N.length,
-    },
-  });
+  let ejecucion: { id: number; pipeline_id: string } = { id: 0, pipeline_id: crypto.randomUUID() };
+  try {
+    ejecucion = await registrarEjecucion({
+      n8n_execution_id: result.executionId,
+      linea_negocio:    body.linea,
+      batch_size:       empresasParaN8N.length,
+      trigger_type:     'manual',
+      agent_type:       'prospector',
+      parametros: {
+        contactosPorEmpresa,
+        tier:    body.options?.tier   ?? 'ORO',
+        paises:  body.options?.paises ?? [],
+        empresasEnviadas: empresasParaN8N.length,
+      },
+    });
+  } catch (dbErr) {
+    console.error('[fireProspector] registrarEjecucion failed (non-blocking):', dbErr);
+  }
 
   void logActividad(session, 'disparo_agente',
     `Prospector — ${body.linea} (${empresasParaN8N.length} empresas)`, 'ok',

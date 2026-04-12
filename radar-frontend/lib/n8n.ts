@@ -51,34 +51,30 @@ export async function triggerScan(params: TriggerScanParams): Promise<{ executio
     trigger_type: 'manual',
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
-
-  let res: Response;
+  // Use a 10s timeout only to detect hard failures (network error, 404, 5xx).
+  // If n8n is in responseMode:lastNode the request will run longer than 10s —
+  // we treat that as "workflow started" and fall through to the REST API fallback.
+  let data: Record<string, unknown> = {};
   try {
-    res = await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if ((err as Error)?.name === 'AbortError') {
-      throw new Error('N8N webhook timeout después de 12s. Verifica que el workflow esté activo.');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
     }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    // AbortError / TimeoutError = workflow is running (lastNode mode) — non-fatal.
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
   }
 
   // N8N responseMode 'onReceived' returns {"message":"Workflow was started"} — no executionId.
   // Try body first, then fall back to the executions API, then to a timestamp.
-  const data = await res.json().catch(() => ({}));
   if (data.executionId || data.id) {
     return { executionId: String(data.executionId || data.id) };
   }
@@ -134,32 +130,24 @@ export async function triggerRadar(params: TriggerRadarParams): Promise<{ execut
     trigger_type:       'manual_radar',
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-  let res: Response;
+  let data: Record<string, unknown> = {};
   try {
-    res = await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if ((err as Error)?.name === 'AbortError') {
-      throw new Error('WF02 timeout. Verifica que el workflow Radar esté activo.');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
     }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
   }
 
-  const data = await res.json().catch(() => ({}));
   if (data.executionId || data.id) {
     return { executionId: String(data.executionId || data.id) };
   }
@@ -202,35 +190,41 @@ export async function triggerProspect(params: {
     trigger_type: 'manual',
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-  let res: Response;
+  let data: Record<string, unknown> = {};
   try {
-    res = await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if ((err as Error)?.name === 'AbortError') {
-      throw new Error('N8N webhook timeout. Verifica que WF03 esté activo.');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
     }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
   }
 
-  const data = await res.json().catch(() => ({}));
   if (data.executionId || data.id) {
     return { executionId: String(data.executionId || data.id) };
   }
+
+  // Fallback: query the n8n REST API for the latest execution of WF03.
+  try {
+    const execRes = await fetch(
+      `${N8N_HOST}/api/v1/executions?workflowId=${N8N_PROSPECT_WORKFLOW_ID}&limit=1`,
+      { headers: { 'X-N8N-API-KEY': N8N_API_KEY } },
+    );
+    if (execRes.ok) {
+      const execData = await execRes.json();
+      const first = execData?.data?.[0];
+      if (first?.id) return { executionId: String(first.id) };
+    }
+  } catch { /* fall through */ }
+
   return { executionId: String(Date.now()) };
 }
 
