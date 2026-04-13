@@ -116,6 +116,34 @@ export interface ProspeccionLog {
 export type DiaSemana = 'Lunes' | 'Martes' | 'Miércoles' | 'Jueves' | 'Viernes' | 'Sábado' | 'Domingo';
 export type LineaSchedule = LineaNegocio | 'ALL_TIER_A' | 'Todas' | 'Descanso';
 
+// ── Módulo Resultados Agente — datos directos desde Google Sheets ────────────
+
+/** Fila de la pestaña "Clientes" del sheet de resultados del agente */
+export interface ClienteSheetRow {
+  empresa: string;
+  tir: string;               // 'A' | 'B' | 'C'
+  score: number;             // 0-100
+  senal: string;             // 'CAPEX Confirmado' | 'Licitación' | 'Retrofit' | 'Sin Señal'
+  resumenHallazgo: string;
+  montoEstimado: string;
+  horizonte: string;
+  fechaNoticia: string;
+  urlFuente: string;
+  fechaEscaneo: string;
+}
+
+/** Fila de la pestaña "Log Clientes" del sheet de resultados del agente */
+export interface LogEmpresaRow {
+  empresa: string;
+  radarActivo: string;       // 'Sí' | 'No'
+  motivoDescarte: string;
+  fechaNoticia: string;
+  urlFuente: string;
+  fechaEscaneo: string;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 export interface ScheduleConfig {
   rotacion: Partial<Record<DiaSemana, LineaSchedule>>;
   hora: string;
