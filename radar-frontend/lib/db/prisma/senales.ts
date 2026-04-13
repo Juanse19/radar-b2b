@@ -24,6 +24,7 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
     scoreGte, scoreLt, from, to,
     sort = 'score_radar', order = 'desc',
     limit = 100, offset = 0,
+    empresaId,
   } = filter;
 
   const safeSort = ALLOWED_SORT.has(sort) ? sort : 'score_radar';
@@ -44,6 +45,7 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
           ...(to   ? { lte: new Date(to)   } : {}),
         },
       } : {}),
+      ...(empresaId !== undefined ? { empresa_id: empresaId } : {}),
     },
     orderBy: { [safeSort]: order },
     take: limit,

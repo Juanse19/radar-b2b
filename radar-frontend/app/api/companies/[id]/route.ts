@@ -4,10 +4,32 @@ import { getCurrentSession } from '@/lib/auth/session';
 
 type Params = { params: Promise<{ id: string }> };
 
+export async function GET(_req: NextRequest, { params }: Params) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+  try {
+    const { id: idStr } = await params;
+    const id = Number(idStr);
+    if (isNaN(id)) {
+      return NextResponse.json({ error: 'ID inválido' }, { status: 400 });
+    }
+
+    const empresa = await getEmpresaStatus(id);
+    if (!empresa) {
+      return NextResponse.json({ error: 'Empresa no encontrada' }, { status: 404 });
+    }
+    return NextResponse.json(empresa);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : 'Error';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
+
 export async function PUT(req: NextRequest, { params }: Params) {
   const session = await getCurrentSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (session.role === 'AUXILIAR') return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+  if (!['ADMIN', 'COMERCIAL'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
   try {
     const { id: idStr } = await params;
