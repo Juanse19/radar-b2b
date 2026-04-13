@@ -238,7 +238,7 @@ export default function SchedulePage() {
 
   if (isLoading || !draftConfig || !draftRotacion) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="flex items-center justify-center py-8">
         <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
           <span>Cargando configuración...</span>
@@ -254,7 +254,7 @@ export default function SchedulePage() {
   const todayIdx = getTodayIdx();
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
+    <div className="space-y-6">
 
       {/* ── Status header bar ─────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto mb-8">

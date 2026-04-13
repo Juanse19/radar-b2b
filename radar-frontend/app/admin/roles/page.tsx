@@ -909,7 +909,7 @@ export default function RolesPage() {
             onClick={() => setActiveTab(tab.id)}
             className={`px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px whitespace-nowrap ${
               activeTab === tab.id
-                ? 'border-[#142e47] text-foreground'
+                ? 'border-primary text-foreground'
                 : 'border-transparent text-muted-foreground hover:text-foreground'
             }`}
           >

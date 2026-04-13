@@ -4,21 +4,21 @@
  * AppShellLoader — client wrapper que lee la sesión desde la cookie httpOnly
  * sin necesidad de un layout server-component async.
  *
- * Esto elimina el Suspense boundary del layout que causaba que todas las
- * páginas quedaran en estado "Cargando..." indefinidamente en Next.js 16.
+ * Usa useSyncExternalStore para leer la cookie de forma idiomática en React 18+:
+ * - getServerSnapshot devuelve null (SSR / primer frame)
+ * - getSnapshot lee la cookie del navegador tras la hidratación
  *
  * La seguridad real viene del proxy.ts que bloquea las rutas sin sesión.
  * Este componente solo resuelve qué UI mostrar (sidebar visible vs oculto).
  */
 
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 import { AppShell } from '@/components/AppShell';
 import type { SessionUser } from '@/lib/auth/types';
 
 const SESSION_COOKIE = 'matec_session';
 
 function readSessionFromCookie(): SessionUser | null {
-  if (typeof document === 'undefined') return null;
   const match = document.cookie
     .split('; ')
     .find(row => row.startsWith(SESSION_COOKIE + '='));
@@ -31,20 +31,22 @@ function readSessionFromCookie(): SessionUser | null {
   }
 }
 
+// Cookies have no native event system — subscribe is a no-op.
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function subscribe(_onStoreChange: () => void) {
+  return () => {};
+}
+
 export function AppShellLoader({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<SessionUser | null>(null);
-  const [ready, setReady] = useState(false);
+  // SSR/first-frame snapshot is null; client snapshot reads the cookie.
+  const session = useSyncExternalStore(
+    subscribe,
+    readSessionFromCookie,
+    () => null,
+  );
 
-  useEffect(() => {
-    setSession(readSessionFromCookie());
-    setReady(true);
-  }, []);
-
-  // Durante SSR y primer frame: renderiza AppShell sin sesión para evitar
-  // flash de layout incorrecto. El proxy garantiza que solo usuarios
-  // autenticados llegan aquí.
   return (
-    <AppShell session={ready ? session : null}>
+    <AppShell session={session}>
       {children}
     </AppShell>
   );

@@ -109,9 +109,9 @@ export default function ContactosPage() {
 
   // ── Dialog / execution state ──────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [executionRunning, setExecutionRunning] = useState(false);
-  const [logIds, setLogIds] = useState<number[]>([]);
+  const [logIds, setLogIds] = useState<number[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [processingEmpresas, setProcessingEmpresas] = useState<string[]>([]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
