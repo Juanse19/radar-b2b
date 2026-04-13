@@ -11,6 +11,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Shield,
+  ClipboardCheck,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -18,11 +19,12 @@ import type { SessionUser } from '@/lib/auth/types';
 import { SidebarUserSection } from '@/components/AppShell';
 
 const navItems = [
-  { href: '/',          label: 'Dashboard',   icon: LayoutDashboard },
-  { href: '/scan',      label: 'Escanear',    icon: Radar },
-  { href: '/schedule',  label: 'Cronograma',  icon: Calendar },
-  { href: '/results',   label: 'Resultados',  icon: Table2 },
-  { href: '/contactos', label: 'Contactos',   icon: Users },
+  { href: '/',              label: 'Dashboard',     icon: LayoutDashboard },
+  { href: '/scan',          label: 'Escanear',      icon: Radar },
+  { href: '/schedule',      label: 'Cronograma',    icon: Calendar },
+  { href: '/calificacion',  label: 'Calificación',  icon: ClipboardCheck },
+  { href: '/results',       label: 'Resultados',    icon: Table2 },
+  { href: '/contactos',     label: 'Contactos',     icon: Users },
 ];
 
 const adminNavItem = { href: '/admin', label: 'Admin', icon: Shield };
