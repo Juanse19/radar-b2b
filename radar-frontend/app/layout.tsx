@@ -1,5 +1,5 @@
 import type { Metadata } from 'next';
-import { Barlow, Public_Sans } from 'next/font/google';
+import { Barlow, Public_Sans, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
 import { AppShell } from '@/components/AppShell';
@@ -23,6 +23,14 @@ const uiFont = Public_Sans({
   display: 'swap',
 });
 
+/* Inter — tablas y datos numéricos densos */
+const monoUiFont = Inter({
+  variable: '--font-mono-ui',
+  subsets: ['latin'],
+  axes: ['opsz'],
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
   title: 'Matec Radar B2B',
   description: 'Sistema de Inteligencia Comercial LATAM',
@@ -38,7 +46,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
 
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${displayFont.variable} ${uiFont.variable} antialiased`}>
+      <body className={`${displayFont.variable} ${uiFont.variable} ${monoUiFont.variable} antialiased`}>
         <Providers>
           <TooltipProvider>
             <AppShell session={session}>{children}</AppShell>

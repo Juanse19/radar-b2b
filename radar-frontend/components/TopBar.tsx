@@ -1,7 +1,8 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Menu, Bell } from 'lucide-react'
+import { Menu, Bell, Sun, Moon } from 'lucide-react'
+import { useTheme } from 'next-themes'
 import type { SessionUser } from '@/lib/auth/types'
 
 interface TopBarProps {
@@ -18,8 +19,10 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
     .join('')
     .toUpperCase()
 
+  const { theme, setTheme } = useTheme()
+
   return (
-    <header className="h-14 bg-[#142e47] border-b border-white/10 flex items-center px-4 gap-4 shrink-0 z-30">
+    <header className="h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4 gap-4 shrink-0 z-30">
       {/* Mobile hamburger */}
       <button
         type="button"
@@ -43,7 +46,7 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
       <div className="w-px h-5 bg-white/20 hidden sm:block md:hidden" />
 
       {/* Project name */}
-      <span className="text-[#71acd2] font-medium text-sm hidden sm:block md:hidden">
+      <span className="text-sidebar-primary font-medium text-sm hidden sm:block md:hidden">
         Radar B2B
       </span>
 
@@ -55,9 +58,19 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
         <Bell className="w-5 h-5" />
       </button>
 
+      {/* Theme toggle */}
+      <button
+        type="button"
+        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+        aria-label="Cambiar tema"
+        className="text-white/60 hover:text-white transition-colors"
+      >
+        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+      </button>
+
       {/* User avatar → link to /profile */}
       <Link href="/profile" className="flex items-center gap-2.5 group">
-        <div className="w-8 h-8 rounded-full bg-[#71acd2]/30 border border-white/20 flex items-center justify-center text-white text-xs font-bold group-hover:bg-[#71acd2]/50 transition-colors select-none">
+        <div className="w-8 h-8 rounded-full bg-sidebar-primary/30 border border-sidebar-border flex items-center justify-center text-sidebar-foreground text-xs font-bold group-hover:bg-sidebar-primary/50 transition-colors select-none">
           {initials}
         </div>
         <span className="text-white/80 text-sm font-medium hidden md:block group-hover:text-white transition-colors">
