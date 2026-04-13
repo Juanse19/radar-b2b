@@ -228,7 +228,19 @@ export async function triggerProspect(params: {
   return { executionId: String(Date.now()) };
 }
 
+/** Returns true for fallback timestamp IDs — they are NOT real n8n execution IDs. */
+function isTimestampId(id: string) {
+  return /^\d{11,}$/.test(id);
+}
+
 export async function getExecutionStatus(executionId: string): Promise<ExecutionStatus> {
+  // Skip the n8n API call when we know it won't work:
+  // 1. API key is not configured
+  // 2. The executionId is a local timestamp fallback (not a real n8n id)
+  if (!N8N_API_KEY || isTimestampId(executionId)) {
+    return { id: executionId, status: 'running' };
+  }
+
   const url = `${N8N_HOST}/api/v1/executions/${executionId}?includeData=true`;
 
   const res = await fetch(url, {
@@ -239,7 +251,10 @@ export async function getExecutionStatus(executionId: string): Promise<Execution
   });
 
   if (!res.ok) {
-    if (res.status === 404) {
+    // 404 → execution not yet indexed (still starting) — keep polling.
+    // 401/403 → API key missing or expired — treat as "running" so the
+    //            UI doesn't error out; the 30-min auto-timeout will resolve it.
+    if (res.status === 404 || res.status === 401 || res.status === 403) {
       return { id: executionId, status: 'running' };
     }
     throw new Error(`N8N API error ${res.status}`);
