@@ -15,7 +15,7 @@ export default async function LoginPage() {
     <div className="min-h-screen flex items-center justify-center p-4">
       {/* Card container */}
       <div className="w-full max-w-sm">
-        <div className="rounded-2xl overflow-hidden shadow-[0_12px_36px_rgba(20,46,71,0.12)]">
+        <div className="rounded-2xl overflow-hidden shadow-[0_12px_36px_rgba(20,46,71,0.18)] dark:shadow-[0_12px_36px_rgba(0,0,0,0.4)]">
 
           {/* ── Header navy ──────────────────────────────────────── */}
           <div className="bg-[#142e47] px-8 py-6">
@@ -44,12 +44,12 @@ export default async function LoginPage() {
             </div>
           </div>
 
-          {/* ── Body blanco ──────────────────────────────────────── */}
-          <div className="bg-white px-8 pb-8 pt-6">
+          {/* ── Body ──────────────────────────────────────────────── */}
+          <div className="bg-surface px-8 pb-8 pt-6">
             <p className="text-sm text-muted-foreground mb-4">
               Sistema de Inteligencia Comercial
             </p>
-            <div className="h-px bg-[#142e47]/10 mb-6" />
+            <div className="h-px bg-border mb-6" />
             <LoginForm />
           </div>
         </div>

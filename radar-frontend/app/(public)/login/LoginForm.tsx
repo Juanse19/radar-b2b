@@ -25,7 +25,7 @@ export function LoginForm() {
           placeholder="correo@empresa.com"
           required
           disabled={isPending}
-          className="border border-[#d2dce4] rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-[#71acd2] focus:border-transparent transition-all text-sm bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+          className="border border-border rounded-xl px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary transition-all text-sm bg-surface text-foreground placeholder:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -45,7 +45,7 @@ export function LoginForm() {
           placeholder="••••••••"
           required
           disabled={isPending}
-          className="border border-[#d2dce4] rounded-lg px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-[#71acd2] focus:border-transparent transition-all text-sm bg-white disabled:opacity-60 disabled:cursor-not-allowed"
+          className="border border-border rounded-xl px-4 py-3 w-full focus:outline-none focus:ring-2 focus:ring-secondary/40 focus:border-secondary transition-all text-sm bg-surface text-foreground placeholder:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
@@ -64,7 +64,7 @@ export function LoginForm() {
       <button
         type="submit"
         disabled={isPending}
-        className="w-full h-11 bg-[#142e47] hover:bg-[#1e3d58] text-white font-semibold rounded-lg transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
+        className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
       >
         {isPending ? (
           <>
