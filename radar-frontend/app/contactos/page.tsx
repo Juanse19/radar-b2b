@@ -412,8 +412,7 @@ export default function ContactosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -1048,7 +1047,6 @@ export default function ContactosPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
     </div>
   );
 }

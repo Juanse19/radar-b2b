@@ -118,7 +118,7 @@ export default function ConfiguracionPage() {
                       />
                       <Button size="sm" onClick={() => saveEdit(entry.clave)}
                         disabled={patchMutation.isPending}
-                        className="gap-1 bg-blue-600 hover:bg-blue-700 shrink-0">
+                        className="gap-1 bg-primary hover:bg-primary/90 text-primary-foreground shrink-0">
                         {patchMutation.isPending ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                         Guardar
                       </Button>

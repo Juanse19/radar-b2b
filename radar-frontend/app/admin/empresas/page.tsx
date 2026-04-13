@@ -286,7 +286,7 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
             <Button
               type="submit"
               disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700"
+              className="bg-primary hover:bg-primary/90 text-primary-foreground"
             >
               {loading && <Loader2 size={14} className="mr-2 animate-spin" />}
               Guardar
@@ -495,8 +495,7 @@ export default function EmpresasPage() {
   // ── Render ────────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="space-y-6">
 
         {/* ── Breadcrumb ──────────────────────────────────────────────────── */}
         <AdminBreadcrumb
@@ -521,7 +520,7 @@ export default function EmpresasPage() {
           </div>
           <Button
             onClick={openCreate}
-            className="bg-blue-600 hover:bg-blue-700 gap-1.5 shrink-0"
+            className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5 shrink-0"
           >
             <Plus size={16} />
             Nueva Empresa
@@ -587,9 +586,9 @@ export default function EmpresasPage() {
         </div>
 
         {/* ── Table ──────────────────────────────────────────────────────── */}
-        <div className="rounded-xl border border-border overflow-hidden bg-surface">
+        <div className="rounded-xl border border-border overflow-x-auto bg-surface">
           {/* Table header */}
-          <div className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-3 bg-surface-muted/60 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border">
+          <div className="min-w-[760px] grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-3 bg-surface-muted/60 text-xs font-medium text-muted-foreground uppercase tracking-wide border-b border-border">
             <span>Empresa</span>
             <span>País</span>
             <span>Dominio</span>
@@ -610,7 +609,7 @@ export default function EmpresasPage() {
                 : `Agrega empresas con el botón "Nueva Empresa".`}
               action={
                 !search ? (
-                  <Button onClick={openCreate} className="bg-blue-600 hover:bg-blue-700 gap-1.5">
+                  <Button onClick={openCreate} className="bg-primary hover:bg-primary/90 text-primary-foreground gap-1.5">
                     <Plus size={14} />
                     Nueva Empresa
                   </Button>
@@ -622,7 +621,7 @@ export default function EmpresasPage() {
               {filtered.map(empresa => (
                 <div
                   key={empresa.id}
-                  className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-surface-muted/40 transition-colors group"
+                  className="min-w-[760px] grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-surface-muted/40 transition-colors group"
                 >
                   {/* Nombre con indicador de línea */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -770,7 +769,6 @@ export default function EmpresasPage() {
           </DialogContent>
         </Dialog>
 
-      </div>
     </div>
   );
 }

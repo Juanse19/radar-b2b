@@ -17,7 +17,7 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database } from 'lucide-react';
+import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database, Info, Zap } from 'lucide-react';
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
@@ -283,10 +283,10 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         </label>
         {lineasLoading ? (
           <div className="flex flex-wrap gap-2">
-            {Array.from({ length: 4 }).map((_, i) => (
+            {Array.from({ length: 6 }).map((_, i) => (
               <div
                 key={i}
-                className="h-9 w-24 rounded-lg bg-surface-muted animate-pulse"
+                className="h-9 w-28 rounded-lg bg-surface-muted animate-pulse"
               />
             ))}
           </div>
@@ -426,9 +426,18 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         /* BD empresa picker */
         <section className="space-y-2">
           <div className="flex items-center justify-between gap-2 flex-wrap">
-            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Empresas ({selected.length} seleccionadas)
-            </label>
+            <div className="flex items-center gap-2">
+              <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Empresas
+              </label>
+              {selected.length > 0 ? (
+                <span className="inline-flex items-center rounded-full border border-blue-500/40 bg-blue-500/10 px-2 py-0.5 text-xs font-semibold text-blue-600 dark:text-blue-400">
+                  {selected.length} seleccionada{selected.length > 1 ? 's' : ''}
+                </span>
+              ) : (
+                <span className="text-xs text-muted-foreground/60 italic">ninguna seleccionada</span>
+              )}
+            </div>
             <div className="flex items-center gap-2">
               {filteredEmpresas.length > 0 && (
                 <>
@@ -457,8 +466,17 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           <Card>
             <CardContent className="p-0 max-h-64 overflow-y-auto">
               {loadingEmpresas ? (
-                <div className="flex items-center justify-center gap-2 p-6 text-sm text-muted-foreground">
-                  <Loader2 size={14} className="animate-spin" /> Cargando empresas…
+                <div className="p-2 space-y-1">
+                  {Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className="flex items-center gap-3 px-3 py-2">
+                      <div className="h-3.5 w-3.5 rounded bg-surface-muted animate-pulse shrink-0" />
+                      <div
+                        className="h-3 rounded bg-surface-muted animate-pulse"
+                        style={{ width: `${55 + (i * 7) % 30}%` }}
+                      />
+                      <div className="h-3 w-14 rounded bg-surface-muted animate-pulse ml-auto" />
+                    </div>
+                  ))}
                 </div>
               ) : filteredEmpresas.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
@@ -507,24 +525,31 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
       <section className="space-y-3">
         {/* Batch size: shown for all agents when in BD mode and no manual selection */}
         {!csvMode && effectiveEmpresas.length === 0 && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-              Lote (aleatorio)
-            </label>
-            <div className="flex items-center gap-1">
-              <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
-                onClick={() => setBatchSize(b => Math.max(1, b - 1))}>
-                <Minus size={12} />
-              </Button>
-              <span className="w-10 text-center text-sm tabular-nums">{batchSize}</span>
-              <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
-                onClick={() => setBatchSize(b => Math.min(maxBatch, b + 1))}>
-                <Plus size={12} />
-              </Button>
+          <div className="space-y-3">
+            <div className="flex items-center gap-3">
+              <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+                Lote (aleatorio)
+              </label>
+              <div className="flex items-center gap-1">
+                <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                  onClick={() => setBatchSize(b => Math.max(1, b - 1))}>
+                  <Minus size={12} />
+                </Button>
+                <span className="w-10 text-center text-sm tabular-nums">{batchSize}</span>
+                <Button type="button" size="sm" variant="outline" className="h-7 w-7 p-0"
+                  onClick={() => setBatchSize(b => Math.min(maxBatch, b + 1))}>
+                  <Plus size={12} />
+                </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                empresas aleatorias de la línea
+              </span>
             </div>
-            <span className="text-xs text-muted-foreground">
-              empresas aleatorias de la línea
-            </span>
+            {/* Auto-mode info banner */}
+            <div className="flex items-center gap-2 rounded-lg border border-secondary/30 bg-secondary/10 px-4 py-3 text-sm text-secondary">
+              <Info size={14} className="shrink-0" />
+              Modo automático activado — el sistema seleccionará las mejores empresas de esta línea
+            </div>
           </div>
         )}
         {!csvMode && effectiveEmpresas.length > 0 && (
@@ -579,7 +604,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
       </section>
 
       {/* Fire button + status */}
-      <section className="space-y-3">
+      <section className="space-y-3 pt-1">
         {hasInflight && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
             <AlertTriangle size={14} />
@@ -587,16 +612,44 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           </div>
         )}
 
-        <Button
-          type="button"
-          onClick={onFire}
-          disabled={!canFire}
-          className="w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-white gap-2"
-          data-testid={`fire-${agent}`}
-        >
-          {firing && <Loader2 size={14} className="animate-spin" />}
-          {meta.cta}
-        </Button>
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button
+            type="button"
+            onClick={onFire}
+            disabled={!canFire}
+            className="bg-blue-600 hover:bg-blue-700 text-white gap-2 min-w-[160px]"
+            data-testid={`fire-${agent}`}
+          >
+            {firing ? (
+              <>
+                <Loader2 size={14} className="animate-spin" />
+                Ejecutando...
+              </>
+            ) : (
+              <>
+                <Zap size={14} />
+                {meta.cta}
+              </>
+            )}
+          </Button>
+
+          {/* Company count badge near the button */}
+          {!csvMode && effectiveEmpresas.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              {effectiveEmpresas.length} empresa{effectiveEmpresas.length > 1 ? 's' : ''}
+            </span>
+          )}
+          {csvMode && csvEmpresas.length > 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-blue-500/40 bg-blue-500/10 px-3 py-1 text-xs font-semibold text-blue-600 dark:text-blue-400">
+              {csvEmpresas.length} empresa{csvEmpresas.length > 1 ? 's' : ''} (CSV)
+            </span>
+          )}
+          {!csvMode && effectiveEmpresas.length === 0 && (
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-border bg-surface-muted px-3 py-1 text-xs text-muted-foreground">
+              {batchSize} empresa{batchSize > 1 ? 's' : ''} · modo automático
+            </span>
+          )}
+        </div>
 
         {error && (
           <p className="text-sm text-red-600">{error}</p>

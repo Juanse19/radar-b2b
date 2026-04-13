@@ -113,7 +113,7 @@ function CreateLineaDialog({
           <Button
             onClick={() => createMutation.mutate()}
             disabled={createMutation.isPending || !form.nombre}
-            className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {createMutation.isPending && <Loader2 size={13} className="animate-spin" />}
             Crear
@@ -235,7 +235,7 @@ function EditLineaDialog({
           <Button
             onClick={() => editMutation.mutate()}
             disabled={editMutation.isPending || !form.nombre}
-            className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {editMutation.isPending && <Loader2 size={13} className="animate-spin" />}
             Guardar
@@ -293,7 +293,7 @@ export default function LineasPage() {
         </div>
         <Button
           onClick={() => setCreateOpen(true)}
-          className="gap-2 bg-[#142e47] hover:bg-[#142e47]/90"
+          className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <Plus size={15} /> Nueva línea
         </Button>

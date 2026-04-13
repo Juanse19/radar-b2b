@@ -1,14 +1,6 @@
 // lib/db/index.ts
 // Public facade — all API routes import from here (or from the lib/db.ts shim).
-// Dispatches to Prisma or Supabase based on DB_DRIVER env var.
-
-import { getDriver } from './driver';
-
-import * as Pri from './prisma/empresas';
-import * as PriEj from './prisma/ejecuciones';
-import * as PriSe from './prisma/senales';
-import * as PriCo from './prisma/contactos';
-import * as PriPr from './prisma/prospeccion';
+// Supabase only — Prisma removed.
 
 import * as Sup from './supabase/empresas';
 import * as SupEj from './supabase/ejecuciones';
@@ -26,159 +18,125 @@ export type {
 // ── Empresas ──────────────────────────────────────────────────────────────────
 
 export function getEmpresasByLinea(linea: string, limit?: number, offset?: number) {
-  return getDriver() === 'supabase'
-    ? Sup.getEmpresasByLinea(linea, limit, offset)
-    : Pri.getEmpresasByLinea(linea, limit, offset);
+  return Sup.getEmpresasByLinea(linea, limit, offset);
 }
 
 export function getEmpresasCount() {
-  return getDriver() === 'supabase' ? Sup.getEmpresasCount() : Pri.getEmpresasCount();
+  return Sup.getEmpresasCount();
 }
 
 export function getEmpresasParaEscaneo(linea: string, limit: number) {
-  return getDriver() === 'supabase'
-    ? Sup.getEmpresasParaEscaneo(linea, limit)
-    : Pri.getEmpresasParaEscaneo(linea, limit);
+  return Sup.getEmpresasParaEscaneo(linea, limit);
 }
 
 export function getEmpresaStatus(id: number) {
-  return getDriver() === 'supabase' ? Sup.getEmpresaStatus(id) : Pri.getEmpresaStatus(id);
+  return Sup.getEmpresaStatus(id);
 }
 
-export function crearEmpresa(data: Parameters<typeof Pri.crearEmpresa>[0]) {
-  return getDriver() === 'supabase' ? Sup.crearEmpresa(data) : Pri.crearEmpresa(data);
+export function crearEmpresa(data: Parameters<typeof Sup.crearEmpresa>[0]) {
+  return Sup.crearEmpresa(data);
 }
 
-export function actualizarEmpresa(id: number, data: Parameters<typeof Pri.actualizarEmpresa>[1]) {
-  return getDriver() === 'supabase'
-    ? Sup.actualizarEmpresa(id, data)
-    : Pri.actualizarEmpresa(id, data);
+export function actualizarEmpresa(id: number, data: Parameters<typeof Sup.actualizarEmpresa>[1]) {
+  return Sup.actualizarEmpresa(id, data);
 }
 
 export function eliminarEmpresa(id: number) {
-  return getDriver() === 'supabase' ? Sup.eliminarEmpresa(id) : Pri.eliminarEmpresa(id);
+  return Sup.eliminarEmpresa(id);
 }
 
-export function importarEmpresas(rows: Parameters<typeof Pri.importarEmpresas>[0]) {
-  return getDriver() === 'supabase' ? Sup.importarEmpresas(rows) : Pri.importarEmpresas(rows);
+export function importarEmpresas(rows: Parameters<typeof Sup.importarEmpresas>[0]) {
+  return Sup.importarEmpresas(rows);
 }
 
 // ── Ejecuciones ───────────────────────────────────────────────────────────────
 
-export function registrarEjecucion(params: Parameters<typeof PriEj.registrarEjecucion>[0]) {
-  return getDriver() === 'supabase'
-    ? SupEj.registrarEjecucion(params)
-    : PriEj.registrarEjecucion(params);
+export function registrarEjecucion(params: Parameters<typeof SupEj.registrarEjecucion>[0]) {
+  return SupEj.registrarEjecucion(params);
 }
 
-export function actualizarEjecucion(id: number, updates: Parameters<typeof PriEj.actualizarEjecucion>[1]) {
-  return getDriver() === 'supabase'
-    ? SupEj.actualizarEjecucion(id, updates)
-    : PriEj.actualizarEjecucion(id, updates);
+export function actualizarEjecucion(id: number, updates: Parameters<typeof SupEj.actualizarEjecucion>[1]) {
+  return SupEj.actualizarEjecucion(id, updates);
 }
 
 export function resolveEjecucion(id: number, estado: 'success' | 'error' | 'timeout', error_msg?: string) {
-  return getDriver() === 'supabase'
-    ? SupEj.resolveEjecucion(id, estado, error_msg)
-    : PriEj.resolveEjecucion(id, estado, error_msg);
+  return SupEj.resolveEjecucion(id, estado, error_msg);
 }
 
 export function getEjecucionesRecientes(limit?: number) {
-  return getDriver() === 'supabase'
-    ? SupEj.getEjecucionesRecientes(limit)
-    : PriEj.getEjecucionesRecientes(limit);
+  return SupEj.getEjecucionesRecientes(limit);
 }
 
 export function getEjecucionById(idOrN8nId: string | number) {
-  return getDriver() === 'supabase'
-    ? SupEj.getEjecucionById(idOrN8nId)
-    : PriEj.getEjecucionById(idOrN8nId);
+  return SupEj.getEjecucionById(idOrN8nId);
 }
 
-export function getPipelines(opts?: Parameters<typeof PriEj.getPipelines>[0]) {
-  return getDriver() === 'supabase'
-    ? SupEj.getPipelines(opts)
-    : PriEj.getPipelines(opts);
+export function getPipelines(opts?: Parameters<typeof SupEj.getPipelines>[0]) {
+  return SupEj.getPipelines(opts);
 }
 
 // ── Señales ───────────────────────────────────────────────────────────────────
 
-export function getSenales(filter: Parameters<typeof PriSe.getSenales>[0]) {
-  return getDriver() === 'supabase' ? SupSe.getSenales(filter) : PriSe.getSenales(filter);
+export function getSenales(filter: Parameters<typeof SupSe.getSenales>[0]) {
+  return SupSe.getSenales(filter);
 }
 
-export function crearSenal(data: Parameters<typeof PriSe.crearSenal>[0]) {
-  return getDriver() === 'supabase' ? SupSe.crearSenal(data) : PriSe.crearSenal(data);
+export function crearSenal(data: Parameters<typeof SupSe.crearSenal>[0]) {
+  return SupSe.crearSenal(data);
 }
 
 export function getSenalesSlim() {
-  return getDriver() === 'supabase' ? SupSe.getSenalesSlim() : PriSe.getSenalesSlim();
+  return SupSe.getSenalesSlim();
 }
 
 export function countSenalesOroHoy() {
-  return getDriver() === 'supabase' ? SupSe.countSenalesOroHoy() : PriSe.countSenalesOroHoy();
+  return SupSe.countSenalesOroHoy();
 }
 
 // ── Contactos ─────────────────────────────────────────────────────────────────
 
-export function getContactos(opts?: Parameters<typeof PriCo.getContactos>[0]) {
-  return getDriver() === 'supabase' ? SupCo.getContactos(opts) : PriCo.getContactos(opts);
+export function getContactos(opts?: Parameters<typeof SupCo.getContactos>[0]) {
+  return SupCo.getContactos(opts);
 }
 
-export function getContactosCount(opts?: Parameters<typeof PriCo.getContactosCount>[0]) {
-  return getDriver() === 'supabase'
-    ? SupCo.getContactosCount(opts)
-    : PriCo.getContactosCount(opts);
+export function getContactosCount(opts?: Parameters<typeof SupCo.getContactosCount>[0]) {
+  return SupCo.getContactosCount(opts);
 }
 
 export function getContactosByEmpresa(empresaId: number) {
-  return getDriver() === 'supabase'
-    ? SupCo.getContactosByEmpresa(empresaId)
-    : PriCo.getContactosByEmpresa(empresaId);
+  return SupCo.getContactosByEmpresa(empresaId);
 }
 
-export function crearContacto(data: Parameters<typeof PriCo.crearContacto>[0]) {
-  return getDriver() === 'supabase' ? SupCo.crearContacto(data) : PriCo.crearContacto(data);
+export function crearContacto(data: Parameters<typeof SupCo.crearContacto>[0]) {
+  return SupCo.crearContacto(data);
 }
 
-export function importarContactos(contactos: Parameters<typeof PriCo.importarContactos>[0]) {
-  return getDriver() === 'supabase'
-    ? SupCo.importarContactos(contactos)
-    : PriCo.importarContactos(contactos);
+export function importarContactos(contactos: Parameters<typeof SupCo.importarContactos>[0]) {
+  return SupCo.importarContactos(contactos);
 }
 
-export function actualizarContacto(id: number, data: Parameters<typeof PriCo.actualizarContacto>[1]) {
-  return getDriver() === 'supabase'
-    ? SupCo.actualizarContacto(id, data)
-    : PriCo.actualizarContacto(id, data);
+export function actualizarContacto(id: number, data: Parameters<typeof SupCo.actualizarContacto>[1]) {
+  return SupCo.actualizarContacto(id, data);
 }
 
 export function actualizarHubSpotStatus(id: number, status: string, hubspotId?: string) {
-  return getDriver() === 'supabase'
-    ? SupCo.actualizarHubSpotStatus(id, status, hubspotId)
-    : PriCo.actualizarHubSpotStatus(id, status, hubspotId);
+  return SupCo.actualizarHubSpotStatus(id, status, hubspotId);
 }
 
 export function eliminarContacto(id: number) {
-  return getDriver() === 'supabase' ? SupCo.eliminarContacto(id) : PriCo.eliminarContacto(id);
+  return SupCo.eliminarContacto(id);
 }
 
 // ── Prospección ───────────────────────────────────────────────────────────────
 
-export function crearProspeccionLogs(entries: Parameters<typeof PriPr.crearProspeccionLogs>[0]) {
-  return getDriver() === 'supabase'
-    ? SupPr.crearProspeccionLogs(entries)
-    : PriPr.crearProspeccionLogs(entries);
+export function crearProspeccionLogs(entries: Parameters<typeof SupPr.crearProspeccionLogs>[0]) {
+  return SupPr.crearProspeccionLogs(entries);
 }
 
-export function getProspeccionLogs(filter: Parameters<typeof PriPr.getProspeccionLogs>[0]) {
-  return getDriver() === 'supabase'
-    ? SupPr.getProspeccionLogs(filter)
-    : PriPr.getProspeccionLogs(filter);
+export function getProspeccionLogs(filter: Parameters<typeof SupPr.getProspeccionLogs>[0]) {
+  return SupPr.getProspeccionLogs(filter);
 }
 
-export function actualizarProspeccionLog(id: number, data: Parameters<typeof PriPr.actualizarProspeccionLog>[1]) {
-  return getDriver() === 'supabase'
-    ? SupPr.actualizarProspeccionLog(id, data)
-    : PriPr.actualizarProspeccionLog(id, data);
+export function actualizarProspeccionLog(id: number, data: Parameters<typeof SupPr.actualizarProspeccionLog>[1]) {
+  return SupPr.actualizarProspeccionLog(id, data);
 }

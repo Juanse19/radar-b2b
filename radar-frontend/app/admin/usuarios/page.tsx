@@ -51,9 +51,9 @@ function UserAvatar({ nombre, rol }: { nombre: string; rol: AdminUser['rol'] }) 
     .join('');
 
   const bgClasses: Record<AdminUser['rol'], string> = {
-    ADMIN:     'bg-purple-600 text-white',
-    COMERCIAL: 'bg-blue-600 text-white',
-    AUXILIAR:  'bg-gray-500 text-white',
+    ADMIN:     'bg-secondary text-secondary-foreground',
+    COMERCIAL: 'bg-primary text-primary-foreground',
+    AUXILIAR:  'bg-muted text-muted-foreground',
   };
 
   return (
@@ -70,9 +70,9 @@ function UserAvatar({ nombre, rol }: { nombre: string; rol: AdminUser['rol'] }) 
 
 function RolBadge({ rol }: { rol: AdminUser['rol'] }) {
   const classes: Record<AdminUser['rol'], string> = {
-    ADMIN:     'bg-purple-500/15 text-purple-700 border border-purple-300/50',
-    COMERCIAL: 'bg-blue-500/15 text-blue-700 border border-blue-300/50',
-    AUXILIAR:  'bg-gray-500/15 text-gray-600 border border-gray-300/50',
+    ADMIN:     'bg-secondary/15 text-secondary border border-secondary/30',
+    COMERCIAL: 'bg-primary/15 text-primary border border-primary/30',
+    AUXILIAR:  'bg-muted text-muted-foreground border border-border',
   };
   const labels: Record<AdminUser['rol'], string> = {
     ADMIN:     'Administrador',
@@ -198,7 +198,7 @@ function CreateUsuarioDialog({ open, onClose, onSubmit, isPending }: CreateDialo
             type="submit"
             form="create-user-form"
             disabled={isPending || !isValid}
-            className="gap-2 bg-[#142e47] hover:bg-[#1a3a5c] text-white"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isPending && <Loader2 className="size-3.5 animate-spin" />}
             Crear usuario
@@ -301,7 +301,7 @@ function EditUsuarioDialog({ user, onClose, onSubmit, isPending }: EditDialogPro
             type="submit"
             form="edit-user-form"
             disabled={isPending || !nombre.trim()}
-            className="gap-2 bg-[#142e47] hover:bg-[#1a3a5c] text-white"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isPending && <Loader2 className="size-3.5 animate-spin" />}
             Guardar cambios
@@ -345,7 +345,7 @@ function DeleteConfirmDialog({ user, onClose, onConfirm, isPending }: DeleteDial
           <Button
             onClick={onConfirm}
             disabled={isPending}
-            className="gap-2 bg-[#941941] hover:bg-[#7a1435] text-white"
+            className="gap-2 bg-danger hover:bg-danger/90 text-white"
           >
             {isPending && <Loader2 className="size-3.5 animate-spin" />}
             Eliminar
@@ -428,7 +428,7 @@ function ChangePasswordDialog({ user, onClose, onSubmit, isPending }: ChangePass
             type="submit"
             form="change-pwd-form"
             disabled={isPending || !isValid}
-            className="gap-2 bg-[#142e47] hover:bg-[#1a3a5c] text-white"
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
           >
             {isPending && <Loader2 className="size-3.5 animate-spin" />}
             Cambiar contraseña
@@ -487,7 +487,7 @@ export default function AdminUsuariosPage() {
         </div>
         <Button
           onClick={() => setCreateOpen(true)}
-          className="gap-2 bg-[#142e47] hover:bg-[#1a3a5c] text-white"
+          className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
         >
           <Plus className="size-4" />
           Crear usuario

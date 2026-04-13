@@ -21,27 +21,25 @@ import { ClipboardCheck, Radar, Users } from 'lucide-react';
 
 export default function ScanPage() {
   return (
-    <div className="space-y-5 max-w-4xl">
-      <header className="space-y-1">
-        <h1 className="text-2xl font-bold text-foreground">Escanear</h1>
-        <p className="text-sm text-muted-foreground">
-          Dispara cada agente de forma individual sobre las empresas que elijas.
-          La cascada automática (Calificación → Radar → Prospección) corre desde
-          el módulo Cronograma.
+    <div className="space-y-6">
+      <header className="space-y-1 pb-4 border-b border-border">
+        <h1 className="heading-xl">Escanear</h1>
+        <p className="text-sm text-muted-foreground max-w-2xl">
+          Dispara los agentes de IA para detectar señales de inversión B2B en las 6 líneas de negocio.
         </p>
       </header>
 
-      <Tabs defaultValue="radar">
-        <TabsList variant="line">
-          <TabsTrigger value="calificador">
+      <Tabs defaultValue="radar" className="w-full">
+        <TabsList variant="line" className="w-full justify-start">
+          <TabsTrigger value="calificador" className="flex items-center gap-1.5">
             <ClipboardCheck size={14} />
             Calificación
           </TabsTrigger>
-          <TabsTrigger value="radar">
+          <TabsTrigger value="radar" className="flex items-center gap-1.5">
             <Radar size={14} />
             Radar
           </TabsTrigger>
-          <TabsTrigger value="prospector">
+          <TabsTrigger value="prospector" className="flex items-center gap-1.5">
             <Users size={14} />
             Prospección
           </TabsTrigger>

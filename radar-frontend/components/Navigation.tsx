@@ -10,7 +10,6 @@ import {
   Users,
   ChevronLeft,
   ChevronRight,
-  Signal,
   Shield,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -64,8 +63,14 @@ export function Navigation({ session }: { session: SessionUser | null }) {
 
           {/* Ícono cuando está colapsado */}
           {collapsed && (
-            <div className="mx-auto">
-              <Signal size={22} className="text-sidebar-primary" />
+            <div className="mx-auto flex items-center justify-center">
+              <Image
+                src="/matec-isotipo.png"
+                alt="Matec"
+                width={32}
+                height={32}
+                className="object-contain"
+              />
             </div>
           )}
 
