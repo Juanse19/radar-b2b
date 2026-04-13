@@ -169,42 +169,44 @@ async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof
       );
     }
 
-    // Fire all in parallel — n8n queues them; 10s per trigger is acceptable.
-    const fired = await Promise.allSettled(
-      dbRows.map(row =>
-        triggerRadar({
-          empresa:            row.company_name,
-          pais:               row.pais ?? 'Colombia',
-          linea_negocio:      row.linea_negocio ?? linea,
-          tier,
-          company_domain:     row.company_domain ?? '',
-          score_calificacion: score,
-        }),
-      ),
-    );
+    // Fire first empresa synchronously (for tracking), rest fire-and-forget.
+    const firstRow = dbRows[0]!;
+    const firstResult = await triggerRadar({
+      empresa:            firstRow.company_name,
+      pais:               firstRow.pais ?? 'Colombia',
+      linea_negocio:      firstRow.linea_negocio ?? linea,
+      tier,
+      company_domain:     firstRow.company_domain ?? '',
+      score_calificacion: score,
+    });
 
-    // Register each fired execution; return after first succeeds.
-    let firstId   = '';
-    let firstPid  = crypto.randomUUID();
-    for (let i = 0; i < fired.length; i++) {
-      const f   = fired[i]!;
-      const row = dbRows[i]!;
-      if (f.status !== 'fulfilled') continue;
-      const execId = f.value.executionId;
-      let pid = crypto.randomUUID();
-      try {
-        const e = await registrarEjecucion({
-          n8n_execution_id: execId,
-          linea_negocio:    linea || undefined,
-          batch_size:       1,
-          trigger_type:     'manual',
-          agent_type:       'radar',
-          parametros:       { empresa: row.company_name, pais: row.pais, tier, score_calificacion: score },
-        });
-        pid = e.pipeline_id;
-      } catch { /* swallow */ }
-      if (!firstId) { firstId = execId; firstPid = pid; }
+    // Remaining empresas: fire without awaiting (n8n queues them independently).
+    for (const row of dbRows.slice(1)) {
+      triggerRadar({
+        empresa:            row.company_name,
+        pais:               row.pais ?? 'Colombia',
+        linea_negocio:      row.linea_negocio ?? linea,
+        tier,
+        company_domain:     row.company_domain ?? '',
+        score_calificacion: score,
+      }).catch(() => { /* swallow — tracked via n8n UI */ });
     }
+
+    // Register ONE batch execution so the tray shows a single card.
+    let firstId  = firstResult.executionId;
+    let firstPid = crypto.randomUUID();
+    try {
+      const e = await registrarEjecucion({
+        n8n_execution_id: firstResult.executionId,
+        linea_negocio:    linea || undefined,
+        batch_size:       dbRows.length,
+        trigger_type:     'manual',
+        agent_type:       'radar',
+        parametros:       { empresa: `Lote ${dbRows.length} empresas`, pais: firstRow.pais, tier, score_calificacion: score },
+      });
+      firstId  = firstResult.executionId;
+      firstPid = e.pipeline_id;
+    } catch { /* swallow */ }
 
     void logActividad(session, 'disparo_agente',
       `Radar lote — ${linea} (${dbRows.length} empresas)`, 'ok',

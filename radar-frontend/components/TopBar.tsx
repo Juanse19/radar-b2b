@@ -30,20 +30,20 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
         <Menu className="w-5 h-5" />
       </button>
 
-      {/* Logo — oculto en mobile muy pequeño */}
+      {/* Logo + app name — solo en mobile (sm..md); en desktop el sidebar ya muestra el branding */}
       <Image
         src="/matec-logo.png"
         alt="Matec"
         width={80}
         height={22}
-        className="object-contain hidden sm:block"
+        className="object-contain hidden sm:block md:hidden"
       />
 
       {/* Separator */}
-      <div className="w-px h-5 bg-white/20 hidden sm:block" />
+      <div className="w-px h-5 bg-white/20 hidden sm:block md:hidden" />
 
       {/* Project name */}
-      <span className="text-[#71acd2] font-medium text-sm hidden sm:block">
+      <span className="text-[#71acd2] font-medium text-sm hidden sm:block md:hidden">
         Radar B2B
       </span>
 
