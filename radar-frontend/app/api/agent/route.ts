@@ -148,18 +148,74 @@ async function fireCalificador(body: BaseAgentBody, session: Awaited<ReturnType<
 
 async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof getCurrentSession>>) {
   const empresa = body.options?.empresa ?? body.empresas?.[0]?.nombre;
+  const linea   = body.linea ?? body.empresas?.[0]?.linea ?? '';
+  const tier    = body.options?.tier ?? 'MONITOREO';
+  const score   = body.options?.score_calificacion ?? 5;
+
+  // ── Batch / aleatorio mode: no empresa explicitly provided ──────────────────
   if (!empresa) {
-    return NextResponse.json(
-      { error: 'Para radar se requiere options.empresa o empresas[0].nombre' },
-      { status: 400 },
+    const batchSize = body.batchSize ?? 5;
+    if (!linea) {
+      return NextResponse.json(
+        { error: 'Para radar en modo lote se requiere linea' },
+        { status: 400 },
+      );
+    }
+    const dbRows = await getEmpresasParaEscaneo(linea, batchSize);
+    if (dbRows.length === 0) {
+      return NextResponse.json(
+        { error: `No hay empresas disponibles para radar en la línea ${linea}` },
+        { status: 400 },
+      );
+    }
+
+    // Fire all in parallel — n8n queues them; 10s per trigger is acceptable.
+    const fired = await Promise.allSettled(
+      dbRows.map(row =>
+        triggerRadar({
+          empresa:            row.company_name,
+          pais:               row.pais ?? 'Colombia',
+          linea_negocio:      row.linea_negocio ?? linea,
+          tier,
+          company_domain:     row.company_domain ?? '',
+          score_calificacion: score,
+        }),
+      ),
     );
+
+    // Register each fired execution; return after first succeeds.
+    let firstId   = '';
+    let firstPid  = crypto.randomUUID();
+    for (let i = 0; i < fired.length; i++) {
+      const f   = fired[i]!;
+      const row = dbRows[i]!;
+      if (f.status !== 'fulfilled') continue;
+      const execId = f.value.executionId;
+      let pid = crypto.randomUUID();
+      try {
+        const e = await registrarEjecucion({
+          n8n_execution_id: execId,
+          linea_negocio:    linea || undefined,
+          batch_size:       1,
+          trigger_type:     'manual',
+          agent_type:       'radar',
+          parametros:       { empresa: row.company_name, pais: row.pais, tier, score_calificacion: score },
+        });
+        pid = e.pipeline_id;
+      } catch { /* swallow */ }
+      if (!firstId) { firstId = execId; firstPid = pid; }
+    }
+
+    void logActividad(session, 'disparo_agente',
+      `Radar lote — ${linea} (${dbRows.length} empresas)`, 'ok',
+      { pipeline_id: firstPid, execution_id: firstId, agent: 'radar', linea, batch: dbRows.length });
+
+    return NextResponse.json({ execution_id: firstId, pipeline_id: firstPid });
   }
 
-  const pais          = body.options?.pais          ?? body.empresas?.[0]?.pais          ?? 'Colombia';
-  const linea         = body.linea                  ?? body.empresas?.[0]?.linea          ?? '';
-  const company_domain = body.options?.company_domain ?? body.empresas?.[0]?.dominio     ?? '';
-  const tier          = body.options?.tier          ?? 'MONITOREO';
-  const score         = body.options?.score_calificacion ?? 5;
+  // ── Single empresa mode ────────────────────────────────────────────────────
+  const pais           = body.options?.pais           ?? body.empresas?.[0]?.pais   ?? 'Colombia';
+  const company_domain = body.options?.company_domain ?? body.empresas?.[0]?.dominio ?? '';
 
   const result = await triggerRadar({
     empresa,
@@ -178,12 +234,7 @@ async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof
       batch_size:       1,
       trigger_type:     'manual',
       agent_type:       'radar',
-      parametros: {
-        empresa,
-        pais,
-        tier,
-        score_calificacion: score,
-      },
+      parametros: { empresa, pais, tier, score_calificacion: score },
     });
   } catch (dbErr) {
     console.error('[fireRadar] registrarEjecucion failed (non-blocking):', dbErr);
