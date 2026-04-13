@@ -16,7 +16,7 @@ import { useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useExecutionPolling } from '@/hooks/useExecutionPolling';
 import { StatusDot, type DotStatus } from './StatusDot';
-import { Plane, Radar as RadarIcon, Users, Square, type LucideIcon } from 'lucide-react';
+import { Plane, Radar as RadarIcon, Users, Square, X, type LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import type { AgentType, EjecucionRow } from '@/lib/db/types';
@@ -48,6 +48,19 @@ async function stopExecution(executionId: string): Promise<void> {
   if (!res.ok && res.status !== 207) {
     const data = await res.json().catch(() => ({}));
     throw new Error(data?.n8nError ?? `Error ${res.status}`);
+  }
+}
+
+/** Dismiss a stuck/timestamp execution by marking it as error in the DB. */
+async function dismissExecution(dbId: number): Promise<void> {
+  const res = await fetch(`/api/executions/${dbId}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ estado: 'error', error_msg: 'Descartado manualmente' }),
+  });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data?.error ?? `Error ${res.status}`);
   }
 }
 
@@ -169,7 +182,21 @@ export function AgentPipelineCardEmbedded({ agent: row, testId, onStop }: Embedd
     }
   }
 
-  const isTimestamp = /^\d{13}$/.test(row.n8n_execution_id ?? '');
+  const isTimestamp = /^\d{11,}$/.test(row.n8n_execution_id ?? '');
+  const [dismissing, setDismissing] = useState(false);
+
+  async function handleDismiss() {
+    setDismissing(true);
+    try {
+      await dismissExecution(row.id);
+      toast.success('Ejecución descartada');
+      await queryClient.invalidateQueries({ queryKey: ['inflight-executions'] });
+    } catch (err) {
+      toast.error(`No se pudo descartar: ${err instanceof Error ? err.message : 'Error'}`);
+    } finally {
+      setDismissing(false);
+    }
+  }
 
   return (
     <div
@@ -201,6 +228,23 @@ export function AgentPipelineCardEmbedded({ agent: row, testId, onStop }: Embedd
             >
               <Square size={10} className={stopping ? 'animate-pulse' : ''} />
               {stopping ? '…' : 'Detener'}
+            </button>
+          )}
+          {isRunning && isTimestamp && (
+            <button
+              type="button"
+              onClick={handleDismiss}
+              disabled={dismissing}
+              title="Descartar — sin tracking en tiempo real"
+              className={cn(
+                'flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium border transition-colors',
+                dismissing
+                  ? 'text-muted-foreground border-border cursor-wait'
+                  : 'text-amber-400 border-amber-800/60 hover:bg-amber-900/20',
+              )}
+            >
+              <X size={10} className={dismissing ? 'animate-pulse' : ''} />
+              {dismissing ? '…' : 'Descartar'}
             </button>
           )}
         </div>

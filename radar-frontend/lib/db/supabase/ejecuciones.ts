@@ -85,6 +85,22 @@ export async function getEjecucionById(idOrN8nId: string | number): Promise<Ejec
   return data ? toRow(data as SupabaseEjecucionRow) : null;
 }
 
+/** Executions running for longer than this are considered timed out (30 min). */
+const EXECUTION_TIMEOUT_MS = 30 * 60 * 1000;
+
+export async function resolveEjecucion(
+  id: number,
+  estado: 'success' | 'error' | 'timeout',
+  error_msg?: string,
+): Promise<void> {
+  const { error } = await adminDb.from('ejecuciones').update({
+    estado,
+    finished_at: new Date().toISOString(),
+    error_msg: error_msg ?? null,
+  }).eq('id', id);
+  if (error) throw new Error(`Supabase resolveEjecucion: ${error.message}`);
+}
+
 export async function getPipelines(opts: {
   status?: 'running' | 'all';
   limit?:  number;
@@ -99,16 +115,33 @@ export async function getPipelines(opts: {
   const { data, error } = await query;
   if (error) throw new Error(`Supabase getPipelines: ${error.message}`);
 
+  const now = Date.now();
+
+  // Auto-expire executions stuck in 'running' for > 30 minutes.
+  // Fire-and-forget — non-blocking, doesn't affect the response.
+  const stuckIds = (data ?? [])
+    .filter(r => (r.estado === 'running' || r.estado === 'waiting')
+      && (now - Date.parse(r.started_at)) > EXECUTION_TIMEOUT_MS)
+    .map(r => r.id);
+  if (stuckIds.length > 0) {
+    void adminDb.from('ejecuciones')
+      .update({ estado: 'timeout', finished_at: new Date().toISOString(), error_msg: 'Sin respuesta del agente (timeout 30 min)' })
+      .in('id', stuckIds);
+  }
+
+  const rows = (data ?? []) as SupabaseEjecucionRow[];
+
   const groups = new Map<string, EjecucionRow[]>();
-  for (const raw of (data ?? []) as SupabaseEjecucionRow[]) {
-    const row = toRow(raw);
+  for (const raw of rows) {
+    // Treat auto-expired rows as 'error' for UI purposes without waiting for DB update.
+    const isStuck = stuckIds.includes(raw.id);
+    const row = toRow({ ...raw, estado: isStuck ? 'error' : raw.estado });
     const key = row.pipeline_id ?? `solo-${row.id}`;
     const existing = groups.get(key) ?? [];
     existing.push(row);
     groups.set(key, existing);
   }
 
-  const now = Date.now();
   const pipelines: PipelineDTO[] = [];
   for (const [pipelineId, agents] of groups.entries()) {
     agents.sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at));

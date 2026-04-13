@@ -67,6 +67,17 @@ export async function registrarEjecucion(params: {
   return { id: row.id, pipeline_id: pipelineId };
 }
 
+export async function resolveEjecucion(
+  id: number,
+  estado: 'success' | 'error' | 'timeout',
+  error_msg?: string,
+): Promise<void> {
+  await prisma.ejecucion.update({
+    where: { id },
+    data: { estado, finished_at: new Date(), error_msg: error_msg ?? null },
+  });
+}
+
 export async function actualizarEjecucion(
   id: number,
   updates: Partial<{

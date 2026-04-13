@@ -14,8 +14,26 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { getExecutionStatus } from '@/lib/n8n';
-import { getEjecucionById, actualizarEjecucion } from '@/lib/db';
+import { getEjecucionById, actualizarEjecucion, resolveEjecucion } from '@/lib/db';
 import type { EjecucionRow } from '@/lib/db/types';
+
+/** PATCH /api/executions/[id] — manually resolve (dismiss) a stuck execution. */
+export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
+  const numericId = Number(id);
+  if (!Number.isFinite(numericId)) {
+    return NextResponse.json({ error: 'id debe ser numérico' }, { status: 400 });
+  }
+  try {
+    const body = await req.json() as { estado?: string; error_msg?: string };
+    const estado = (['success', 'error', 'timeout'].includes(body.estado ?? '') ? body.estado : 'error') as 'success' | 'error' | 'timeout';
+    await resolveEjecucion(numericId, estado, body.error_msg ?? 'Descartado manualmente');
+    return NextResponse.json({ ok: true });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : 'Error desconocido';
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
+}
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;

@@ -77,6 +77,12 @@ export function actualizarEjecucion(id: number, updates: Parameters<typeof PriEj
     : PriEj.actualizarEjecucion(id, updates);
 }
 
+export function resolveEjecucion(id: number, estado: 'success' | 'error' | 'timeout', error_msg?: string) {
+  return getDriver() === 'supabase'
+    ? SupEj.resolveEjecucion(id, estado, error_msg)
+    : PriEj.resolveEjecucion(id, estado, error_msg);
+}
+
 export function getEjecucionesRecientes(limit?: number) {
   return getDriver() === 'supabase'
     ? SupEj.getEjecucionesRecientes(limit)
