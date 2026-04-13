@@ -24,6 +24,23 @@ export async function loginAction(
     return { error: parsed.error.issues[0]?.message };
   }
 
+  // ── Dev bypass (solo en NODE_ENV=development) ──────────────────────────────
+  if (
+    process.env.NODE_ENV === 'development' &&
+    parsed.data.email === 'demo@matec.com' &&
+    parsed.data.password === 'demo123'
+  ) {
+    await setAppSession({
+      id: 'dev-user-001',
+      name: 'Demo Admin',
+      email: 'demo@matec.com',
+      role: 'ADMIN',
+      accessState: 'ACTIVO',
+    });
+    redirect('/');
+  }
+  // ──────────────────────────────────────────────────────────────────────────
+
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) {
     return { error: 'Supabase no configurado. Contacta al administrador.' };

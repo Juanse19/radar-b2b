@@ -23,7 +23,7 @@ function getSessionFromCookie(req: NextRequest): { role: UserRole } | null {
   }
 }
 
-export function middleware(req: NextRequest) {
+export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   // Allow public paths without any auth check

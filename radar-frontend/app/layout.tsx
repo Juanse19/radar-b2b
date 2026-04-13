@@ -2,10 +2,9 @@ import type { Metadata } from 'next';
 import { Barlow, Public_Sans, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import { AppShell } from '@/components/AppShell';
+import { AppShellLoader } from '@/components/AppShellLoader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { getCurrentSession } from '@/lib/auth/session';
 
 /* Barlow — títulos y headings (equivalente a Futura MDBT del manual de marca) */
 const displayFont = Barlow({
@@ -41,15 +40,13 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({ children }: { children: React.ReactNode }) {
-  const session = await getCurrentSession();
-
+export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${displayFont.variable} ${uiFont.variable} ${monoUiFont.variable} antialiased`}>
         <Providers>
           <TooltipProvider>
-            <AppShell session={session}>{children}</AppShell>
+            <AppShellLoader>{children}</AppShellLoader>
             <Toaster richColors position="top-right" />
           </TooltipProvider>
         </Providers>
