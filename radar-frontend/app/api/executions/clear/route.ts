@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
     let cleared = 0;
     for (const pipeline of pipelines) {
       for (const agent of pipeline.agents) {
-        if (agent.estado !== 'running' && agent.estado !== 'waiting') continue;
+        if (agent.estado !== 'running') continue;
         if (cutoffMs > 0 && now - Date.parse(agent.started_at) < cutoffMs) continue;
         try {
           await resolveEjecucion(agent.id, 'error', 'Descartado manualmente');

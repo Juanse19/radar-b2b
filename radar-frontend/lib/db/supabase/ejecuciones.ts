@@ -110,7 +110,7 @@ export async function getPipelines(opts: {
     .order('started_at', { ascending: false })
     .limit((opts.limit ?? 20) * 3);
   if (opts.status === 'running') {
-    query = query.in('estado', ['running', 'waiting']);
+    query = query.eq('estado', 'running');
   }
   const { data, error } = await query;
   if (error) throw new Error(`Supabase getPipelines: ${error.message}`);
@@ -120,7 +120,7 @@ export async function getPipelines(opts: {
   // Auto-expire executions stuck in 'running' for > 30 minutes.
   // Fire-and-forget — non-blocking, doesn't affect the response.
   const stuckIds = (data ?? [])
-    .filter(r => (r.estado === 'running' || r.estado === 'waiting')
+    .filter(r => r.estado === 'running'
       && (now - Date.parse(r.started_at)) > EXECUTION_TIMEOUT_MS)
     .map(r => r.id);
   if (stuckIds.length > 0) {
@@ -148,7 +148,7 @@ export async function getPipelines(opts: {
     const root = agents[0]!;
     const allDone = agents.every(a => a.estado === 'success' || a.estado === 'error');
     const anyError = agents.some(a => a.estado === 'error');
-    const anyRunning = agents.some(a => a.estado === 'running' || a.estado === 'waiting');
+    const anyRunning = agents.some(a => a.estado === 'running');
     const status: PipelineDTO['status'] =
       anyError && allDone ? 'error'
       : allDone ? 'success'

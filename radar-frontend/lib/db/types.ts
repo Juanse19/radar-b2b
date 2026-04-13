@@ -28,7 +28,7 @@ export interface EjecucionRow {
   n8n_execution_id: string | null;
   linea_negocio: string | null;
   batch_size: number | null;
-  estado: string; // 'running' | 'success' | 'error' | 'waiting'
+  estado: string; // 'running' | 'success' | 'error' | 'timeout'
   trigger_type: string; // 'manual' | 'scheduled' | 'cascade'
   parametros: Record<string, unknown> | null;
   error_msg: string | null;
@@ -51,7 +51,7 @@ export type AgentType = 'calificador' | 'radar' | 'prospector';
 export interface PipelineDTO {
   pipeline_id: string;
   started_at: string;
-  status: 'running' | 'success' | 'error' | 'partial' | 'waiting';
+  status: 'running' | 'success' | 'error' | 'partial' | 'timeout';
   agents: Array<EjecucionRow & { elapsed_seconds: number }>;
 }
 

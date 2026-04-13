@@ -46,7 +46,7 @@ export function useInflightExecutions(): UseInflightExecutionsResult {
     queryFn:  () => fetchJson<ApiResponse>('/api/executions?limit=20'),
     refetchInterval: (q) => {
       const data = q.state.data;
-      const anyRunning = !!data?.pipelines?.some(p => p.status === 'running' || p.status === 'waiting');
+      const anyRunning = !!data?.pipelines?.some(p => p.status === 'running');
       return anyRunning ? 4000 : 20000;
     },
   });
@@ -60,7 +60,7 @@ export function useInflightExecutions(): UseInflightExecutionsResult {
     const inflight: PipelineDTO[] = [];
     const recent:   PipelineDTO[] = [];
     for (const p of pipelines) {
-      if (p.status === 'running' || p.status === 'waiting') {
+      if (p.status === 'running') {
         inflight.push(p);
       } else {
         const age = now - Date.parse(p.started_at);
