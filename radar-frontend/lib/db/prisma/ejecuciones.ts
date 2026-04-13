@@ -147,6 +147,23 @@ export async function getPipelines(opts: {
   }
 
   const now = Date.now();
+  const TIMEOUT_MS = 10 * 60 * 1000;
+
+  // Auto-expire executions stuck in running/waiting for > 10 minutes.
+  const stuckIds = rows
+    .filter(r => (r.estado === 'running' || r.estado === 'waiting') && now - r.started_at.getTime() > TIMEOUT_MS)
+    .map(r => r.id);
+  if (stuckIds.length > 0) {
+    void prisma.ejecucion.updateMany({
+      where: { id: { in: stuckIds } },
+      data: { estado: 'error', error_msg: 'Timeout (10 min sin respuesta)', finished_at: new Date() },
+    });
+    // Update in-memory rows so current response is accurate.
+    for (const r of rows) {
+      if (stuckIds.includes(r.id)) { r.estado = 'error'; r.finished_at = new Date(); }
+    }
+  }
+
   const pipelines: PipelineDTO[] = [];
   for (const [pipelineId, agents] of groups.entries()) {
     agents.sort((a, b) => Date.parse(a.started_at) - Date.parse(b.started_at));

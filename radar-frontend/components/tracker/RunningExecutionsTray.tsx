@@ -14,8 +14,10 @@
 
 'use client';
 
+import { useState } from 'react';
 import { Popover } from '@base-ui/react/popover';
-import { Radar, X } from 'lucide-react';
+import { Radar, Trash2, Loader2, X } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { AgentPipelineCardEmbedded } from './AgentPipelineCard';
@@ -25,7 +27,26 @@ function pluralAgentes(n: number) {
 }
 
 export function RunningExecutionsTray() {
-  const { inflight, recent, anyRunning } = useInflightExecutions();
+  const { inflight, recent, anyRunning, invalidate } = useInflightExecutions();
+  const [clearing, setClearing] = useState(false);
+
+  async function handleClearAll() {
+    setClearing(true);
+    try {
+      const res = await fetch('/api/executions/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ olderThanMinutes: 0 }),
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      invalidate();
+      toast.success('Ejecuciones limpiadas');
+    } catch {
+      toast.error('Error al limpiar las ejecuciones');
+    } finally {
+      setClearing(false);
+    }
+  }
 
   // Hidden completely when there's nothing to show.
   if (inflight.length === 0 && recent.length === 0) return null;
@@ -71,12 +92,24 @@ export function RunningExecutionsTray() {
               <Popover.Title className="font-heading text-sm font-semibold text-foreground">
                 Ejecuciones de agentes
               </Popover.Title>
-              <Popover.Close
-                aria-label="Cerrar"
-                className="rounded-md p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
-              >
-                <X size={14} />
-              </Popover.Close>
+              <div className="flex items-center gap-1">
+                {inflight.length > 0 && (
+                  <button
+                    onClick={handleClearAll}
+                    disabled={clearing}
+                    className="flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-amber-500 border border-amber-700/40 hover:bg-amber-900/20 transition-colors disabled:opacity-50"
+                  >
+                    {clearing ? <Loader2 size={10} className="animate-spin" /> : <Trash2 size={10} />}
+                    {clearing ? '…' : 'Limpiar'}
+                  </button>
+                )}
+                <Popover.Close
+                  aria-label="Cerrar"
+                  className="rounded-md p-1 text-muted-foreground hover:bg-surface-muted hover:text-foreground"
+                >
+                  <X size={14} />
+                </Popover.Close>
+              </div>
             </header>
 
             {/* In-flight section */}
