@@ -39,10 +39,22 @@ export function AppShellLoader({ children }: { children: React.ReactNode }) {
   // Read cookie once after hydration — this pattern is intentional.
   // Cookies are a synchronous external store with no native event API,
   // so useEffect is the correct mechanism for a one-time post-mount read.
+  //
+  // Fallback: if matec_session_pub is absent (sessions created before the
+  // companion-cookie fix), fetch /api/session-pub which sets the pub cookie
+  // and returns the session so the sidebar renders immediately.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    setSession(readSessionFromCookie());
-    setReady(true);
+    const fromCookie = readSessionFromCookie();
+    if (fromCookie) {
+      setSession(fromCookie);
+      setReady(true);
+    } else {
+      fetch('/api/session-pub')
+        .then(r => (r.ok ? r.json() : null))
+        .then((s: SessionUser | null) => { setSession(s); setReady(true); })
+        .catch(() => setReady(true));
+    }
   }, []);
   /* eslint-enable react-hooks/set-state-in-effect */
 
