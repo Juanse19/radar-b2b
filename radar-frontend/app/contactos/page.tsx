@@ -797,10 +797,10 @@ export default function ContactosPage() {
         <div className="border-t border-border pt-6">
           <Tabs defaultValue="contactos">
             <TabsList className="bg-surface border border-border mb-5 h-9">
-              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-white text-sm px-5">
+              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Contactos
               </TabsTrigger>
-              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-white text-sm px-5">
+              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Log de Prospección
               </TabsTrigger>
             </TabsList>

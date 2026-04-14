@@ -181,6 +181,12 @@ function createClientesColumns(): ColumnDef<ClienteSheetRow>[] {
       cell: ({ getValue }) => <UrlCell url={getValue<string>()} />,
     },
     {
+      accessorKey: 'fechaNoticia',
+      header: 'F. Noticia',
+      sortingFn: 'basic',
+      cell: ({ getValue }) => <FechaCell fecha={getValue<string>()} />,
+    },
+    {
       accessorKey: 'fechaEscaneo',
       header: 'F. Escaneo',
       sortingFn: 'basic',
@@ -202,7 +208,7 @@ function createLogColumns(): ColumnDef<LogEmpresaRow>[] {
     },
     {
       accessorKey: 'radarActivo',
-      header: 'Estado',
+      header: 'Radar Activo',
       cell: ({ getValue }) => <RadarActivoBadge valor={getValue<string>()} />,
     },
     {

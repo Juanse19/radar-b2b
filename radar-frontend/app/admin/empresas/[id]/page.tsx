@@ -71,7 +71,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
     <div className="space-y-6 max-w-5xl mx-auto">
       {/* Back + Header */}
       <div>
-        <Link href="/admin/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-gray-200 hover:bg-surface-muted transition-colors">
+        <Link href="/admin/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-foreground hover:bg-surface-muted transition-colors">
           <ArrowLeft size={16} />
           Volver a Empresas
         </Link>
@@ -119,10 +119,10 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
       {/* Tabs */}
       <Tabs defaultValue="senales">
         <TabsList className="bg-surface-muted border border-border">
-          <TabsTrigger value="senales" className="data-[state=active]:bg-surface-muted data-[state=active]:text-white text-muted-foreground">
+          <TabsTrigger value="senales" className="data-[state=active]:bg-surface-muted data-[state=active]:text-foreground text-muted-foreground">
             Señales ({senales.length})
           </TabsTrigger>
-          <TabsTrigger value="contactos" className="data-[state=active]:bg-surface-muted data-[state=active]:text-white text-muted-foreground">
+          <TabsTrigger value="contactos" className="data-[state=active]:bg-surface-muted data-[state=active]:text-foreground text-muted-foreground">
             Contactos Apollo ({contactos.length})
           </TabsTrigger>
         </TabsList>
@@ -131,7 +131,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
         <TabsContent value="senales" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base">Historial de señales detectadas</CardTitle>
+              <CardTitle className="text-foreground text-base">Historial de señales detectadas</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loadingSignals ? (
@@ -179,7 +179,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
         <TabsContent value="contactos" className="mt-4">
           <Card>
             <CardHeader className="pb-3">
-              <CardTitle className="text-white text-base">Contactos Apollo extraídos</CardTitle>
+              <CardTitle className="text-foreground text-base">Contactos Apollo extraídos</CardTitle>
             </CardHeader>
             <CardContent className="p-0">
               {loadingContactos ? (
