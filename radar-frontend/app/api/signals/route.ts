@@ -5,16 +5,17 @@ import { getScoreTier } from '@/components/ScoreBadge';
 
 export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
-  const linea   = searchParams.get('linea')  ?? undefined;
-  const tier    = searchParams.get('tier')   ?? undefined;
-  const pais    = searchParams.get('pais')   ?? undefined;
-  const from    = searchParams.get('from')   ?? undefined;
-  const to      = searchParams.get('to')     ?? undefined;
-  const limit   = Math.min(Number(searchParams.get('limit')  ?? 100), 500);
-  const offset  = Number(searchParams.get('offset') ?? 0);
-  const sort    = searchParams.get('sort')   ?? 'score_radar';
-  const order   = searchParams.get('order') === 'asc' ? 'asc' : 'desc';
-  const activos = searchParams.get('activos') === 'true';
+  const linea     = searchParams.get('linea')      ?? undefined;
+  const tier      = searchParams.get('tier')       ?? undefined;
+  const pais      = searchParams.get('pais')       ?? undefined;
+  const from      = searchParams.get('from')       ?? undefined;
+  const to        = searchParams.get('to')         ?? undefined;
+  const limit     = Math.min(Number(searchParams.get('limit')  ?? 100), 500);
+  const offset    = Number(searchParams.get('offset') ?? 0);
+  const sort      = searchParams.get('sort')       ?? 'score_radar';
+  const order     = searchParams.get('order') === 'asc' ? 'asc' : 'desc';
+  const activos   = searchParams.get('activos') === 'true';
+  const empresaId = searchParams.get('empresa_id') ? Number(searchParams.get('empresa_id')) : undefined;
 
   try {
     // Map tier name → score filter
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     else if (tier === 'Monitoreo') { scoreGte = 5; scoreLt = 8; }
     else if (tier === 'Contexto')  { scoreGte = 1; scoreLt = 5; }
 
-    const senales = await getSenales({ linea, pais, activos, scoreGte, scoreLt, from, to, sort, order: order as 'asc' | 'desc', limit, offset });
+    const senales = await getSenales({ linea, pais, activos, scoreGte, scoreLt, from, to, sort, order: order as 'asc' | 'desc', limit, offset, empresaId });
 
     if (senales.length > 0) {
       return NextResponse.json(senales.map(s => ({
@@ -54,6 +55,10 @@ export async function GET(req: NextRequest) {
     const filtered = tier ? results.filter(r => getScoreTier(r.scoreRadar) === tier) : results;
     return NextResponse.json(filtered.map(r => ({ ...r, scoreTier: getScoreTier(r.scoreRadar) })));
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('does not exist') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      return NextResponse.json([]);
+    }
     console.error('[/api/signals] Error:', err);
     return NextResponse.json({ error: 'Error al obtener señales' }, { status: 500 });
   }

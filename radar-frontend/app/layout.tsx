@@ -1,8 +1,8 @@
 import type { Metadata } from 'next';
-import { Barlow, Public_Sans } from 'next/font/google';
+import { Barlow, Public_Sans, Inter } from 'next/font/google';
 import './globals.css';
 import { Providers } from './providers';
-import { Navigation } from '@/components/Navigation';
+import { AppShellLoader } from '@/components/AppShellLoader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
@@ -22,23 +22,31 @@ const uiFont = Public_Sans({
   display: 'swap',
 });
 
+/* Inter — tablas y datos numéricos densos */
+const monoUiFont = Inter({
+  variable: '--font-mono-ui',
+  subsets: ['latin'],
+  axes: ['opsz'],
+  display: 'swap',
+});
+
 export const metadata: Metadata = {
-  title: 'Radar B2B — Matec',
-  description: 'Panel de inteligencia comercial B2B para el equipo Matec LATAM',
+  title: 'Matec Radar B2B',
+  description: 'Sistema de Inteligencia Comercial LATAM',
+  icons: {
+    icon: '/favicon.ico',
+    shortcut: '/favicon-16x16.png',
+    apple: '/favicon-32x32.png',
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="es" suppressHydrationWarning>
-      <body className={`${displayFont.variable} ${uiFont.variable} antialiased`}>
+      <body className={`${displayFont.variable} ${uiFont.variable} ${monoUiFont.variable} antialiased`}>
         <Providers>
           <TooltipProvider>
-            <div className="flex min-h-screen bg-background text-foreground">
-              <Navigation />
-              <main className="flex-1 overflow-auto p-6">
-                {children}
-              </main>
-            </div>
+            <AppShellLoader>{children}</AppShellLoader>
             <Toaster richColors position="top-right" />
           </TooltipProvider>
         </Providers>

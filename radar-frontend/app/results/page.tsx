@@ -1,6 +1,7 @@
 'use client';
 
 import { Suspense, useState, useMemo, useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { toast } from 'sonner';
@@ -13,14 +14,26 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, ChevronLeft, ChevronRight, Activity, ClipboardCheck, Users, Radar } from 'lucide-react';
+import { Download, ChevronLeft, ChevronRight, Activity, ClipboardCheck, Users, Radar, X } from 'lucide-react';
+import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { EmptyState } from '@/components/EmptyState';
-import { SignalDetailSheet } from '@/components/results/SignalDetailSheet';
 import { Table2 } from 'lucide-react';
 import { LineaBadge } from '@/components/LineaBadge';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { TierBadge } from '@/components/TierBadge';
+import { ErrorState } from '@/components/ErrorState';
 import type { ResultadoRadar } from '@/lib/types';
+import { LINEAS_ACTIVAS } from '@/lib/lineas';
+import { fetchJson } from '@/lib/fetcher';
+
+// Sheet de detalle = Base UI Dialog + cadena de íconos. Pesa varios cientos de
+// KB y solo se necesita cuando el usuario hace click en una fila → cargarlo
+// perezosamente desbloquea el TTI de /results y reduce trabajo síncrono inicial.
+const SignalDetailSheet = dynamic(
+  () => import('@/components/results/SignalDetailSheet').then(m => m.SignalDetailSheet),
+  { ssr: false },
+);
 
 const TIER_OPTIONS = [
   { value: 'ALL',       label: 'Todos los tiers' },
@@ -32,15 +45,16 @@ const TIER_OPTIONS = [
 
 const POR_PAGINA = 50;
 
-const LINEA_FILTER_OPTIONS = [
-  { value: 'ALL',            label: 'Todas',             color: 'text-muted-foreground',    dot: 'bg-gray-400' },
-  { value: 'BHS',            label: '✈️ BHS',            color: 'text-blue-600',    dot: 'bg-blue-500' },
-  { value: 'Cartón',         label: '📦 Cartón',         color: 'text-amber-600',   dot: 'bg-amber-500' },
-  { value: 'Intralogística', label: '🏭 Intralogística', color: 'text-emerald-600', dot: 'bg-emerald-500' },
-  { value: 'Final de Línea', label: '📤 Final de Línea', color: 'text-violet-600',  dot: 'bg-violet-500' },
-  { value: 'Motos',          label: '🏍️ Motos',          color: 'text-orange-600',  dot: 'bg-orange-500' },
-  { value: 'SOLUMAT',        label: '🔧 SOLUMAT',        color: 'text-cyan-600',    dot: 'bg-cyan-500' },
+const LINEA_FILTER_OPTIONS_ALL = [
+  { value: 'ALL',            label: 'Todas',             color: 'text-gray-200',    dot: 'bg-gray-400' },
+  { value: 'BHS',            label: '✈️ BHS',            color: 'text-blue-400',    dot: 'bg-blue-500' },
+  { value: 'Cartón',         label: '📦 Cartón',         color: 'text-amber-400',   dot: 'bg-amber-500' },
+  { value: 'Intralogística', label: '🏭 Intralogística', color: 'text-emerald-400', dot: 'bg-emerald-500' },
 ];
+
+const LINEA_FILTER_OPTIONS = LINEA_FILTER_OPTIONS_ALL.filter(
+  o => o.value === 'ALL' || (LINEAS_ACTIVAS as readonly string[]).includes(o.value),
+);
 
 // ── Loading skeleton shown while Suspense waits for useSearchParams ────────────
 
@@ -55,7 +69,7 @@ function ResultsLoadingSkeleton() {
         <div className="h-9 bg-surface-muted rounded w-32 animate-pulse" />
       </div>
       <div className="border-b border-border h-12 animate-pulse" />
-      <div className="divide-y divide-border">
+      <div className="divide-y divide-gray-800/50">
         {Array.from({ length: 8 }).map((_, i) => (
           <div key={i} className="flex gap-4 px-4 py-4 animate-pulse">
             <div className="h-4 bg-surface-muted rounded w-40" />
@@ -86,6 +100,9 @@ function ResultsInner() {
   const [sorting,     setSorting]     = useState<SortingState>([{ id: 'scoreRadar', desc: true }]);
   const [detailSignal, setDetailSignal] = useState<ResultadoRadar | null>(null);
   const [activeTab, setActiveTab] = useState<'signals' | 'calificacion' | 'radar' | 'contactos'>('signals');
+  // Re-scan state: { executionId, empresa } set when user fires Radar from a row.
+  const [rescan, setRescan] = useState<{ executionId: string; empresa: string } | null>(null);
+  const { invalidate: invalidateTray } = useInflightExecutions();
 
   // Sincronizar con el query param inicial
   useEffect(() => { setTierFiltro(tierParam); }, [tierParam]);
@@ -101,14 +118,41 @@ function ResultsInner() {
     return `/api/signals?${p}`;
   }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta]);
 
-  const { data: rawResults = [], isLoading } = useQuery<ResultadoRadar[]>({
+  const {
+    data: rawResults = [],
+    isLoading,
+    error: signalsError,
+    refetch: refetchSignals,
+  } = useQuery<ResultadoRadar[]>({
     queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta],
-    queryFn: () => fetch(signalUrl).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(signalUrl);
+      return Array.isArray(data) ? (data as ResultadoRadar[]) : [];
+    },
   });
 
-  const { data: contactos = [], isLoading: loadingContactos } = useQuery({
+  // Nota: el toast era redundante porque <ErrorState> ya muestra el error
+  // inline con botón "Reintentar". Dos efectos UI por el mismo error solo
+  // añaden ruido y trabajo extra al main thread.
+
+  const contactosUrl = useMemo(() => {
+    const p = new URLSearchParams();
+    if (lineaFiltro !== 'ALL') p.set('linea', lineaFiltro);
+    p.set('limit', '200');
+    return `/api/contacts?${p}`;
+  }, [lineaFiltro]);
+
+  const {
+    data: contactos = [],
+    isLoading: loadingContactos,
+    error: contactosError,
+    refetch: refetchContactos,
+  } = useQuery({
     queryKey: ['contacts', lineaFiltro],
-    queryFn: () => fetch(`/api/contacts?${lineaFiltro !== 'ALL' ? `linea=${encodeURIComponent(lineaFiltro)}&` : ''}limit=200`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(contactosUrl);
+      return Array.isArray(data) ? data : [];
+    },
     enabled: activeTab === 'contactos',
   });
 
@@ -124,17 +168,40 @@ function ResultsInner() {
   }, [rawResults, busqueda]);
 
   const totalPaginas = Math.ceil(results.length / POR_PAGINA);
-  const paginados = results.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
 
-  const columns = useMemo(() => createResultsColumns((signal) => setDetailSignal(signal)), []);
+  // CRÍTICO: paginados DEBE estar memoizado. useReactTable usa `data` como
+  // parte de su estado interno y recalcula row models si la referencia
+  // cambia. Sin useMemo creábamos un slice nuevo en CADA render → cascada
+  // de re-renders → main thread saturado → freeze.
+  const paginados = useMemo(
+    () => results.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
+    [results, pagina],
+  );
+
+  const columns = useMemo(
+    () => createResultsColumns(
+      (signal) => setDetailSignal(signal),
+      (execId, empresa) => {
+        setRescan({ executionId: execId, empresa });
+        invalidateTray(); // wake the global tray
+      },
+    ),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [],
+  );
+
+  // Los row models también deben memoizarse — son funciones que retornan
+  // funciones nuevas en cada render si no se cachean.
+  const coreRowModel   = useMemo(() => getCoreRowModel<ResultadoRadar>(),   []);
+  const sortedRowModel = useMemo(() => getSortedRowModel<ResultadoRadar>(), []);
 
   const table = useReactTable({
     data: paginados,
     columns,
     state: { sorting },
     onSortingChange: setSorting,
-    getCoreRowModel:   getCoreRowModel(),
-    getSortedRowModel: getSortedRowModel(),
+    getCoreRowModel:   coreRowModel,
+    getSortedRowModel: sortedRowModel,
   });
 
   function exportarCSV() {
@@ -159,28 +226,48 @@ function ResultsInner() {
   const conSenalCount   = rawResults.filter(r => r.radarActivo === 'Sí').length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 min-w-0">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground">Resultados del Radar</h1>
           <p className="text-muted-foreground text-sm mt-1">
             {lineaFiltro !== 'ALL' ? (
               <span className="font-medium text-foreground">{lineaFiltro}</span>
             ) : 'Todas las líneas'}
             {' · '}{results.length} empresa{results.length !== 1 ? 's' : ''}
-            {conSenalCount > 0 && <> · <span className="text-green-600">{conSenalCount} con señal</span></>}
-            {oroCount > 0 && <> · <span className="text-yellow-600">★ {oroCount} ORO</span></>}
+            {conSenalCount > 0 && <> · <span className="text-green-400">{conSenalCount} con señal</span></>}
+            {oroCount > 0 && <> · <span className="text-yellow-400">★ {oroCount} ORO</span></>}
           </p>
         </div>
-        <Button onClick={exportarCSV} variant="outline" className="border-border text-muted-foreground hover:bg-surface-muted gap-2">
+        <Button onClick={exportarCSV} variant="outline" className="border-border text-muted-foreground hover:bg-surface-muted gap-2 sm:self-auto self-start">
           <Download size={15} />
           Exportar CSV
         </Button>
       </div>
 
+      {/* ── Re-scan in-progress banner ── */}
+      {rescan && (
+        <div className="flex items-start gap-3 rounded-xl border border-violet-800/60 bg-violet-950/20 p-3">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-violet-300 mb-1.5">
+              Radar en curso · {rescan.empresa}
+            </p>
+            <AgentPipelineCard executionId={rescan.executionId} />
+          </div>
+          <button
+            type="button"
+            onClick={() => setRescan(null)}
+            className="text-muted-foreground hover:text-foreground mt-0.5 shrink-0"
+            title="Cerrar"
+          >
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       {/* ── Tabs nivel 1: Líneas de negocio ── */}
-      <div className="border-b border-border">
+      <div className="border-b border-border -mx-4 sm:mx-0 px-4 sm:px-0">
         <div className="flex gap-0 overflow-x-auto">
           {LINEA_FILTER_OPTIONS.map(({ value, label, color, dot }) => {
             const isActive = lineaFiltro === value;
@@ -203,7 +290,7 @@ function ResultsInner() {
       </div>
 
       {/* ── Tabs nivel 2: Tipo de datos ── */}
-      <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border w-fit">
+      <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border w-fit max-w-full overflow-x-auto">
         {[
           { id: 'signals',      label: 'Señales',      Icon: Activity },
           { id: 'calificacion', label: 'Calificación', Icon: ClipboardCheck },
@@ -215,8 +302,8 @@ function ResultsInner() {
             onClick={() => setActiveTab(tab.id as 'signals' | 'calificacion' | 'radar' | 'contactos')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
               activeTab === tab.id
-                ? 'bg-blue-600 text-white shadow-sm'
-                : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
+                ? 'bg-blue-600 text-foreground shadow-sm'
+                : 'text-muted-foreground hover:text-gray-200 hover:bg-surface-muted'
             }`}
           >
             <tab.Icon size={14} />
@@ -231,7 +318,7 @@ function ResultsInner() {
           placeholder="Buscar empresa, país, señal..."
           value={busqueda}
           onChange={e => { setBusqueda(e.target.value); setPagina(0); }}
-          className="bg-surface-muted border-border text-foreground w-56"
+          className="bg-surface-muted border-border text-foreground w-full sm:w-56"
         />
         <Select value={tierFiltro} onValueChange={v => { setTierFiltro(v ?? 'ALL'); setPagina(0); }}>
           <SelectTrigger className="bg-surface-muted border-border text-foreground w-44">
@@ -269,10 +356,17 @@ function ResultsInner() {
       {/* Tab: Señales */}
       {activeTab === 'signals' && (
         <>
+          {signalsError ? (
+            <ErrorState
+              error={signalsError}
+              onRetry={() => refetchSignals()}
+              title="No se pudieron cargar las señales"
+            />
+          ) : (
           <Card>
             <CardContent className="p-0">
               {isLoading ? (
-                <div className="divide-y divide-border">
+                <div className="divide-y divide-gray-800/50">
                   {Array.from({ length: 8 }).map((_, i) => (
                     <div key={i} className="flex gap-4 px-4 py-4 animate-pulse">
                       <div className="h-4 bg-surface-muted rounded w-40" />
@@ -304,15 +398,15 @@ function ResultsInner() {
                             >
                               <div className="flex items-center gap-1">
                                 {flexRender(header.column.columnDef.header, header.getContext())}
-                                {header.column.getIsSorted() === 'asc' && <span className="text-blue-600">↑</span>}
-                                {header.column.getIsSorted() === 'desc' && <span className="text-blue-600">↓</span>}
+                                {header.column.getIsSorted() === 'asc' && <span className="text-blue-400">↑</span>}
+                                {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
                               </div>
                             </th>
                           ))}
                         </tr>
                       ))}
                     </thead>
-                    <tbody className="divide-y divide-border">
+                    <tbody className="divide-y divide-gray-800/50">
                       {table.getRowModel().rows.map(row => (
                         <tr
                           key={row.id}
@@ -332,8 +426,9 @@ function ResultsInner() {
               )}
             </CardContent>
           </Card>
+          )}
 
-          {totalPaginas > 1 && (
+          {totalPaginas > 1 && !signalsError && (
             <div className="flex items-center justify-between">
               <span className="text-xs text-muted-foreground">
                 Página {pagina + 1} de {totalPaginas} · {results.length} resultados
@@ -365,15 +460,22 @@ function ResultsInner() {
 
       {/* Tab: Calificación */}
       {activeTab === 'calificacion' && (
+        signalsError ? (
+          <ErrorState
+            error={signalsError}
+            onRetry={() => refetchSignals()}
+            title="No se pudieron cargar los datos de calificación"
+          />
+        ) : (
         <Card>
           <CardContent className="p-0">
             {isLoading ? (
               <div className="p-8 text-center text-muted-foreground">Cargando datos de calificación...</div>
             ) : results.length === 0 ? (
               <div className="p-8 text-center">
-                <ClipboardCheck size={32} className="mx-auto text-muted-foreground mb-3" />
+                <ClipboardCheck size={32} className="mx-auto text-gray-600 mb-3" />
                 <p className="text-muted-foreground text-sm">No hay empresas calificadas aún.</p>
-                <p className="text-muted-foreground text-xs mt-1">Los registros aparecen aquí cuando el Agente Calificador procesa empresas.</p>
+                <p className="text-gray-600 text-xs mt-1">Los registros aparecen aquí cuando el Agente Calificador procesa empresas.</p>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -387,10 +489,10 @@ function ResultsInner() {
                     <th className="px-4 py-3 text-muted-foreground font-medium">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gray-800">
                   {results.map((r, i) => (
                     <tr key={i} className="hover:bg-surface-muted/50 transition-colors">
-                      <td className="px-4 py-2.5 text-foreground font-medium">{r.empresa}</td>
+                      <td className="px-4 py-2.5 text-gray-200 font-medium">{r.empresa}</td>
                       <td className="px-4 py-2.5 text-muted-foreground">{r.pais}</td>
                       <td className="px-4 py-2.5"><LineaBadge linea={r.linea} /></td>
                       <td className="px-4 py-2.5"><ScoreBadge score={r.scoreRadar} /></td>
@@ -403,17 +505,25 @@ function ResultsInner() {
             )}
           </CardContent>
         </Card>
+        )
       )}
 
       {/* Tab: Radar Log */}
       {activeTab === 'radar' && (
+        signalsError ? (
+          <ErrorState
+            error={signalsError}
+            onRetry={() => refetchSignals()}
+            title="No se pudo cargar el log del radar"
+          />
+        ) : (
         <div className="space-y-3">
           {isLoading ? (
             <div className="p-8 text-center text-muted-foreground">Cargando log del radar...</div>
           ) : results.filter(r => r.radarActivo === 'Sí').length === 0 ? (
             <Card>
               <CardContent className="p-8 text-center">
-                <Radar size={32} className="mx-auto text-muted-foreground mb-3" />
+                <Radar size={32} className="mx-auto text-gray-600 mb-3" />
                 <p className="text-muted-foreground text-sm">No hay señales detectadas aún.</p>
               </CardContent>
             </Card>
@@ -433,7 +543,7 @@ function ResultsInner() {
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">{r.fechaEscaneo}</p>
-                      <p className="text-xs text-muted-foreground mt-1">{r.pais}</p>
+                      <p className="text-xs text-gray-600 mt-1">{r.pais}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -441,19 +551,27 @@ function ResultsInner() {
             ))
           )}
         </div>
+        )
       )}
 
       {/* Tab: Contactos */}
       {activeTab === 'contactos' && (
+        contactosError ? (
+          <ErrorState
+            error={contactosError}
+            onRetry={() => refetchContactos()}
+            title="No se pudieron cargar los contactos"
+          />
+        ) : (
         <Card>
           <CardContent className="p-0">
             {loadingContactos ? (
               <div className="p-8 text-center text-muted-foreground">Cargando contactos...</div>
             ) : contactos.length === 0 ? (
               <div className="p-8 text-center">
-                <Users size={32} className="mx-auto text-muted-foreground mb-3" />
+                <Users size={32} className="mx-auto text-gray-600 mb-3" />
                 <p className="text-muted-foreground text-sm">No hay contactos prospectados aún.</p>
-                <p className="text-muted-foreground text-xs mt-1">Los contactos aparecen cuando el Agente Prospector extrae datos de Apollo.io.</p>
+                <p className="text-gray-600 text-xs mt-1">Los contactos aparecen cuando el Agente Prospector extrae datos de Apollo.io.</p>
               </div>
             ) : (
               <table className="w-full text-sm">
@@ -467,7 +585,7 @@ function ResultsInner() {
                     <th className="px-4 py-3 text-muted-foreground font-medium">Fecha</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-border">
+                <tbody className="divide-y divide-gray-800">
                   {(contactos as Array<{
                     nombre?: string;
                     cargo?: string;
@@ -477,15 +595,15 @@ function ResultsInner() {
                     createdAt?: string;
                   }>).map((c, i) => (
                     <tr key={i} className="hover:bg-surface-muted/50 transition-colors">
-                      <td className="px-4 py-2.5 text-foreground font-medium">{c.nombre}</td>
+                      <td className="px-4 py-2.5 text-gray-200 font-medium">{c.nombre}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.cargo ?? '—'}</td>
                       <td className="px-4 py-2.5 text-muted-foreground text-xs">{c.empresaNombre ?? '—'}</td>
                       <td className="px-4 py-2.5">{c.lineaNegocio ? <LineaBadge linea={c.lineaNegocio} /> : '—'}</td>
                       <td className="px-4 py-2.5">
                         <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
-                          c.hubspotStatus === 'sincronizado' ? 'bg-green-50 text-green-700 border border-green-200' :
-                          c.hubspotStatus === 'error' ? 'bg-red-50 text-red-700 border border-red-200' :
-                          'bg-yellow-50 text-yellow-700 border border-yellow-200'
+                          c.hubspotStatus === 'sincronizado' ? 'bg-green-900/60 text-green-300' :
+                          c.hubspotStatus === 'error' ? 'bg-red-900/60 text-red-300' :
+                          'bg-yellow-900/60 text-yellow-300'
                         }`}>
                           {c.hubspotStatus}
                         </span>
@@ -498,6 +616,7 @@ function ResultsInner() {
             )}
           </CardContent>
         </Card>
+        )
       )}
 
       {/* Panel de detalle */}
