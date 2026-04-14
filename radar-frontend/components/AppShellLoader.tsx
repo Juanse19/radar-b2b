@@ -15,16 +15,17 @@ import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/AppShell';
 import type { SessionUser } from '@/lib/auth/types';
 
-const SESSION_COOKIE = 'matec_session';
+/** Non-httpOnly companion of matec_session — readable by document.cookie. */
+const SESSION_COOKIE_PUB = 'matec_session_pub';
 
 function readSessionFromCookie(): SessionUser | null {
   if (typeof document === 'undefined') return null;
   const match = document.cookie
     .split('; ')
-    .find(row => row.startsWith(SESSION_COOKIE + '='));
+    .find(row => row.startsWith(SESSION_COOKIE_PUB + '='));
   if (!match) return null;
   try {
-    const raw = match.slice(SESSION_COOKIE.length + 1);
+    const raw = match.slice(SESSION_COOKIE_PUB.length + 1);
     return JSON.parse(decodeURIComponent(raw)) as SessionUser;
   } catch {
     return null;

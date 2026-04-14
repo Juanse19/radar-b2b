@@ -6,6 +6,9 @@ import { getAdminDb } from '@/lib/db/supabase/admin';
 import type { SessionUser, UserRole, AccessState } from './types';
 
 const SESSION_COOKIE = 'matec_session';
+/** Non-httpOnly companion cookie — readable by document.cookie for UI rendering.
+ *  Security is unaffected: all server-side auth uses SESSION_COOKIE (httpOnly). */
+const SESSION_COOKIE_PUB = 'matec_session_pub';
 const MAX_AGE = 60 * 60 * 8; // 8 hours
 
 function normalizeRole(role?: string | null): UserRole {
@@ -20,18 +23,22 @@ function normalizeAccessState(state?: string | null): AccessState {
 
 export async function setAppSession(session: SessionUser): Promise<void> {
   const store = await cookies();
-  store.set(SESSION_COOKIE, JSON.stringify(session), {
-    httpOnly: true,
-    sameSite: 'lax',
+  const serialized = JSON.stringify(session);
+  const opts = {
+    sameSite: 'lax' as const,
     secure:   process.env.NODE_ENV === 'production',
     path:     '/',
     maxAge:   MAX_AGE,
-  });
+  };
+  store.set(SESSION_COOKIE, serialized, { ...opts, httpOnly: true });
+  // Non-httpOnly companion so AppShellLoader can read it via document.cookie.
+  store.set(SESSION_COOKIE_PUB, serialized, { ...opts, httpOnly: false });
 }
 
 export async function clearSession(): Promise<void> {
   const store = await cookies();
   store.delete(SESSION_COOKIE);
+  store.delete(SESSION_COOKIE_PUB);
 }
 
 export async function resolveSessionFromSupabaseUser(input: {
