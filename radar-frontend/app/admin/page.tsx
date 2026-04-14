@@ -55,7 +55,7 @@ export default async function AdminPage() {
   const stats = await getStats();
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <header>
         <h1 className="text-2xl font-bold text-foreground">Administración</h1>
         <p className="text-sm text-muted-foreground mt-1">Panel de control del sistema Matec Radar B2B</p>

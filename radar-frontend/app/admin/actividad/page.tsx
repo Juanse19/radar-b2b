@@ -61,7 +61,7 @@ export default function ActividadPage() {
   });
 
   return (
-    <div className="space-y-5 max-w-5xl">
+    <div className="space-y-5 max-w-5xl mx-auto">
       <AdminBreadcrumb
         crumbs={[
           { label: 'Administración', href: '/admin' },

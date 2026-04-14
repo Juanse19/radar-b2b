@@ -11,7 +11,7 @@ import { ExecutionStatusBadge } from '@/components/ExecutionStatus';
 import { KPIGrid } from '@/components/dashboard/KPIGrid';
 import { SystemStatus } from '@/components/dashboard/SystemStatus';
 import type { ResultadoRadar } from '@/lib/types';
-import { fetchJson, fetchJsonSafe } from '@/lib/fetcher';
+import { fetchJsonSafe } from '@/lib/fetcher';
 
 // Charts pesados con Recharts (~150KB) → lazy.
 // Skeleton mientras cargan: una caja con la altura final para evitar layout shift.
@@ -56,7 +56,11 @@ export default function DashboardPage() {
   // Estadísticas para charts
   const { data: stats, isLoading: loadingStats } = useQuery<SignalStats>({
     queryKey: ['signals', 'stats'],
-    queryFn: () => fetchJson<SignalStats>('/api/signals/stats'),
+    queryFn: () => fetchJsonSafe<SignalStats>('/api/signals/stats', {
+      total: 0, activos: 0, oroHoy: 0,
+      tierCounts: { ORO: 0, Monitoreo: 0, Contexto: 0, 'Sin Señal': 0 },
+      lineaCounts: {},
+    }),
     staleTime: 2 * 60 * 1000,
   });
 
@@ -65,7 +69,8 @@ export default function DashboardPage() {
     queryKey: ['contactos', 'count'],
     queryFn: async () => {
       const d = await fetchJsonSafe<{ total?: number }>('/api/contacts?count=true', { total: 0 });
-      return d.total ?? 0;
+      const val = (d as Record<string, unknown>)?.total;
+      return typeof val === 'number' ? val : 0;
     },
     staleTime: 5 * 60 * 1000,
   });

@@ -68,7 +68,7 @@ export default function EmpresaDetailPage({ params }: { params: Promise<{ id: st
   const empresa = empresas.find(e => e.id === id);
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       {/* Back + Header */}
       <div>
         <Link href="/admin/empresas" className="inline-flex items-center gap-2 px-3 py-2 -ml-2 mb-3 rounded-lg text-sm text-muted-foreground hover:text-gray-200 hover:bg-surface-muted transition-colors">

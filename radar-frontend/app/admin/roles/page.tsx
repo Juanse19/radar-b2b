@@ -882,7 +882,7 @@ export default function RolesPage() {
   const [activeTab, setActiveTab] = useState<TabId>('descripcion');
 
   return (
-    <div className="space-y-6 max-w-4xl">
+    <div className="space-y-6 max-w-4xl mx-auto">
       <AdminBreadcrumb
         crumbs={[
           { label: 'Administración', href: '/admin' },

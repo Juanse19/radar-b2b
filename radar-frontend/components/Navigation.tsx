@@ -29,7 +29,7 @@ const navItems = [
   { href: '/schedule',          label: 'Cronograma',        icon: Calendar },
 ];
 
-const adminNavItem = { href: '/admin', label: 'Admin', icon: Shield };
+const adminNavItem = { href: '/admin', label: 'Administración', icon: Shield };
 
 export function Navigation({ session }: { session: SessionUser | null }) {
   const pathname = usePathname();

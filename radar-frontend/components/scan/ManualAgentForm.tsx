@@ -269,15 +269,15 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
   // ── Render ───────────────────────────────────────────────────────────────
   return (
-    <div className="space-y-5">
+    <div className="space-y-4">
       {/* Header */}
-      <header className="space-y-1">
+      <header>
         <h2 className="text-lg font-semibold text-foreground">{meta.title}</h2>
         <p className="text-sm text-muted-foreground">{meta.subtitle}</p>
       </header>
 
       {/* Línea selector */}
-      <section className="space-y-2">
+      <section className="space-y-1.5">
         <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
           Línea de negocio
         </label>
@@ -331,7 +331,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
       {/* Source mode toggle: Base de datos | CSV */}
       <section>
-        <div className="flex items-center gap-1 p-1 rounded-lg bg-surface-muted/60 border border-border w-fit">
+        <div className="flex items-center gap-1 p-0.5 rounded-lg bg-surface-muted/60 border border-border w-fit">
           <button
             type="button"
             onClick={() => { setCsvMode(false); clearCsv(); }}
@@ -355,6 +355,9 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         </div>
       </section>
 
+      {/* Empresa source + agent options — 2-col on desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-[1fr_280px] gap-4 items-start">
+
       {/* CSV import panel */}
       {csvMode ? (
         <section className="space-y-3">
@@ -364,7 +367,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
             </p>
             {/* Drop zone / file picker */}
             <div
-              className="relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border hover:border-blue-600/50 bg-surface-muted/20 px-4 py-8 cursor-pointer transition-colors"
+              className="relative flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-border hover:border-blue-600/50 bg-surface-muted/20 px-4 py-5 cursor-pointer transition-colors"
               onClick={() => fileInputRef.current?.click()}
               onDragOver={e => e.preventDefault()}
               onDrop={e => {
@@ -464,7 +467,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           </div>
 
           <Card>
-            <CardContent className="p-0 max-h-64 overflow-y-auto">
+            <CardContent className="p-0 max-h-52 overflow-y-auto">
               {loadingEmpresas ? (
                 <div className="p-2 space-y-1">
                   {Array.from({ length: 5 }).map((_, i) => (
@@ -521,7 +524,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         </section>
       )}
 
-      {/* Agent-specific options */}
+      {/* Agent-specific options (right column on desktop) */}
       <section className="space-y-3">
         {/* Batch size: shown for all agents when in BD mode and no manual selection */}
         {!csvMode && effectiveEmpresas.length === 0 && (
@@ -603,8 +606,10 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         )}
       </section>
 
+      </div>{/* /grid 2-col */}
+
       {/* Fire button + status */}
-      <section className="space-y-3 pt-1">
+      <section className="space-y-3">
         {hasInflight && (
           <div className="flex items-center gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-800 dark:bg-amber-950/20 dark:text-amber-200">
             <AlertTriangle size={14} />

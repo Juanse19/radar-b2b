@@ -39,14 +39,14 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
         alt="Matec"
         width={80}
         height={22}
-        className="object-contain hidden sm:block md:hidden"
+        className="object-contain"
       />
 
       {/* Separator */}
-      <div className="w-px h-5 bg-white/20 hidden sm:block md:hidden" />
+      <div className="w-px h-5 bg-white/20" />
 
       {/* Project name */}
-      <span className="text-sidebar-primary font-medium text-sm hidden sm:block md:hidden">
+      <span className="text-sidebar-primary font-medium text-sm">
         Radar B2B
       </span>
 
