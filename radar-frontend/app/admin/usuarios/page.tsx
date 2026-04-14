@@ -469,7 +469,7 @@ export default function AdminUsuariosPage() {
   const skeletonColSpan = 7;
 
   return (
-    <div className="space-y-6 max-w-5xl">
+    <div className="space-y-6 max-w-5xl mx-auto">
       <AdminBreadcrumb
         crumbs={[
           { label: 'Administración', href: '/admin' },

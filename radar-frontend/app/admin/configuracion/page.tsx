@@ -62,7 +62,7 @@ export default function ConfiguracionPage() {
   }
 
   return (
-    <div className="space-y-5 max-w-3xl">
+    <div className="space-y-5 max-w-3xl mx-auto">
       <AdminBreadcrumb
         crumbs={[
           { label: 'Administración', href: '/admin' },

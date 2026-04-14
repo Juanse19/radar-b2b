@@ -10,11 +10,12 @@ import {
   flexRender, type SortingState,
 } from '@tanstack/react-table';
 import { createResultsColumns } from './columns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, ChevronLeft, ChevronRight, Activity, ClipboardCheck, Users, Radar, X } from 'lucide-react';
+import { Download, Activity, ClipboardCheck, Users, Radar, X } from 'lucide-react';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { EmptyState } from '@/components/EmptyState';
@@ -23,6 +24,7 @@ import { LineaBadge } from '@/components/LineaBadge';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { TierBadge } from '@/components/TierBadge';
 import { ErrorState } from '@/components/ErrorState';
+import { TablePagination } from '@/components/ui/table-pagination';
 import type { ResultadoRadar } from '@/lib/types';
 import { LINEAS_ACTIVAS } from '@/lib/lineas';
 import { fetchJson } from '@/lib/fetcher';
@@ -43,7 +45,7 @@ const TIER_OPTIONS = [
   { value: 'Sin Señal', label: 'Sin Señal' },
 ];
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 
 const LINEA_FILTER_OPTIONS_ALL = [
   { value: 'ALL',            label: 'Todas',             color: 'text-gray-200',    dot: 'bg-gray-400' },
@@ -97,6 +99,7 @@ function ResultsInner() {
   const [desde,       setDesde]       = useState('');
   const [hasta,       setHasta]       = useState('');
   const [pagina,      setPagina]      = useState(0);
+  const [pageSize,    setPageSize]    = useState(DEFAULT_PAGE_SIZE);
   const [sorting,     setSorting]     = useState<SortingState>([{ id: 'scoreRadar', desc: true }]);
   const [detailSignal, setDetailSignal] = useState<ResultadoRadar | null>(null);
   const [activeTab, setActiveTab] = useState<'signals' | 'calificacion' | 'radar' | 'contactos'>('signals');
@@ -167,15 +170,15 @@ function ResultsInner() {
     );
   }, [rawResults, busqueda]);
 
-  const totalPaginas = Math.ceil(results.length / POR_PAGINA);
+  const totalPaginas = Math.ceil(results.length / pageSize);
 
   // CRÍTICO: paginados DEBE estar memoizado. useReactTable usa `data` como
   // parte de su estado interno y recalcula row models si la referencia
   // cambia. Sin useMemo creábamos un slice nuevo en CADA render → cascada
   // de re-renders → main thread saturado → freeze.
   const paginados = useMemo(
-    () => results.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
-    [results, pagina],
+    () => results.slice(pagina * pageSize, (pagina + 1) * pageSize),
+    [results, pagina, pageSize],
   );
 
   const columns = useMemo(
@@ -290,27 +293,25 @@ function ResultsInner() {
       </div>
 
       {/* ── Tabs nivel 2: Tipo de datos ── */}
-      <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border w-fit max-w-full overflow-x-auto">
-        {[
-          { id: 'signals',      label: 'Señales',      Icon: Activity },
-          { id: 'calificacion', label: 'Calificación', Icon: ClipboardCheck },
-          { id: 'radar',        label: 'Radar Log',    Icon: Radar },
-          { id: 'contactos',    label: 'Contactos',    Icon: Users },
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as 'signals' | 'calificacion' | 'radar' | 'contactos')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
-              activeTab === tab.id
-                ? 'bg-blue-600 text-foreground shadow-sm'
-                : 'text-muted-foreground hover:text-gray-200 hover:bg-surface-muted'
-            }`}
-          >
-            <tab.Icon size={14} />
-            {tab.label}
-          </button>
-        ))}
-      </div>
+      <Tabs
+        value={activeTab}
+        onValueChange={(v) => setActiveTab(v as 'signals' | 'calificacion' | 'radar' | 'contactos')}
+      >
+        <TabsList>
+          <TabsTrigger value="signals" className="flex items-center gap-2">
+            <Activity size={14} /> Señales
+          </TabsTrigger>
+          <TabsTrigger value="calificacion" className="flex items-center gap-2">
+            <ClipboardCheck size={14} /> Calificación
+          </TabsTrigger>
+          <TabsTrigger value="radar" className="flex items-center gap-2">
+            <Radar size={14} /> Radar Log
+          </TabsTrigger>
+          <TabsTrigger value="contactos" className="flex items-center gap-2">
+            <Users size={14} /> Contactos
+          </TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {/* Filtros secundarios */}
       <div className="flex gap-2 flex-wrap items-center">
@@ -429,31 +430,13 @@ function ResultsInner() {
           )}
 
           {totalPaginas > 1 && !signalsError && (
-            <div className="flex items-center justify-between">
-              <span className="text-xs text-muted-foreground">
-                Página {pagina + 1} de {totalPaginas} · {results.length} resultados
-              </span>
-              <div className="flex items-center gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina(p => Math.max(0, p - 1))}
-                  disabled={pagina === 0}
-                  className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                >
-                  <ChevronLeft size={14} /> Anterior
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setPagina(p => Math.min(totalPaginas - 1, p + 1))}
-                  disabled={pagina >= totalPaginas - 1}
-                  className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                >
-                  Siguiente <ChevronRight size={14} />
-                </Button>
-              </div>
-            </div>
+            <TablePagination
+              page={pagina + 1}
+              pageSize={pageSize}
+              totalRows={results.length}
+              onPageChange={(p) => setPagina(p - 1)}
+              onPageSizeChange={(s) => { setPageSize(s); setPagina(0); }}
+            />
           )}
         </>
       )}

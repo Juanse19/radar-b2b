@@ -14,7 +14,7 @@ import {
 } from '@tanstack/react-table';
 import type { LucideIcon } from 'lucide-react';
 import {
-  Download, ChevronLeft, ChevronRight, Search, X,
+  Download, Search, X,
   ExternalLink, ClipboardList,
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -23,10 +23,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { EmptyState } from '@/components/EmptyState';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { fetchJson } from '@/lib/fetcher';
 import type { ClienteSheetRow, LogEmpresaRow } from '@/lib/types';
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 
 const SENAL_OPTIONS = [
   { value: 'ALL',               label: 'Todas las señales' },
@@ -40,9 +41,9 @@ const SENAL_OPTIONS = [
 
 function TirBadge({ tir }: { tir: string }) {
   const map: Record<string, string> = {
-    A: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30',
-    B: 'bg-amber-500/15 text-amber-400 border-amber-500/30',
-    C: 'bg-red-500/15 text-red-400 border-red-500/30',
+    A: 'bg-green-900/50 text-green-300 border-green-800',
+    B: 'bg-yellow-900/50 text-yellow-300 border-yellow-800',
+    C: 'bg-red-900/50 text-red-300 border-red-800',
   };
   // Handle both "A" and "TIR A" formats from the sheet
   const key = tir.toUpperCase().replace(/^TIR\s+/, '').trim();
@@ -57,9 +58,9 @@ function TirBadge({ tir }: { tir: string }) {
 function SenalBadge({ senal }: { senal: string }) {
   const s = senal.toLowerCase();
   const cls =
-    s.includes('capex')      ? 'bg-blue-500/15 text-blue-400 border-blue-500/30' :
-    s.includes('licitación') || s.includes('licitacion') ? 'bg-orange-500/15 text-orange-400 border-orange-500/30' :
-    s.includes('retrofit')   ? 'bg-purple-500/15 text-purple-400 border-purple-500/30' :
+    s.includes('capex')      ? 'bg-blue-900/50 text-blue-300 border-blue-800' :
+    s.includes('licitación') || s.includes('licitacion') ? 'bg-orange-900/50 text-orange-300 border-orange-800' :
+    s.includes('retrofit')   ? 'bg-purple-900/50 text-purple-300 border-purple-800' :
     'bg-surface-muted text-muted-foreground border-border';
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${cls}`}>
@@ -73,8 +74,8 @@ function RadarActivoBadge({ valor }: { valor: string }) {
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium border ${
       activo
-        ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30'
-        : 'bg-red-500/15 text-red-400 border-red-500/30'
+        ? 'bg-green-900/50 text-green-300 border-green-800'
+        : 'bg-red-900/50 text-red-300 border-red-800'
     }`}>
       {valor || '—'}
     </span>
@@ -254,6 +255,7 @@ function DataTable<T>({
   minWidth?: string;
 }) {
   const [pagina, setPagina] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
 
   const table = useReactTable({
     data,
@@ -265,8 +267,8 @@ function DataTable<T>({
   });
 
   const rows = table.getRowModel().rows;
-  const totalPaginas = Math.ceil(rows.length / POR_PAGINA);
-  const rowsPage = rows.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+  const totalPaginas = Math.ceil(rows.length / pageSize);
+  const rowsPage = rows.slice(pagina * pageSize, (pagina + 1) * pageSize);
 
   return (
     <div className="rounded-xl border border-border overflow-x-auto bg-surface">
@@ -332,32 +334,16 @@ function DataTable<T>({
             </tbody>
           </table>
 
-          {/* Paginación */}
+          {/* Paginacion */}
           {totalPaginas > 1 && (
-            <div className="px-5 py-3 border-t border-border flex items-center justify-between gap-4">
-              <p className="text-xs text-muted-foreground">
-                Página {pagina + 1} de {totalPaginas} ({rows.length} resultados)
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  variant="outline" size="sm"
-                  onClick={() => setPagina(p => Math.max(0, p - 1))}
-                  disabled={pagina === 0}
-                  className="gap-1"
-                >
-                  <ChevronLeft size={13} />
-                  Anterior
-                </Button>
-                <Button
-                  variant="outline" size="sm"
-                  onClick={() => setPagina(p => Math.min(totalPaginas - 1, p + 1))}
-                  disabled={pagina >= totalPaginas - 1}
-                  className="gap-1"
-                >
-                  Siguiente
-                  <ChevronRight size={13} />
-                </Button>
-              </div>
+            <div className="border-t border-border">
+              <TablePagination
+                page={pagina + 1}
+                pageSize={pageSize}
+                totalRows={rows.length}
+                onPageChange={(p) => setPagina(p - 1)}
+                onPageSizeChange={(s) => { setPageSize(s); setPagina(0); }}
+              />
             </div>
           )}
         </>

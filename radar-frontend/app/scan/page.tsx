@@ -21,8 +21,8 @@ import { ClipboardCheck, Radar, Users } from 'lucide-react';
 
 export default function ScanPage() {
   return (
-    <div className="space-y-6">
-      <header className="space-y-1 pb-4 border-b border-border">
+    <div className="space-y-4">
+      <header className="pb-3 border-b border-border">
         <h1 className="heading-xl">Escanear</h1>
         <p className="text-sm text-muted-foreground max-w-2xl">
           Dispara los agentes de IA para detectar señales de inversión B2B en las 6 líneas de negocio.
@@ -45,13 +45,13 @@ export default function ScanPage() {
           </TabsTrigger>
         </TabsList>
 
-        <TabsContent value="calificador" className="pt-6">
+        <TabsContent value="calificador" className="pt-4">
           <ManualAgentForm agent="calificador" />
         </TabsContent>
-        <TabsContent value="radar" className="pt-6">
+        <TabsContent value="radar" className="pt-4">
           <ManualAgentForm agent="radar" />
         </TabsContent>
-        <TabsContent value="prospector" className="pt-6">
+        <TabsContent value="prospector" className="pt-4">
           <ManualAgentForm agent="prospector" />
         </TabsContent>
       </Tabs>

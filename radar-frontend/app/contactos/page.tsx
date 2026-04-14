@@ -13,10 +13,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/EmptyState';
 import {
-  Users, ChevronLeft, ChevronRight, Send, Loader2,
+  Users, Send, Loader2,
   Plane, Package, Warehouse, Minus, Plus,
   CheckCircle, AlertCircle, Database, Search, ClipboardList,
 } from 'lucide-react';
@@ -68,7 +69,7 @@ const LINEA_OPTIONS: {
   },
 ];
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 const AVAILABLE_TOKENS = 2540;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -127,6 +128,7 @@ export default function ContactosPage() {
   const [lineaFiltro, setLineaFiltro] = useState('ALL');
   const [statusFiltro, setStatusFiltro] = useState('ALL');
   const [pagina, setPagina] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
@@ -229,10 +231,10 @@ export default function ContactosPage() {
     return rawContactos.filter(c => (c.empresaNombre ?? '').toLowerCase().includes(q));
   }, [rawContactos, busquedaEmpresa]);
 
-  const totalPaginas = Math.ceil(contactosFiltrados.length / POR_PAGINA);
+  const totalPaginas = Math.ceil(contactosFiltrados.length / pageSize);
   const paginados = useMemo(
-    () => contactosFiltrados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
-    [contactosFiltrados, pagina],
+    () => contactosFiltrados.slice(pagina * pageSize, (pagina + 1) * pageSize),
+    [contactosFiltrados, pagina, pageSize],
   );
 
   const columns = useMemo(() => createContactsColumns(), []);
@@ -923,29 +925,13 @@ export default function ContactosPage() {
 
               {/* Paginación */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-muted-foreground">
-                    Página {pagina + 1} de {totalPaginas} · {contactosFiltrados.length} contactos
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
-                      disabled={pagina === 0}
-                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                    >
-                      <ChevronLeft size={14} /> Anterior
-                    </Button>
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
-                      disabled={pagina >= totalPaginas - 1}
-                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                    >
-                      Siguiente <ChevronRight size={14} />
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={pagina + 1}
+                  pageSize={pageSize}
+                  totalRows={contactosFiltrados.length}
+                  onPageChange={(p) => { setPagina(p - 1); setRowSelection({}); }}
+                  onPageSizeChange={(s) => { setPageSize(s); setPagina(0); setRowSelection({}); }}
+                />
               )}
             </TabsContent>
 
@@ -1025,7 +1011,7 @@ export default function ContactosPage() {
                                   </span>
                                 )}
                                 {log.estado === 'error' && (
-                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400 border border-red-800">
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-300 border border-red-800">
                                     Error
                                   </span>
                                 )}

@@ -12,7 +12,7 @@ import {
   flexRender, type SortingState,
 } from '@tanstack/react-table';
 import type { ColumnDef } from '@tanstack/react-table';
-import { Download, ChevronLeft, ChevronRight, ClipboardCheck, Search, X } from 'lucide-react';
+import { Download, ClipboardCheck, Search, X } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,11 +21,12 @@ import { LineaBadge } from '@/components/LineaBadge';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { TierBadge } from '@/components/TierBadge';
 import { EmptyState } from '@/components/EmptyState';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { fetchJson } from '@/lib/fetcher';
 import type { ResultadoRadar, LineaNegocio } from '@/lib/types';
 import { LINEAS_ACTIVAS } from '@/lib/lineas';
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 
 const TIER_OPTIONS = [
   { value: 'ALL',       label: 'Todos los tiers' },
@@ -126,6 +127,7 @@ export default function CalificacionPage() {
   const [tierFiltro,  setTierFiltro]  = useState('ALL');
   const [busqueda,    setBusqueda]    = useState('');
   const [pagina,      setPagina]      = useState(0);
+  const [pageSize,    setPageSize]    = useState(DEFAULT_PAGE_SIZE);
   const [sorting,     setSorting]     = useState<SortingState>([{ id: 'scoreRadar', desc: true }]);
 
   const signalUrl = useMemo(() => {
@@ -166,8 +168,8 @@ export default function CalificacionPage() {
   });
 
   const rows = table.getRowModel().rows;
-  const totalPaginas = Math.ceil(rows.length / POR_PAGINA);
-  const rowsPage = rows.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA);
+  const totalPaginas = Math.ceil(rows.length / pageSize);
+  const rowsPage = rows.slice(pagina * pageSize, (pagina + 1) * pageSize);
 
   function exportCSV() {
     const headers = ['Empresa', 'País', 'Línea', 'Score', 'Tier', 'Prioridad', 'Ventana', 'Ticket', 'Fecha'];
@@ -346,33 +348,15 @@ export default function CalificacionPage() {
         )}
       </div>
 
-      {/* ── Paginación ── */}
+      {/* Paginacion */}
       {totalPaginas > 1 && (
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>Página {pagina + 1} de {totalPaginas}</span>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina === 0}
-              onClick={() => setPagina(p => p - 1)}
-              className="gap-1"
-            >
-              <ChevronLeft size={14} />
-              Anterior
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={pagina >= totalPaginas - 1}
-              onClick={() => setPagina(p => p + 1)}
-              className="gap-1"
-            >
-              Siguiente
-              <ChevronRight size={14} />
-            </Button>
-          </div>
-        </div>
+        <TablePagination
+          page={pagina + 1}
+          pageSize={pageSize}
+          totalRows={rows.length}
+          onPageChange={(p) => setPagina(p - 1)}
+          onPageSizeChange={(s) => { setPageSize(s); setPagina(0); }}
+        />
       )}
     </div>
   );
