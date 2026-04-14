@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getSenales, crearRadarScan } from '@/lib/db';
+import { getSenales, crearSenal } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
 
@@ -67,7 +67,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const senal = await crearRadarScan({
+    const senal = await crearSenal({
       empresa_id:          body.empresa_id   ? Number(body.empresa_id)   : 0,
       ejecucion_id:        body.ejecucion_id ? Number(body.ejecucion_id) : undefined,
       n8n_execution_id:    body.n8n_execution_id ?? null,
