@@ -43,6 +43,25 @@ export interface ResultadoRadar {
   motivoDescarte?: string;
   ticketEstimado?: string;
   razonamientoAgente?: string;
+
+  // ── MAOA Agente 1 — detección ──────────────────────────────────────────────
+  empresaProyecto?: string;     // nombre del proyecto específico
+  criteriosCumplidos?: string[];
+  totalCriterios?: number;
+  montoInversion?: string;
+  fechaSenal?: string;
+  evaluacionTemporal?: string;  // 🔴/🟡/🟢 + label
+  observacionesMaoa?: string;
+
+  // ── MAOA Agente 2 — scoring TIER + TIR ────────────────────────────────────
+  tierScore?: number;           // 0-10
+  tierClasificacion?: string;   // A | B | C
+  tirScore?: number;            // 0-10
+  tirClasificacion?: string;    // A | B | C
+  scoreFinalMaoa?: number;      // 0-10
+  convergenciaMaoa?: string;    // Verificada | Pendiente | Sin convergencia
+  accionRecomendada?: string;   // ABM ACTIVADO | MONITOREO ACTIVO | ARCHIVAR
+  signalId?: string;            // MX-INTRA-DHL-2026 style
 }
 
 export interface Senal {

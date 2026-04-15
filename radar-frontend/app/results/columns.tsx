@@ -118,7 +118,24 @@ export function createResultsColumns(
       accessorKey: 'scoreRadar',
       header: 'Score / Tier',
       sortingFn: 'basic',
-      cell: ({ getValue }) => <ScoreBadge score={getValue<number>()} />,
+      cell: ({ row }) => {
+        const score = row.original.scoreRadar;
+        const scoreFinal = row.original.scoreFinalMaoa;
+        const tierC = row.original.tierClasificacion;
+        const tirC  = row.original.tirClasificacion;
+        return (
+          <div className="flex flex-col gap-0.5">
+            <ScoreBadge score={score} />
+            {scoreFinal != null && (
+              <span className="text-xs text-muted-foreground tabular-nums">
+                MAOA {scoreFinal.toFixed(1)}
+                {tierC && ` · T${tierC}`}
+                {tirC  && `/${tirC}`}
+              </span>
+            )}
+          </div>
+        );
+      },
     },
     {
       accessorKey: 'ventanaCompra',
@@ -126,6 +143,44 @@ export function createResultsColumns(
       cell: ({ getValue }) => (
         <span className="text-xs text-muted-foreground">{getValue<string>() || '—'}</span>
       ),
+    },
+    {
+      accessorKey: 'convergenciaMaoa',
+      header: 'Convergencia',
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const v = getValue<string>();
+        if (!v) return <span className="text-xs text-gray-600">—</span>;
+        const color = v === 'Verificada'
+          ? 'bg-green-900/60 text-green-300 border-green-800'
+          : v === 'Pendiente'
+          ? 'bg-yellow-900/60 text-yellow-300 border-yellow-800'
+          : 'bg-surface-muted text-muted-foreground border-border';
+        return (
+          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full border ${color}`}>
+            {v === 'Verificada' ? '🟢' : v === 'Pendiente' ? '🟡' : '🔴'} {v}
+          </span>
+        );
+      },
+    },
+    {
+      accessorKey: 'accionRecomendada',
+      header: 'Acción',
+      enableSorting: false,
+      cell: ({ getValue }) => {
+        const v = getValue<string>();
+        if (!v) return <span className="text-xs text-gray-600">—</span>;
+        const color = v === 'ABM ACTIVADO'
+          ? 'bg-violet-900/60 text-violet-300 border-violet-800'
+          : v === 'MONITOREO ACTIVO'
+          ? 'bg-blue-900/60 text-blue-300 border-blue-800'
+          : 'bg-surface-muted text-muted-foreground border-border';
+        return (
+          <span className={`inline-flex items-center text-xs px-2 py-0.5 rounded-full border font-medium ${color}`}>
+            {v}
+          </span>
+        );
+      },
     },
     {
       accessorKey: 'fuenteUrl',

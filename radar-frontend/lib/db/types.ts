@@ -113,6 +113,45 @@ export interface GetEmpresasFilter {
   status?: string;
   limit?: number;
   offset?: number;
+  sort?: string;
+  order?: 'asc' | 'desc';
+  subLineaId?: number;
+  tierActual?: string;
+  pais?: string;
+  pipeline?: string;
+  radarActivo?: boolean;
+  scoreMin?: number;
+  busqueda?: string;
+}
+
+// Stub types for empresas.ts references (extended schema)
+export interface EmpresaSubLineaRow {
+  id: number;
+  empresa_id: number;
+  sub_linea_id: number;
+  prioridad?: number;
+}
+
+export interface EmpresaTerminalRow {
+  id: number;
+  empresa_id: number;
+  codigo_terminal?: string;
+  nombre_terminal?: string;
+}
+
+export interface CrearEmpresaData {
+  nombre?: string;
+  company_name?: string;
+  pais?: string;
+  ciudad?: string;
+  linea?: string;
+  linea_negocio?: string;
+  dominio?: string;
+  company_domain?: string;
+  company_url?: string;
+  tier?: string;
+  sub_lineas?: number[];
+  sub_linea_principal_id?: number;
 }
 
 export interface GetSenalesFilter {
@@ -166,6 +205,14 @@ export interface ActualizarContactoData {
   linea_negocio?: string;
   hubspot_status?: string;
   hubspot_id?: string;
+  // Apollo field names used internally
+  first_name?: string;
+  last_name?: string;
+  title?: string;
+  email_status?: string;
+  phone_work_direct?: string;
+  phone_mobile?: string;
+  notas?: string;
 }
 
 export interface CrearProspeccionLogData {

@@ -208,21 +208,53 @@ function ResultsInner() {
   });
 
   function exportarCSV() {
-    const headers = ['Empresa', 'País', 'Línea', 'Tier', 'Radar', 'Tipo Señal', 'Score', 'Tier Score', 'Descripción', 'Fuente', 'URL', 'Fecha'];
+    const headers = [
+      'Empresa', 'País', 'Línea', 'Tier', 'Radar Activo', 'Tipo Señal',
+      'Score Radar', 'Ventana Compra', 'Monto Inversión', 'Fecha Señal',
+      'Empresa / Proyecto', 'Criterios Cumplidos', 'Total Criterios',
+      'Evaluación Temporal', 'TIER Score', 'TIER', 'TIR Score', 'TIR',
+      'Score Final MAOA', 'Convergencia', 'Acción Recomendada',
+      'Signal ID', 'Descripción', 'Fuente', 'URL', 'Observaciones', 'Fecha Escaneo',
+    ];
+    const esc = (v: unknown) => String(v ?? '').replace(/,/g, ';').replace(/\n/g, ' ');
     const rows = results.map(r => [
-      r.empresa, r.pais, r.linea, r.tier, r.radarActivo, r.tipoSenal,
-      r.scoreRadar, r.ventanaCompra, r.descripcion.replace(/,/g, ';'),
-      r.fuente, r.fuenteUrl, r.fechaEscaneo,
+      esc(r.empresa),
+      esc(r.pais),
+      esc(r.linea),
+      esc(r.tier),
+      esc(r.radarActivo),
+      esc(r.tipoSenal),
+      esc(r.scoreRadar),
+      esc(r.ventanaCompra),
+      esc(r.montoInversion),
+      esc(r.fechaSenal),
+      esc(r.empresaProyecto),
+      esc((r.criteriosCumplidos ?? []).join(' | ')),
+      esc(r.totalCriterios),
+      esc(r.evaluacionTemporal),
+      esc(r.tierScore),
+      esc(r.tierClasificacion),
+      esc(r.tirScore),
+      esc(r.tirClasificacion),
+      esc(r.scoreFinalMaoa),
+      esc(r.convergenciaMaoa),
+      esc(r.accionRecomendada),
+      esc(r.signalId),
+      esc(r.descripcion),
+      esc(r.fuente),
+      esc(r.fuenteUrl),
+      esc(r.observacionesMaoa),
+      esc(r.fechaEscaneo),
     ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `radar-b2b-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `radar-b2b-maoa-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${results.length} señales exportadas`);
+    toast.success(`${results.length} señales exportadas (formato MAOA)`);
   }
 
   const oroCount        = rawResults.filter(r => (r.scoreRadar >= 8 || r.scoreRadar >= 80)).length;
@@ -512,21 +544,72 @@ function ResultsInner() {
             </Card>
           ) : (
             results.filter(r => r.radarActivo === 'Sí').map((r, i) => (
-              <Card key={i} className="hover:border-border transition-colors">
+              <Card
+                key={i}
+                className="hover:border-border transition-colors cursor-pointer"
+                onClick={() => setDetailSignal(r)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
+                      {/* Row 1: empresa + badges */}
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-semibold text-foreground text-sm">{r.empresa}</span>
                         <LineaBadge linea={r.linea} />
                         <ScoreBadge score={r.scoreRadar} />
-                        <span className="text-xs text-muted-foreground">{r.tipoSenal}</span>
+                        {r.tipoSenal && (
+                          <span className="text-xs text-muted-foreground border border-border px-1.5 py-0.5 rounded">
+                            {r.tipoSenal}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Row 2: MAOA badges */}
+                      {(r.convergenciaMaoa || r.accionRecomendada || r.ventanaCompra) && (
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          {r.ventanaCompra && (
+                            <span className="text-xs text-blue-300 bg-blue-900/30 border border-blue-800/50 px-2 py-0.5 rounded-full">
+                              ⏱ {r.ventanaCompra}
+                            </span>
+                          )}
+                          {r.convergenciaMaoa && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                              r.convergenciaMaoa === 'Verificada'
+                                ? 'bg-green-900/40 text-green-300 border-green-800/50'
+                                : r.convergenciaMaoa === 'Pendiente'
+                                ? 'bg-yellow-900/40 text-yellow-300 border-yellow-800/50'
+                                : 'bg-surface-muted text-muted-foreground border-border'
+                            }`}>
+                              {r.convergenciaMaoa === 'Verificada' ? '🟢' : r.convergenciaMaoa === 'Pendiente' ? '🟡' : '🔴'} {r.convergenciaMaoa}
+                            </span>
+                          )}
+                          {r.accionRecomendada && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                              r.accionRecomendada === 'ABM ACTIVADO'
+                                ? 'bg-violet-900/40 text-violet-300 border-violet-800/50'
+                                : r.accionRecomendada === 'MONITOREO ACTIVO'
+                                ? 'bg-blue-900/40 text-blue-300 border-blue-800/50'
+                                : 'bg-surface-muted text-muted-foreground border-border'
+                            }`}>
+                              {r.accionRecomendada}
+                            </span>
+                          )}
+                          {r.scoreFinalMaoa != null && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              Score {r.scoreFinalMaoa.toFixed(1)} · T{r.tierClasificacion}/{r.tirClasificacion}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <p className="text-muted-foreground text-xs line-clamp-2">{r.descripcion}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">{r.fechaEscaneo}</p>
                       <p className="text-xs text-gray-600 mt-1">{r.pais}</p>
+                      {r.montoInversion && r.montoInversion !== 'No reportado' && (
+                        <p className="text-xs text-emerald-400 mt-1 font-medium">{r.montoInversion}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

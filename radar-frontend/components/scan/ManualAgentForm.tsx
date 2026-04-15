@@ -88,6 +88,8 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const [batchSize, setBatchSize]         = useState(5);
   const [contactosPorEmpresa, setContactosPorEmpresa] = useState(3);
   const [tier, setTier]                   = useState<'ORO' | 'MONITOREO' | 'PLATA'>('ORO');
+  // Radar-specific: país override para escaneo manual (empresa única)
+  const [radarPais, setRadarPais]         = useState('');
   const [search, setSearch]               = useState('');
   const [selected, setSelected]           = useState<Empresa[]>([]);
   const [firing, setFiring]               = useState(false);
@@ -245,7 +247,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           const e = fireEmpresas[0]!;
           body.options = {
             empresa:            e.nombre,
-            pais:               e.pais ?? 'Colombia',
+            pais:               radarPais.trim() || e.pais || 'Colombia',
             company_domain:     e.dominio,
             tier,
             score_calificacion: 9,
@@ -600,6 +602,23 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
                 <Plus size={12} />
               </Button>
             </div>
+          </div>
+        )}
+
+        {agent === 'radar' && effectiveEmpresas.length === 1 && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              País (override)
+            </label>
+            <Input
+              placeholder={effectiveEmpresas[0]?.pais ?? 'Colombia'}
+              value={radarPais}
+              onChange={e => setRadarPais(e.target.value)}
+              className="bg-surface-muted border-border text-foreground text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Deja vacío para usar el país registrado de la empresa.
+            </p>
           </div>
         )}
 
