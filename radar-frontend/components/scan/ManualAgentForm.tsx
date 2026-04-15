@@ -17,9 +17,10 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database, Info, Zap } from 'lucide-react';
+import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database, Info, Zap, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
+import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
 import { LINEA_OPTIONS_ALL } from '@/lib/constants/lineas';
 import { useLineasActivas } from '@/hooks/useLineasActivas';
@@ -92,6 +93,26 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const [firing, setFiring]               = useState(false);
   const [lastExecutionId, setLastExecutionId] = useState<string | null>(null);
   const [error, setError]                 = useState<string | null>(null);
+
+  // ── Execution status (real-time from n8n) ────────────────────────────────
+  const agentStatus = useAgentStatus(lastExecutionId);
+
+  // Toast when execution finishes (success or error)
+  useEffect(() => {
+    if (!agentStatus.isDone || !lastExecutionId) return;
+    if (agentStatus.status === 'success') {
+      toast.success(`${meta.title} completado`, {
+        description: `Terminó en ${agentStatus.elapsedSeconds}s`,
+        duration: 8000,
+      });
+    } else if (agentStatus.status === 'error') {
+      toast.error(`${meta.title} falló`, {
+        description: 'Revisa los logs en n8n para ver el detalle del error.',
+        duration: 12000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentStatus.isDone, agentStatus.status]);
   // CSV import mode
   const [csvMode, setCsvMode]             = useState(false);
   const [csvEmpresas, setCsvEmpresas]     = useState<Empresa[]>([]);
@@ -660,6 +681,37 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
         {error && (
           <p className="text-sm text-red-600">{error}</p>
+        )}
+
+        {/* ── Execution status banner ─────────────────────────────────── */}
+        {lastExecutionId && !agentStatus.isTimestampId && (
+          <div className={cn(
+            'flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm transition-colors',
+            agentStatus.status === 'success'
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-200'
+              : agentStatus.status === 'error'
+              ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/20 dark:text-red-200'
+              : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-200',
+          )}>
+            {agentStatus.status === 'success' && <CheckCircle size={15} className="shrink-0 text-emerald-600" />}
+            {agentStatus.status === 'error'   && <XCircle    size={15} className="shrink-0 text-red-600" />}
+            {(agentStatus.status === 'running' || agentStatus.status === 'waiting') && (
+              <Loader2 size={15} className="shrink-0 animate-spin" />
+            )}
+            {agentStatus.status === 'idle' && <Clock size={15} className="shrink-0" />}
+            <span className="font-medium">
+              {agentStatus.status === 'success' && `Completado en ${agentStatus.elapsedSeconds}s`}
+              {agentStatus.status === 'error'   && 'La ejecución terminó con error — ver logs en n8n'}
+              {agentStatus.status === 'running' && `Ejecutando… ${agentStatus.elapsedSeconds}s`}
+              {agentStatus.status === 'waiting' && 'En cola…'}
+              {agentStatus.status === 'idle'    && 'Iniciando…'}
+            </span>
+            {agentStatus.currentStep && agentStatus.status === 'running' && (
+              <span className="ml-auto text-xs opacity-70 truncate max-w-[160px]">
+                {agentStatus.currentStep}
+              </span>
+            )}
+          </div>
         )}
 
         {lastExecutionId && (
