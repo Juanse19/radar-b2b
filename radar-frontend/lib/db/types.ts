@@ -179,3 +179,204 @@ export interface ActualizarProspeccionLogData {
   contactos_encontrados?: number;
   finished_at?: string;
 }
+
+// ── Calificaciones ────────────────────────────────────────────────────────────
+
+export type TierEnum = 'ORO' | 'MONITOREO' | 'ARCHIVO';
+
+export interface CalificacionRow {
+  id: number;
+  empresa_id: number;
+  score_total: number;
+  tier_calculado: TierEnum;
+  impacto_presupuesto: string | null;
+  anio_objetivo: string | null;
+  recurrencia: string | null;
+  multiplanta: string | null;
+  ticket_estimado: string | null;
+  referente_mercado: string | null;
+  prioridad_comercial: string | null;
+  razonamiento: string | null;
+  n8n_execution_id: string | null;
+  created_at: string;
+}
+
+export interface CrearCalificacionData {
+  empresa_id: number;
+  score_total: number;
+  tier_calculado: TierEnum;
+  impacto_presupuesto?: string | null;
+  anio_objetivo?: string | null;
+  recurrencia?: string | null;
+  multiplanta?: string | null;
+  ticket_estimado?: string | null;
+  referente_mercado?: string | null;
+  prioridad_comercial?: string | null;
+  razonamiento?: string | null;
+  n8n_execution_id?: string | null;
+}
+
+export interface GetCalificacionesFilter {
+  empresaId?: number;
+  tierCalculado?: TierEnum;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// ── Radar Scans ───────────────────────────────────────────────────────────────
+
+export interface RadarScanRow {
+  id: number;
+  empresa_id: number | null;
+  empresa_nombre: string;
+  empresa_pais: string | null;
+  linea_negocio: string | null;
+  score_radar: number;
+  tier_compuesto: string | null;
+  radar_activo: boolean;
+  ventana_compra: string | null;
+  capex_detectado: boolean;
+  monto_estimado: string | null;
+  horizonte_meses: number | null;
+  fuentes_count: number;
+  resumen: string | null;
+  razonamiento_agente: string | null;
+  n8n_execution_id: string | null;
+  created_at: string;
+}
+
+export interface RadarFuenteRow {
+  id: number;
+  radar_scan_id: number;
+  url: string;
+  titulo: string | null;
+  snippet: string | null;
+  tavily_score: number | null;
+  tipo_fuente: string | null;
+  created_at: string;
+}
+
+export interface CrearRadarScanData extends Partial<RadarScanRow> {
+  empresa_nombre: string;
+  score_radar: number;
+  fuentes?: Array<Omit<RadarFuenteRow, 'id' | 'radar_scan_id' | 'created_at'>>;
+}
+
+export interface GetRadarScansFilter {
+  empresaId?: number;
+  radarActivo?: boolean;
+  ventanaCompra?: string;
+  scoreGte?: number;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+// ── Líneas de negocio ─────────────────────────────────────────────────────────
+
+export interface LineaNegocioRow {
+  id: number;
+  nombre: string;
+  codigo: string;
+  descripcion: string | null;
+  activa: boolean;
+  orden: number;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface SubLineaNegocioRow {
+  id: number;
+  linea_id: number;
+  nombre: string;
+  codigo: string;
+  descripcion: string | null;
+  activa: boolean;
+  orden: number;
+  linea?: LineaNegocioRow;
+  created_at: string;
+  updated_at: string;
+}
+
+// ── Catálogos ─────────────────────────────────────────────────────────────────
+
+export interface SectorRow {
+  id: number;
+  nombre: string;
+  descripcion: string | null;
+  activo: boolean;
+  created_at: string;
+}
+
+export interface JobTitleRow {
+  id: number;
+  sub_linea_id: number;
+  titulo: string;
+  nivel: number;
+  idioma: string;
+  prioridad: number;
+  activo: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ConfiguracionScoringRow {
+  id: number;
+  sub_linea_id: number | null;
+  dimension: string;
+  peso: number;
+  vigente_desde: string;
+  vigente_hasta: string | null;
+  created_at: string;
+}
+
+// ── Prospecciones ─────────────────────────────────────────────────────────────
+
+export type EstadoProspeccionEnum = 'pendiente' | 'en_progreso' | 'completado' | 'fallido' | 'sin_contactos';
+
+export interface ProspeccionRow {
+  id: number;
+  empresa_id: number;
+  sub_linea_id: number | null;
+  estado: EstadoProspeccionEnum;
+  contactos_encontrados: number;
+  max_contactos: number | null;
+  tier: TierEnum | null;
+  n8n_execution_id: string | null;
+  created_at: string;
+  finished_at: string | null;
+}
+
+export interface CrearProspeccionData {
+  empresa_id: number;
+  sub_linea_id?: number | null;
+  estado?: EstadoProspeccionEnum;
+  contactos_encontrados?: number;
+  max_contactos?: number | null;
+  tier?: TierEnum | null;
+  n8n_execution_id?: string | null;
+}
+
+export interface GetProspeccionesFilter {
+  empresaId?: number;
+  estado?: EstadoProspeccionEnum;
+  subLineaId?: number;
+  from?: string;
+  to?: string;
+  limit?: number;
+  offset?: number;
+}
+
+export interface ContactoSinEncontrarRow {
+  id: number;
+  empresa_id: number;
+  prospeccion_id: number | null;
+  motivo: string;
+  job_titles_intentados: string[] | null;
+  paises_intentados: string[] | null;
+  re_escanear: boolean;
+  created_at: string;
+}

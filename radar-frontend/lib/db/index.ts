@@ -7,12 +7,26 @@ import * as SupEj from './supabase/ejecuciones';
 import * as SupSe from './supabase/senales';
 import * as SupCo from './supabase/contactos';
 import * as SupPr from './supabase/prospeccion';
+import * as SupCal from './supabase/calificaciones';
+import * as SupLin from './supabase/lineas';
+import * as SupRs from './supabase/radar_scans';
+import * as SupProsp from './supabase/prospecciones';
+import * as SupCat from './supabase/catalogos';
 
 export type { EmpresaRow, EjecucionRow, SenalRow, ContactoRow, ProspeccionLogRow } from './types';
 export type {
   GetEmpresasFilter, GetSenalesFilter, GetContactosFilter,
   GetProspeccionLogsFilter, ImportarEmpresaData, ActualizarContactoData,
   CrearProspeccionLogData, ActualizarProspeccionLogData,
+} from './types';
+
+// Re-export extended types consumed by API routes
+export type {
+  CalificacionRow, CrearCalificacionData, GetCalificacionesFilter, TierEnum,
+  RadarScanRow, RadarFuenteRow, CrearRadarScanData, GetRadarScansFilter,
+  ProspeccionRow, CrearProspeccionData, GetProspeccionesFilter, EstadoProspeccionEnum,
+  LineaNegocioRow, SubLineaNegocioRow,
+  JobTitleRow, ConfiguracionScoringRow, SectorRow, ContactoSinEncontrarRow,
 } from './types';
 
 // ── Empresas ──────────────────────────────────────────────────────────────────
@@ -139,4 +153,102 @@ export function getProspeccionLogs(filter: Parameters<typeof SupPr.getProspeccio
 
 export function actualizarProspeccionLog(id: number, data: Parameters<typeof SupPr.actualizarProspeccionLog>[1]) {
   return SupPr.actualizarProspeccionLog(id, data);
+}
+
+// ── Calificaciones ────────────────────────────────────────────────────────────
+
+export function getCalificaciones(filter: Parameters<typeof SupCal.getCalificaciones>[0]) {
+  return SupCal.getCalificaciones(filter);
+}
+
+export function crearCalificacion(data: Parameters<typeof SupCal.crearCalificacion>[0]) {
+  return SupCal.crearCalificacion(data);
+}
+
+export function getTopEmpresasByTier(tier: Parameters<typeof SupCal.getTopEmpresasByTier>[0], limit?: number) {
+  return SupCal.getTopEmpresasByTier(tier, limit);
+}
+
+// ── Líneas de negocio ─────────────────────────────────────────────────────────
+
+export function getLineas() {
+  return SupLin.getLineas();
+}
+
+export function getLineaById(id: number) {
+  return SupLin.getLineaById(id);
+}
+
+export function actualizarLinea(id: number, data: Parameters<typeof SupLin.actualizarLinea>[1]) {
+  return SupLin.actualizarLinea(id, data);
+}
+
+export function eliminarLinea(id: number) {
+  return SupLin.eliminarLinea(id);
+}
+
+export function getSubLineas(lineaId?: number) {
+  return SupLin.getSubLineas(lineaId);
+}
+
+export function getSubLineaById(id: number) {
+  return SupLin.getSubLineaById(id);
+}
+
+export function crearSubLinea(data: Parameters<typeof SupLin.crearSubLinea>[0]) {
+  return SupLin.crearSubLinea(data);
+}
+
+export function actualizarSubLinea(id: number, data: Parameters<typeof SupLin.actualizarSubLinea>[1]) {
+  return SupLin.actualizarSubLinea(id, data);
+}
+
+export function eliminarSubLinea(id: number) {
+  return SupLin.eliminarSubLinea(id);
+}
+
+// ── Radar Scans ───────────────────────────────────────────────────────────────
+
+export function getRadarScans(filter: Parameters<typeof SupRs.getRadarScans>[0]) {
+  return SupRs.getRadarScans(filter);
+}
+
+export function crearRadarScan(data: Parameters<typeof SupRs.crearRadarScan>[0]) {
+  return SupRs.crearRadarScan(data);
+}
+
+export function getRadarFuentes(scanId: number) {
+  return SupRs.getRadarFuentes(scanId);
+}
+
+// ── Prospecciones ─────────────────────────────────────────────────────────────
+
+export function getPropecciones(filter: Parameters<typeof SupProsp.getPropecciones>[0]) {
+  return SupProsp.getPropecciones(filter);
+}
+
+export function crearProspeccion(data: Parameters<typeof SupProsp.crearProspeccion>[0]) {
+  return SupProsp.crearProspeccion(data);
+}
+
+// ── Catálogos ─────────────────────────────────────────────────────────────────
+
+export function getJobTitlesByLinea(subLineaId: number) {
+  return SupCat.getJobTitlesByLinea(subLineaId);
+}
+
+export function getJobTitlesAll() {
+  return SupCat.getJobTitlesAll();
+}
+
+export function upsertJobTitlesBulk(subLineaId: number, titulos: Parameters<typeof SupCat.upsertJobTitlesBulk>[1]) {
+  return SupCat.upsertJobTitlesBulk(subLineaId, titulos);
+}
+
+export function getConfiguracionScoring(subLineaId?: number | null) {
+  return SupCat.getConfiguracionScoring(subLineaId);
+}
+
+export function upsertConfiguracionScoring(rows: Parameters<typeof SupCat.upsertConfiguracionScoring>[0]) {
+  return SupCat.upsertConfiguracionScoring(rows);
 }
