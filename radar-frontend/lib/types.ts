@@ -6,7 +6,7 @@ export type LineaNegocio =
   | 'Cargo'         // Cargo LATAM, carga aérea
   | 'Final de Línea'// Alimentos, Bebidas, Palletizado
   | 'Motos'         // Ensambladoras, Motocicletas
-  | 'Solumat'       // Plásticos, Materiales industriales
+  | 'SOLUMAT'       // Plásticos, Materiales industriales
   | 'ALL';          // Todas las líneas
 
 export type TierEmpresa = 'Tier A' | 'Tier B-Alta' | 'Tier B' | 'Tier B-Baja' | 'Tier C' | 'Tier D';
