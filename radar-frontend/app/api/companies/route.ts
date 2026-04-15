@@ -22,10 +22,29 @@ export async function GET(req: NextRequest) {
   try {
     if (count === 'true') {
       const raw = await getEmpresasCount();
-      // Merge legacy "Intralogistica" (without accent) into canonical "Intralogística"
+      // getEmpresasCount() devuelve claves por código de sub_linea (ej: 'aeropuertos', 'carton_corrugado').
+      // El frontend espera claves por nombre de línea (ej: 'BHS', 'Cartón').
+      // Este mapa convierte de código → nombre que el frontend conoce.
+      const CODIGO_TO_LINEA: Record<string, string> = {
+        aeropuertos:          'BHS',
+        cargo_uld:            'BHS',          // merge Cargo ULD en BHS
+        carton_corrugado:     'Cartón',
+        intralogistica:       'Intralogística',
+        final_linea:          'Final de Línea',
+        ensambladoras_motos:  'Motos',
+        solumat:              'SOLUMAT',
+        // Legacy sin acento
+        Intralogistica:       'Intralogística',
+        'Final de Linea':     'Final de Línea',
+        'Final de Línea':     'Final de Línea',
+        BHS:                  'BHS',
+        Cartón:               'Cartón',
+        Motos:                'Motos',
+        SOLUMAT:              'SOLUMAT',
+      };
       const counts: Record<string, number> = {};
       for (const [key, val] of Object.entries(raw)) {
-        const canonical = key === 'Intralogistica' ? 'Intralogística' : key;
+        const canonical = CODIGO_TO_LINEA[key] ?? key;
         counts[canonical] = (counts[canonical] ?? 0) + val;
       }
       return NextResponse.json(counts);

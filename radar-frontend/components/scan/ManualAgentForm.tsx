@@ -139,11 +139,13 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
   // For Radar (single empresa) and others (batch), we always fetch a list of
   // empresas to allow cherry-picking. Radar variant is single-select.
-  const limit = Math.min(totalLinea || 200, 500);
+  // When linea === 'ALL', fetch up to 200 empresas for manual selection;
+  // the auto-batch mode (batchSize) still works without selecting any.
+  const limit = linea === 'ALL' ? 200 : Math.min(totalLinea || 200, 500);
   const { data: empresas = [], isFetching: loadingEmpresas } = useQuery<Empresa[]>({
     queryKey: ['empresasForAgent', linea, limit],
     queryFn:  () => fetchJson<Empresa[]>(`/api/companies?linea=${encodeURIComponent(linea)}&limit=${limit}`),
-    enabled:  linea !== 'ALL',
+    enabled:  true,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -483,9 +485,9 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
                 </div>
               ) : filteredEmpresas.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  {linea === 'ALL'
-                    ? 'Selecciona una línea para ver empresas'
-                    : 'Sin empresas — importa el catálogo'}
+                  {search.trim()
+                    ? `Sin resultados para "${search}"`
+                    : 'Sin empresas — importa el catálogo o usa modo CSV'}
                 </div>
               ) : (
                 <ul className="divide-y divide-border/40">
