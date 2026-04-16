@@ -76,28 +76,13 @@ COMMENT ON COLUMN matec_radar.radar_scans.accion_recomendada IS
 COMMENT ON COLUMN matec_radar.radar_scans.signal_id IS
   'MAOA A2: ID compuesto para CRM (ej: CO-BHS-AEROPU-2026)';
 
--- =============================================================================
--- matec_radar.senales — MAOA sync fields (mismas columnas que radar_scans)
--- =============================================================================
+-- NOTE: matec_radar.senales was dropped by migration _0015 and is not recreated.
+-- All MAOA fields are stored in radar_scans only.
 
-ALTER TABLE matec_radar.senales
-  ADD COLUMN IF NOT EXISTS tipo_senal           TEXT,
-  ADD COLUMN IF NOT EXISTS empresa_o_proyecto   TEXT,
-  ADD COLUMN IF NOT EXISTS ventana_compra_maoa  TEXT,
-  ADD COLUMN IF NOT EXISTS monto_inversion      TEXT,
-  ADD COLUMN IF NOT EXISTS tier_score           NUMERIC(4,1),
-  ADD COLUMN IF NOT EXISTS tier_clasificacion   CHAR(1),
-  ADD COLUMN IF NOT EXISTS tir_score            NUMERIC(4,1),
-  ADD COLUMN IF NOT EXISTS tir_clasificacion    CHAR(1),
-  ADD COLUMN IF NOT EXISTS score_final_maoa     NUMERIC(4,1),
-  ADD COLUMN IF NOT EXISTS convergencia_maoa    TEXT,
-  ADD COLUMN IF NOT EXISTS accion_recomendada   TEXT;
-
--- ── Verificación ───────────────────────────────────────────────────────────────
+-- Verificacion
 DO $$
 DECLARE
   col_scans INT;
-  col_senales INT;
 BEGIN
   SELECT COUNT(*) INTO col_scans
   FROM information_schema.columns
@@ -108,22 +93,9 @@ BEGIN
       'convergencia_maoa', 'accion_recomendada', 'signal_id'
     );
 
-  SELECT COUNT(*) INTO col_senales
-  FROM information_schema.columns
-  WHERE table_schema = 'matec_radar'
-    AND table_name   = 'senales'
-    AND column_name  IN (
-      'tipo_senal', 'ventana_compra_maoa', 'score_final_maoa',
-      'convergencia_maoa', 'accion_recomendada'
-    );
-
-  RAISE NOTICE 'Migración 010 (MAOA F1.4) OK → radar_scans: % de 6 cols | senales: % de 5 cols',
-    col_scans, col_senales;
+  RAISE NOTICE 'Migracion 010 OK: radar_scans tiene % de 6 cols MAOA', col_scans;
 
   IF col_scans < 6 THEN
     RAISE WARNING 'Faltan columnas MAOA en radar_scans. Verificar permisos ALTER TABLE.';
-  END IF;
-  IF col_senales < 5 THEN
-    RAISE WARNING 'Faltan columnas MAOA en senales. Verificar permisos ALTER TABLE.';
   END IF;
 END $$;

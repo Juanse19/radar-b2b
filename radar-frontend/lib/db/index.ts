@@ -90,21 +90,22 @@ export function getPipelines(opts?: Parameters<typeof SupEj.getPipelines>[0]) {
 }
 
 // ── Señales ───────────────────────────────────────────────────────────────────
+// NOTE: reads from radar_scans (written by N8N WF02), not from the legacy senales table.
 
-export function getSenales(filter: Parameters<typeof SupSe.getSenales>[0]) {
-  return SupSe.getSenales(filter);
+export function getSenales(filter: Parameters<typeof SupRs.getSenales>[0]) {
+  return SupRs.getSenales(filter);
 }
 
-export function crearSenal(data: Parameters<typeof SupSe.crearSenal>[0]) {
-  return SupSe.crearSenal(data);
+export function crearSenal(data: Parameters<typeof SupRs.crearSenal>[0]) {
+  return SupRs.crearSenal(data);
 }
 
 export function getSenalesSlim() {
-  return SupSe.getSenalesSlim();
+  return SupRs.getSenalesSlim();
 }
 
 export function countSenalesOroHoy() {
-  return SupSe.countSenalesOroHoy();
+  return SupRs.countSenalesOroHoy();
 }
 
 // ── Contactos ─────────────────────────────────────────────────────────────────
