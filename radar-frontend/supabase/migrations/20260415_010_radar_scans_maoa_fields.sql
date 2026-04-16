@@ -1,8 +1,9 @@
 -- =============================================================================
 -- Migration: 20260415_010_radar_scans_maoa_fields.sql
--- Purpose:   Agrega columnas MAOA Agente 1 (detección) + Agente 2 (TIER+TIR)
---            a matec_radar.radar_scans para almacenar output completo del sistema MAOA.
--- Sprint:    F1 — Alineación MAOA 2026-04-15
+-- Purpose:   Sprint MAOA F1.4 — Agrega columnas MAOA Agente 1 (detección) +
+--            Agente 2 (TIER+TIR) a matec_radar.radar_scans y matec_radar.senales
+--            para almacenar el output completo del sistema MAOA.
+-- Sprint:    MAOA F1.4 — 2026-04-15
 -- =============================================================================
 
 -- ── MAOA Agente 1: campos de detección pura ───────────────────────────────────
@@ -75,12 +76,30 @@ COMMENT ON COLUMN matec_radar.radar_scans.accion_recomendada IS
 COMMENT ON COLUMN matec_radar.radar_scans.signal_id IS
   'MAOA A2: ID compuesto para CRM (ej: CO-BHS-AEROPU-2026)';
 
+-- =============================================================================
+-- matec_radar.senales — MAOA sync fields (mismas columnas que radar_scans)
+-- =============================================================================
+
+ALTER TABLE matec_radar.senales
+  ADD COLUMN IF NOT EXISTS tipo_senal           TEXT,
+  ADD COLUMN IF NOT EXISTS empresa_o_proyecto   TEXT,
+  ADD COLUMN IF NOT EXISTS ventana_compra_maoa  TEXT,
+  ADD COLUMN IF NOT EXISTS monto_inversion      TEXT,
+  ADD COLUMN IF NOT EXISTS tier_score           NUMERIC(4,1),
+  ADD COLUMN IF NOT EXISTS tier_clasificacion   CHAR(1),
+  ADD COLUMN IF NOT EXISTS tir_score            NUMERIC(4,1),
+  ADD COLUMN IF NOT EXISTS tir_clasificacion    CHAR(1),
+  ADD COLUMN IF NOT EXISTS score_final_maoa     NUMERIC(4,1),
+  ADD COLUMN IF NOT EXISTS convergencia_maoa    TEXT,
+  ADD COLUMN IF NOT EXISTS accion_recomendada   TEXT;
+
 -- ── Verificación ───────────────────────────────────────────────────────────────
 DO $$
 DECLARE
-  col_count INT;
+  col_scans INT;
+  col_senales INT;
 BEGIN
-  SELECT COUNT(*) INTO col_count
+  SELECT COUNT(*) INTO col_scans
   FROM information_schema.columns
   WHERE table_schema = 'matec_radar'
     AND table_name   = 'radar_scans'
@@ -89,9 +108,22 @@ BEGIN
       'convergencia_maoa', 'accion_recomendada', 'signal_id'
     );
 
-  RAISE NOTICE 'Migración 010 OK → columnas MAOA verificadas: % de 6 esperadas', col_count;
+  SELECT COUNT(*) INTO col_senales
+  FROM information_schema.columns
+  WHERE table_schema = 'matec_radar'
+    AND table_name   = 'senales'
+    AND column_name  IN (
+      'tipo_senal', 'ventana_compra_maoa', 'score_final_maoa',
+      'convergencia_maoa', 'accion_recomendada'
+    );
 
-  IF col_count < 6 THEN
-    RAISE WARNING 'Faltan columnas MAOA. Verificar permisos ALTER TABLE.';
+  RAISE NOTICE 'Migración 010 (MAOA F1.4) OK → radar_scans: % de 6 cols | senales: % de 5 cols',
+    col_scans, col_senales;
+
+  IF col_scans < 6 THEN
+    RAISE WARNING 'Faltan columnas MAOA en radar_scans. Verificar permisos ALTER TABLE.';
+  END IF;
+  IF col_senales < 5 THEN
+    RAISE WARNING 'Faltan columnas MAOA en senales. Verificar permisos ALTER TABLE.';
   END IF;
 END $$;
