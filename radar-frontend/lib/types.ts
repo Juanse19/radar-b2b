@@ -62,6 +62,10 @@ export interface ResultadoRadar {
   convergenciaMaoa?: string;    // Verificada | Pendiente | Sin convergencia
   accionRecomendada?: string;   // ABM ACTIVADO | MONITOREO ACTIVO | ARCHIVAR
   signalId?: string;            // MX-INTRA-DHL-2026 style
+
+  // ── Audit trail — who ran the scan ────────────────────────────────────────
+  ejecutadoPorId?:     string | null;
+  ejecutadoPorNombre?: string | null;
 }
 
 export interface Senal {

@@ -75,6 +75,10 @@ export interface SenalRow {
   ticket_estimado: string | null;
   razonamiento_agente: string | null;
   created_at: string;
+  /** ID of the user (from matec_session) who triggered the scan — populated by WF02. */
+  ejecutado_por_id?:     string | null;
+  /** Display name of the user who triggered the scan — populated by WF02. */
+  ejecutado_por_nombre?: string | null;
 }
 
 export interface ContactoRow {
@@ -168,6 +172,8 @@ export interface GetSenalesFilter {
   limit?: number;
   offset?: number;
   empresaId?: number;
+  /** Optional audit filter: only return rows triggered by this user ID. */
+  ejecutadoPorId?: string;
 }
 
 export interface GetContactosFilter {

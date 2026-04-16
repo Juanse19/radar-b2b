@@ -107,6 +107,10 @@ export interface TriggerRadarParams {
   company_domain?: string;
   /** Score from WF01. Defaults to 5 (mid Monitoreo). */
   score_calificacion?: number;
+  /** ID of the session user who triggered the scan — forwarded to n8n for audit. */
+  ejecutado_por_id?:     string;
+  /** Display name of the session user who triggered the scan. */
+  ejecutado_por_nombre?: string;
 }
 
 /**
@@ -121,13 +125,15 @@ export async function triggerRadar(params: TriggerRadarParams): Promise<{ execut
   const webhookUrl = `${N8N_HOST}/webhook/${N8N_RADAR_WEBHOOK_PATH}`;
 
   const body = {
-    empresa:            params.empresa,
-    pais:               params.pais ?? 'Colombia',
-    linea_negocio:      params.linea_negocio ?? '',
-    tier:               params.tier ?? 'MONITOREO',
-    company_domain:     params.company_domain ?? '',
-    score_calificacion: params.score_calificacion ?? 5,
-    trigger_type:       'manual_radar',
+    empresa:              params.empresa,
+    pais:                 params.pais ?? 'Colombia',
+    linea_negocio:        params.linea_negocio ?? '',
+    tier:                 params.tier ?? 'MONITOREO',
+    company_domain:       params.company_domain ?? '',
+    score_calificacion:   params.score_calificacion ?? 5,
+    ejecutado_por_id:     params.ejecutado_por_id,
+    ejecutado_por_nombre: params.ejecutado_por_nombre,
+    trigger_type:         'manual_radar',
   };
 
   let data: Record<string, unknown> = {};

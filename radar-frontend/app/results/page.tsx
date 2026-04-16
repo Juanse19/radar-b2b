@@ -15,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Activity, ClipboardCheck, Users, Radar, X } from 'lucide-react';
+import { Download, Activity, ClipboardCheck, Users, Radar, X, User } from 'lucide-react';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { EmptyState } from '@/components/EmptyState';
@@ -105,6 +105,8 @@ function ResultsInner() {
   const [activeTab, setActiveTab] = useState<'signals' | 'calificacion' | 'radar' | 'contactos'>('signals');
   // Re-scan state: { executionId, empresa } set when user fires Radar from a row.
   const [rescan, setRescan] = useState<{ executionId: string; empresa: string } | null>(null);
+  // "Mis escaneos" toggle — filters the signals list to only the current user's scans.
+  const [soloMios, setSoloMios] = useState(false);
   const { invalidate: invalidateTray } = useInflightExecutions();
 
   // Sincronizar con el query param inicial
@@ -117,9 +119,10 @@ function ResultsInner() {
     if (paisFiltro)            p.set('pais', paisFiltro);
     if (desde)                 p.set('from', desde);
     if (hasta)                 p.set('to', hasta);
+    if (soloMios)              p.set('solo_mios', 'true');
     p.set('limit', '500');
     return `/api/signals?${p}`;
-  }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta]);
+  }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta, soloMios]);
 
   const {
     data: rawResults = [],
@@ -127,7 +130,7 @@ function ResultsInner() {
     error: signalsError,
     refetch: refetchSignals,
   } = useQuery<ResultadoRadar[]>({
-    queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta],
+    queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta, soloMios],
     queryFn: async () => {
       const data = await fetchJson<unknown>(signalUrl);
       return Array.isArray(data) ? (data as ResultadoRadar[]) : [];
@@ -215,6 +218,7 @@ function ResultsInner() {
       'Evaluación Temporal', 'TIER Score', 'TIER', 'TIR Score', 'TIR',
       'Score Final MAOA', 'Convergencia', 'Acción Recomendada',
       'Signal ID', 'Descripción', 'Fuente', 'URL', 'Observaciones', 'Fecha Escaneo',
+      'Escaneado por',
     ];
     const esc = (v: unknown) => String(v ?? '').replace(/,/g, ';').replace(/\n/g, ' ');
     const rows = results.map(r => [
@@ -245,6 +249,7 @@ function ResultsInner() {
       esc(r.fuenteUrl),
       esc(r.observacionesMaoa),
       esc(r.fechaEscaneo),
+      esc(r.ejecutadoPorNombre),
     ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
@@ -377,9 +382,19 @@ function ResultsInner() {
           onChange={e => { setHasta(e.target.value); setPagina(0); }}
           className="bg-surface-muted border-border text-foreground w-36" title="Hasta"
         />
-        {(busqueda || tierFiltro !== 'ALL' || paisFiltro || desde || hasta) && (
+        <Button
+          variant={soloMios ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => { setSoloMios(!soloMios); setPagina(0); }}
+          className="gap-1.5"
+          title="Mostrar solo los escaneos iniciados por mí"
+        >
+          <User size={13} />
+          {soloMios ? 'Mis escaneos' : 'Todos'}
+        </Button>
+        {(busqueda || tierFiltro !== 'ALL' || paisFiltro || desde || hasta || soloMios) && (
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-muted-foreground text-xs"
-            onClick={() => { setBusqueda(''); setTierFiltro('ALL'); setPaisFiltro(''); setDesde(''); setHasta(''); setPagina(0); }}
+            onClick={() => { setBusqueda(''); setTierFiltro('ALL'); setPaisFiltro(''); setDesde(''); setHasta(''); setSoloMios(false); setPagina(0); }}
           >
             Limpiar filtros
           </Button>

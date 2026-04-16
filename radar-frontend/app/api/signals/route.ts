@@ -3,6 +3,7 @@ import { getSenales, crearSenal } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
 import type { SenalRow } from '@/lib/db/types';
+import { getCurrentSession } from '@/lib/auth/session';
 
 // Extended type — includes MAOA fields added by migration 010 to senales
 // (or joined from radar_scans). Cast with (s as SenalRowExtended) to access.
@@ -37,6 +38,10 @@ export async function GET(req: NextRequest) {
   const order     = searchParams.get('order') === 'asc' ? 'asc' : 'desc';
   const activos   = searchParams.get('activos') === 'true';
   const empresaId = searchParams.get('empresa_id') ? Number(searchParams.get('empresa_id')) : undefined;
+  const soloMios  = searchParams.get('solo_mios') === 'true';
+
+  // Read session for optional per-user filtering (solo_mios toggle).
+  const session = await getCurrentSession();
 
   try {
     // Map tier name → score filter
@@ -46,7 +51,10 @@ export async function GET(req: NextRequest) {
     else if (tier === 'Monitoreo') { scoreGte = 5; scoreLt = 8; }
     else if (tier === 'Contexto')  { scoreGte = 1; scoreLt = 5; }
 
-    const senales = await getSenales({ linea, pais, activos, scoreGte, scoreLt, from, to, sort, order: order as 'asc' | 'desc', limit, offset, empresaId });
+    // Apply per-user filter when solo_mios=true and we have a valid session.
+    const ejecutadoPorId = soloMios && session?.id ? session.id : undefined;
+
+    const senales = await getSenales({ linea, pais, activos, scoreGte, scoreLt, from, to, sort, order: order as 'asc' | 'desc', limit, offset, empresaId, ejecutadoPorId });
 
     if (senales.length > 0) {
       return NextResponse.json(senales.map(s => ({
@@ -85,6 +93,8 @@ export async function GET(req: NextRequest) {
         empresaProyecto:    (s as SenalRowExtended).empresa_o_proyecto  ?? undefined,
         signalId:           String(s.id),
         dominio:            (s as SenalRowExtended).company_domain       ?? undefined,
+        ejecutadoPorId:     s.ejecutado_por_id     ?? null,
+        ejecutadoPorNombre: s.ejecutado_por_nombre ?? null,
       })));
     }
 
