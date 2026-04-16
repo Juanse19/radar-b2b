@@ -3,9 +3,9 @@
  *
  * Importa keywords desde PalabrasClave_PorLineaNegocio.xlsx a Supabase.
  * Tabla destino: matec_radar.palabras_clave_por_linea
- *   Columnas: palabra (TEXT), tipo (TEXT), peso (INTEGER), sub_linea_id (INTEGER), activo (BOOLEAN)
+ *   Columnas: sub_linea_id, palabra, idioma, tipo, peso, activo
  *
- * Prerequisito: npm install xlsx (en la carpeta n8n/tools o globalmente)
+ * Prerequisito: npm install xlsx (en la carpeta n8n/tools)
  *   cd "C:\Users\Juan\Documents\Agentic Workflows\clients\n8n\tools"
  *   npm install xlsx
  *
@@ -14,88 +14,87 @@
  *   node import_keywords_excel.js --dry-run → simula sin insertar
  *   node import_keywords_excel.js --sql     → genera keywords_import.sql para ejecutar manualmente
  *
- * Estructura esperada del Excel (por hoja):
- *   Columna A: Palabra clave  (requerida)
- *   Columna B: Tipo           (opcional — default: 'general')
- *   Columna C: Peso           (opcional — default: 1)
+ * Estructura del Excel (por hoja):
+ *   Fila 0:   Título (saltar)
+ *   Fila 1-3: Subtítulos / vacías (saltar)
+ *   Fila 4:   Encabezados: CATEGORÍA | PALABRA CLAVE / FRASE | IDIOMA | PLATAFORMA
+ *   Fila 5+:  Datos (col 0=cat, col 1=keyword, col 2=idioma, col 3=plataforma)
  *
- * Nombres de hoja reconocidos → código de sub-línea:
- *   BHS             → bhs
- *   Intralogística  → intralogistica
- *   Cartón          → carton_papel
- *   Final de Línea  → final_linea
- *   Motos           → motos
- *   Solumat         → solumat
- *   Cargo           → cargo
+ * Hojas reconocidas:
+ *   BHS_AEROPUERTOS → aeropuertos (id 1)
+ *   BHS_CARGO       → cargo_uld   (id 2)
+ *   CARTON_PAPEL    → carton_corrugado (id 3)
+ *   INTRA_FINAL     → final_linea (id 4)
+ *   INTRA_MOTOS     → ensambladoras_motos (id 5)
+ *   INTRA_SOLUMAT   → solumat     (id 6)
  */
 
 const path  = require('path');
 const https = require('https');
 const fs    = require('fs');
 
-const EXCEL_PATH   = path.join(__dirname, '../../docs/PalabrasClave_PorLineaNegocio.xlsx');
-const SUPABASE_URL = 'https://supabase.valparaiso.cafe';
-const SERVICE_KEY  = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NzU2NzI2NzcsImV4cCI6MTkzMzM1MjY3N30.EcqvysQnH7ZrGAz2OJJnUQVYYS1qsRlEhnb9xjbqFuQ';
-const DRY_RUN      = process.argv.includes('--dry-run');
+// ── Configuración ─────────────────────────────────────────────────────────────
+const EXCEL_PATH = path.join(
+  __dirname,
+  '../../docs/documentación/Documentacion/PalabrasClave_PorLineaNegocio.xlsx',
+);
+const SUPABASE_URL  = 'https://supabase.valparaiso.cafe';
+// Production service_role key (iat: 1700000000)
+const SERVICE_KEY   =
+  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9' +
+  '.eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjIwMDAwMDAwMH0' +
+  '.vBDC2y9ofT_-tvJxNdtRtFilgmkFN-ktiSl2AHiZZ3o';
+const DRY_RUN       = process.argv.includes('--dry-run');
+const GENERATE_SQL  = process.argv.includes('--sql');
 
-// ── Mapa de nombres de hoja → código de sub-línea ────────────────────────────
-// Spec F2.1: mapeo exacto de nombres de hoja a códigos en sub_lineas_negocio.codigo
-const SHEET_TO_SUBLINEA = {
-  // Primarios (nombres exactos del Excel)
-  'bhs':                   'bhs',
-  'intralogistica':        'intralogistica',
-  'intralogística':        'intralogistica',
-  'carton':                'carton_papel',
-  'cartón':                'carton_papel',
-  'final de linea':        'final_linea',
-  'final de línea':        'final_linea',
-  'motos':                 'motos',
-  'solumat':               'solumat',
-  'cargo':                 'cargo',
-  // Variantes adicionales
-  'aeropuertos':           'bhs',
-  'bhs aeropuertos':       'bhs',
-  'cargo uld':             'cargo',
-  'carga':                 'cargo',
-  'carton corrugado':      'carton_papel',
-  'cartón corrugado':      'carton_papel',
-  'papel':                 'carton_papel',
-  'corrugado':             'carton_papel',
-  'final linea':           'final_linea',
-  'ensambladoras':         'motos',
-  'ensambladoras motos':   'motos',
-  'motos ensambladoras':   'motos',
-  'plasticos':             'solumat',
-  'plásticos':             'solumat',
-  'materiales':            'solumat',
+// ── Mapa hoja → código sub-línea ──────────────────────────────────────────────
+// Claves en minúsculas sin tildes para comparación case-insensitive
+const SHEET_MAP = {
+  'bhs_aeropuertos':    'aeropuertos',
+  'bhs_cargo':          'cargo_uld',
+  'carton_papel':       'carton_corrugado',
+  'intra_final':        'final_linea',
+  'intra_motos':        'ensambladoras_motos',
+  'intra_solumat':      'solumat',
 };
 
-function normalizeSheetName(name) {
-  return (name || '').toLowerCase().trim()
-    .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+// ── Mapa CATEGORÍA → tipo + peso ─────────────────────────────────────────────
+// Peso escala 1–5 según relevancia de señal para el Radar
+const CATEGORIA_MAP = [
+  { match: ['capex', 'inversion', 'inversion y capex', 'inversion/capex'],       tipo: 'capex',      peso: 5 },
+  { match: ['proyectos', 'contratos', 'proyectos y contratos', 'licitacion'],     tipo: 'licitacion', peso: 4 },
+  { match: ['expansion', 'crecimiento', 'expansion y crecimiento'],               tipo: 'expansion',  peso: 4 },
+  { match: ['tecnologia', 'automatizacion', 'tecnologia y automatizacion'],        tipo: 'tecnologia', peso: 3 },
+  { match: ['por pais', 'region', 'por pais / region', 'mercado'],                tipo: 'mercado',    peso: 2 },
+  { match: ['boolean', 'guia', 'uso'],                                             tipo: null,         peso: 0 }, // skip
+  { match: [],                                                                      tipo: 'general',    peso: 2 }, // default
+];
+
+function normStr(s) {
+  return String(s || '')
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .replace(/[^a-z0-9_ /]/g, ''); // keep underscores for sheet matching
 }
 
-function resolveSubLinea(sheetName) {
-  const norm = normalizeSheetName(sheetName);
-  return SHEET_TO_SUBLINEA[norm] || null;
+function categoriaTipoYPeso(cat) {
+  const norm = normStr(cat);
+  for (const entry of CATEGORIA_MAP) {
+    if (entry.match.length === 0) return { tipo: entry.tipo, peso: entry.peso }; // default
+    if (entry.match.some(m => norm.includes(m))) return { tipo: entry.tipo, peso: entry.peso };
+  }
+  return { tipo: 'general', peso: 2 };
 }
 
-// ── Validar tipo y peso ───────────────────────────────────────────────────────
-function validateTipo(t) {
-  if (!t || String(t).trim() === '') return 'general';
-  const valid = ['general', 'senal', 'señal', 'producto', 'sector', 'exclusion'];
-  const norm = String(t).toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  if (norm === 'señal' || norm === 'senal') return 'senal';
-  return valid.includes(norm) ? norm : 'general';
+function normLang(idioma) {
+  const s = normStr(idioma);
+  if (s === 'en' || s.startsWith('en')) return 'en';
+  return 'es'; // default español
 }
 
-function validatePeso(p) {
-  const n = parseInt(p);
-  if (isNaN(n)) return 1;
-  return Math.max(-5, Math.min(5, n));
-}
-
-// ── HTTP helper genérico ──────────────────────────────────────────────────────
+// ── HTTP helpers ──────────────────────────────────────────────────────────────
 function httpRequest(options, body) {
   return new Promise((resolve, reject) => {
     const req = https.request(options, r => {
@@ -108,15 +107,12 @@ function httpRequest(options, body) {
   });
 }
 
-// ── GET Supabase REST API ─────────────────────────────────────────────────────
 function supabaseGet(table, params) {
-  const qs = params ? '?' + params : '';
-  // Use db-schema header so PostgREST targets matec_radar schema
   return httpRequest({
     hostname: new URL(SUPABASE_URL).hostname,
-    path:     `/rest/v1/${table}${qs}`,
+    path:     `/rest/v1/${table}${params ? '?' + params : ''}`,
     method:   'GET',
-    headers: {
+    headers:  {
       'apikey':         SERVICE_KEY,
       'Authorization':  `Bearer ${SERVICE_KEY}`,
       'Accept-Profile': 'matec_radar',
@@ -124,46 +120,38 @@ function supabaseGet(table, params) {
   });
 }
 
-// ── POST Supabase REST API ────────────────────────────────────────────────────
 function supabasePost(table, rows) {
   const body = JSON.stringify(rows);
   return httpRequest({
     hostname: new URL(SUPABASE_URL).hostname,
     path:     `/rest/v1/${table}`,
     method:   'POST',
-    headers: {
+    headers:  {
       'apikey':          SERVICE_KEY,
       'Authorization':   `Bearer ${SERVICE_KEY}`,
       'Content-Type':    'application/json',
       'Content-Length':  Buffer.byteLength(body),
       'Content-Profile': 'matec_radar',
-      'Prefer':          'resolution=merge-duplicates',
+      'Prefer':          'resolution=merge-duplicates,return=minimal',
     },
   }, body);
 }
 
-// ── Obtener IDs de sub-líneas desde Supabase ──────────────────────────────────
+// ── Leer sub_linea IDs desde Supabase ────────────────────────────────────────
 async function fetchSubLineaIds() {
   const res = await supabaseGet('sub_lineas_negocio', 'select=id,codigo');
-  if (res.status !== 200) {
-    throw new Error(`No se pudo consultar sub_lineas_negocio: ${res.status} ${res.body}`);
-  }
+  if (res.status !== 200) throw new Error(`HTTP ${res.status}: ${res.body.substring(0, 200)}`);
   const rows = JSON.parse(res.body);
-  const map  = {};
-  for (const r of rows) {
-    map[r.codigo] = r.id;
-  }
+  const map = {};
+  for (const r of rows) map[r.codigo] = r.id;
   return map;
 }
 
 // ── Parsear Excel ─────────────────────────────────────────────────────────────
 function parseExcel() {
   let XLSX;
-  try {
-    XLSX = require('xlsx');
-  } catch {
-    console.error('❌ Módulo "xlsx" no encontrado.');
-    console.error('   Ejecuta: cd "C:\\Users\\Juan\\Documents\\Agentic Workflows\\clients\\n8n\\tools" && npm install xlsx');
+  try { XLSX = require('xlsx'); } catch {
+    console.error('❌ Módulo "xlsx" no encontrado. Ejecuta: npm install xlsx');
     process.exit(1);
   }
 
@@ -172,289 +160,238 @@ function parseExcel() {
     process.exit(1);
   }
 
-  const workbook = XLSX.readFile(EXCEL_PATH, { cellDates: true });
-  console.log(`📂 Archivo leído: ${path.basename(EXCEL_PATH)}`);
-  console.log(`   Hojas: ${workbook.SheetNames.join(', ')}`);
+  const wb = XLSX.readFile(EXCEL_PATH, { cellDates: true });
+  console.log(`📂 Leído: ${path.basename(EXCEL_PATH)}`);
+  console.log(`   Hojas: ${wb.SheetNames.join(', ')}`);
 
-  // Array de { sub_linea_codigo, palabra, tipo, peso }
-  // (sin idioma — la tabla matec_radar.palabras_clave_por_linea no tiene esa columna)
+  const SKIP_SHEETS = ['resumen', 'guia_uso_boolean', 'guia uso boolean', 'guia'];
   const keywords = [];
 
-  for (const sheetName of workbook.SheetNames) {
-    const subLinea = resolveSubLinea(sheetName);
-    const sheet    = workbook.Sheets[sheetName];
-    const rows     = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-
-    if (rows.length === 0) {
-      console.log(`  ⚠ Hoja "${sheetName}": vacía`);
+  for (const sheetName of wb.SheetNames) {
+    const normName = normStr(sheetName).replace(/\s+/g, '_');
+    if (SKIP_SHEETS.some(s => normName.includes(s))) {
+      console.log(`  ⏩ Hoja "${sheetName}": saltada (resumen/guía)`);
       continue;
     }
 
-    // Detectar si la primera fila es encabezado
-    const firstRow = rows[0].map(c => String(c).toLowerCase().trim());
-    const hasHeader = firstRow.some(c =>
-      ['palabra', 'keyword', 'tipo', 'type', 'peso', 'weight'].includes(c)
-    );
-
-    const dataRows = hasHeader ? rows.slice(1) : rows;
-    // Columnas por defecto: A=palabra, B=tipo, C=peso
-    let colPalabra = 0, colTipo = 1, colPeso = 2, colSubLinea = -1;
-
-    if (hasHeader) {
-      firstRow.forEach((c, i) => {
-        if (['palabra', 'keyword', 'termino', 'term'].includes(c)) colPalabra = i;
-        if (['tipo', 'type'].includes(c)) colTipo = i;
-        if (['peso', 'weight'].includes(c)) colPeso = i;
-        if (['sub_linea', 'sublinea', 'linea'].includes(c)) colSubLinea = i;
-      });
+    const subLineaCodigo = SHEET_MAP[normName];
+    if (!subLineaCodigo) {
+      console.log(`  ⚠ Hoja "${sheetName}" (norm: "${normName}"): no mapeada, saltada`);
+      continue;
     }
 
+    const ws   = wb.Sheets[sheetName];
+    const rows = XLSX.utils.sheet_to_json(ws, { header: 1, defval: '' });
+
+    // Encontrar índice de fila de encabezados (buscar "CATEGORÍA" o "PALABRA")
+    let headerIdx = rows.findIndex(r =>
+      r.some(c => normStr(c).includes('categoria') || normStr(c).includes('palabra clave'))
+    );
+    if (headerIdx < 0) headerIdx = 0; // fallback: primera fila
+
+    const dataRows = rows.slice(headerIdx + 1);
+
+    // Detectar columnas desde encabezado
+    const header = rows[headerIdx].map(c => normStr(c));
+    const colCat  = header.findIndex(c => c.includes('categoria')) ?? 0;
+    const colKw   = header.findIndex(c => c.includes('palabra') || c.includes('frase') || c.includes('keyword')) ?? 1;
+    const colLang = header.findIndex(c => c === 'idioma' || c === 'language' || c === 'lang') ?? 2;
+
+    const cidxCat  = colCat  >= 0 ? colCat  : 0;
+    const cidxKw   = colKw   >= 0 ? colKw   : 1;
+    const cidxLang = colLang >= 0 ? colLang : 2;
+
     let count = 0;
+    let lastCat = '';
+
     for (const row of dataRows) {
-      const palabra = String(row[colPalabra] || '').trim();
-      if (!palabra || palabra.length < 2) continue;
+      // Skip empty rows
+      const kw = String(row[cidxKw] || '').trim();
+      if (!kw || kw.length < 2) continue;
 
-      const tipo = validateTipo(row[colTipo]);
-      const peso = validatePeso(row[colPeso]);
+      // Categoría puede estar vacía (subcategoría hereda de la anterior)
+      const rawCat = String(row[cidxCat] || '').trim();
+      if (rawCat) lastCat = rawCat;
 
-      // Determinar sub-línea
-      let sl = subLinea;
-      if (!sl && colSubLinea >= 0) {
-        sl = resolveSubLinea(String(row[colSubLinea] || ''));
-      }
+      const { tipo, peso } = categoriaTipoYPeso(lastCat);
+      if (tipo === null) continue; // skip boolean/guía rows
 
-      if (!sl) {
-        console.log(`  ⚠ "${sheetName}" → sub-línea no reconocida (saltando "${palabra}")`);
-        continue;
-      }
+      const idioma = normLang(row[cidxLang]);
 
-      keywords.push({ sub_linea_codigo: sl, palabra, tipo, peso });
+      keywords.push({
+        sub_linea_codigo: subLineaCodigo,
+        palabra:          kw,
+        idioma,
+        tipo,
+        peso,
+      });
       count++;
     }
 
-    console.log(`  ✔ Hoja "${sheetName}" → sub-línea "${subLinea || '?'}" → ${count} keywords`);
+    console.log(`  ✔ "${sheetName}" → ${subLineaCodigo} → ${count} keywords`);
   }
 
   return keywords;
 }
 
-// ── Insertar en Supabase vía REST API ────────────────────────────────────────
-// Usa POST /rest/v1/palabras_clave_por_linea con Prefer: resolution=merge-duplicates
+// ── Insertar en Supabase vía REST ─────────────────────────────────────────────
 async function insertKeywords(keywords, subLineaIds) {
-  let inserted = 0, skipped = 0;
+  let inserted = 0, errors = 0;
+  const BATCH = 100;
 
-  // Procesar en lotes de 100 (REST API es más eficiente que raw SQL)
-  const batchSize = 100;
-  for (let i = 0; i < keywords.length; i += batchSize) {
-    const batch     = keywords.slice(i, i + batchSize);
-    const validRows = batch
+  for (let i = 0; i < keywords.length; i += BATCH) {
+    const batch = keywords.slice(i, i + BATCH);
+    const rows  = batch
       .filter(k => subLineaIds[k.sub_linea_codigo])
       .map(k => ({
         sub_linea_id: subLineaIds[k.sub_linea_codigo],
         palabra:      k.palabra,
+        idioma:       k.idioma,
         tipo:         k.tipo,
         peso:         k.peso,
         activo:       true,
       }));
 
-    if (validRows.length === 0) {
-      skipped += batch.length;
-      continue;
-    }
+    if (rows.length === 0) continue;
 
-    const batchNum = Math.floor(i / batchSize) + 1;
-
-    if (DRY_RUN) {
-      console.log(`  [DRY RUN] Batch ${batchNum}: ${validRows.length} rows`);
-      if (validRows.length > 0) {
-        console.log(`    Ejemplo: ${JSON.stringify(validRows[0])}`);
-      }
-      inserted += validRows.length;
+    const res = await supabasePost('palabras_clave_por_linea', rows);
+    if (res.status === 200 || res.status === 201) {
+      inserted += rows.length;
+      process.stdout.write('.');
     } else {
-      const res = await supabasePost('palabras_clave_por_linea', validRows);
-      // 201 Created o 200 OK → éxito
-      if (res.status === 200 || res.status === 201) {
-        inserted += validRows.length;
-        process.stdout.write('.');
-      } else {
-        console.error(`\n  ✗ Batch ${batchNum} error: HTTP ${res.status}`);
-        console.error(`    ${res.body.substring(0, 300)}`);
-        skipped += validRows.length;
-      }
+      console.error(`\n  ✗ Batch ${Math.floor(i/BATCH)+1} error: HTTP ${res.status}`);
+      console.error(`    ${res.body.substring(0, 300)}`);
+      errors += rows.length;
     }
   }
-
-  if (!DRY_RUN && inserted > 0) process.stdout.write('\n');
-  return { inserted, skipped };
+  if (inserted > 0) process.stdout.write('\n');
+  return { inserted, errors };
 }
 
-// ── Verificación final por sub-línea ─────────────────────────────────────────
-async function verifyCountBySubLinea() {
-  // GET keywords activas con sub_linea_id
-  const res = await supabaseGet(
-    'palabras_clave_por_linea',
-    'select=sub_linea_id&activo=eq.true'
-  );
-  if (res.status !== 200) return null;
-  const rows = JSON.parse(res.body);
-  // Agrupar por sub_linea_id
-  const counts = {};
-  for (const r of rows) {
-    const id = r.sub_linea_id;
-    counts[id] = (counts[id] || 0) + 1;
-  }
-  return { total: rows.length, byId: counts };
-}
-
-// ── IDs conocidos de sub-líneas (fallback si Supabase no responde) ────────────
-// Códigos alineados con CLAUDE.md y spec F2.1
-const KNOWN_SUBLINEA_IDS = {
-  bhs:           1,
-  cargo:         2,
-  carton_papel:  3,
-  final_linea:   4,
-  motos:         5,
-  solumat:       6,
-  intralogistica: 7,
-};
-
-// ── Generar SQL para ejecutar manualmente en Supabase Dashboard ───────────────
-// Tabla: matec_radar.palabras_clave_por_linea (sin columna idioma)
+// ── Generar SQL manual ────────────────────────────────────────────────────────
 function generateSql(keywords, subLineaIds) {
   const esc = s => "'" + String(s || '').replace(/'/g, "''") + "'";
-  const validKw = keywords.filter(k => subLineaIds[k.sub_linea_codigo]);
-  const values  = validKw.map(k =>
-    `  (${subLineaIds[k.sub_linea_codigo]}, ${esc(k.palabra)}, ${esc(k.tipo)}, ${k.peso}, TRUE)`
+  const valid = keywords.filter(k => subLineaIds[k.sub_linea_codigo]);
+  const vals  = valid.map(k =>
+    `  (${subLineaIds[k.sub_linea_codigo]}, ${esc(k.palabra)}, ${esc(k.idioma)}, ${esc(k.tipo)}, ${k.peso}, TRUE)`
   ).join(',\n');
 
   return `-- ============================================================
--- Sprint F2.1 — Keywords importadas desde PalabrasClave_PorLineaNegocio.xlsx
--- Generado: ${new Date().toISOString()}  |  Total: ${validKw.length}
+-- Sprint F2.1 — Keywords desde PalabrasClave_PorLineaNegocio.xlsx
+-- Generado: ${new Date().toISOString()}  |  Total: ${valid.length}
 -- Ejecutar en: https://supabase.valparaiso.cafe → SQL Editor
 -- ============================================================
 
 INSERT INTO matec_radar.palabras_clave_por_linea
-  (sub_linea_id, palabra, tipo, peso, activo)
+  (sub_linea_id, palabra, idioma, tipo, peso, activo)
 VALUES
-${values}
+${vals}
 ON CONFLICT (sub_linea_id, palabra)
-DO UPDATE SET tipo = EXCLUDED.tipo, peso = EXCLUDED.peso, activo = TRUE;
+DO UPDATE SET idioma = EXCLUDED.idioma, tipo = EXCLUDED.tipo, peso = EXCLUDED.peso, activo = TRUE;
 
--- Verificación: count por sub-línea
-SELECT sl.codigo, COUNT(*) as total
+-- Verificación
+SELECT sl.codigo, sl.nombre, COUNT(*) AS total
 FROM matec_radar.palabras_clave_por_linea p
 JOIN matec_radar.sub_lineas_negocio sl ON p.sub_linea_id = sl.id
 WHERE p.activo = TRUE
-GROUP BY sl.codigo ORDER BY sl.codigo;
+GROUP BY sl.id, sl.codigo, sl.nombre ORDER BY sl.id;
 `;
 }
 
-// ─── Main ─────────────────────────────────────────────────────────────────────
-async function main() {
-  const GENERATE_SQL = process.argv.includes('--sql');
+// ── Verificar count final ─────────────────────────────────────────────────────
+async function verifyFinal() {
+  const res = await supabaseGet('palabras_clave_por_linea', 'select=sub_linea_id&activo=eq.true');
+  if (res.status !== 200) return null;
+  const rows = JSON.parse(res.body);
+  const by = {};
+  for (const r of rows) by[r.sub_linea_id] = (by[r.sub_linea_id] || 0) + 1;
+  return { total: rows.length, byId: by };
+}
 
+// ── Main ──────────────────────────────────────────────────────────────────────
+async function main() {
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log(' Import Keywords Excel → Supabase (Sprint F2.1)               ');
+  console.log(' Import Keywords → Supabase (Sprint F2.1)                      ');
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log(`Modo: ${DRY_RUN ? 'DRY RUN (sin insertar)' : GENERATE_SQL ? 'GENERAR SQL (manual)' : 'PRODUCCIÓN'}`);
+  console.log(`Modo: ${DRY_RUN ? 'DRY RUN' : GENERATE_SQL ? 'GENERAR SQL' : 'PRODUCCIÓN'}`);
   console.log(`Excel: ${EXCEL_PATH}`);
   console.log('');
 
-  // 1. Obtener IDs de sub-líneas — GET /rest/v1/sub_lineas_negocio
-  let subLineaIds = { ...KNOWN_SUBLINEA_IDS };
-  console.log('Consultando sub-líneas en Supabase...');
+  // 1. Obtener IDs de sub-líneas
+  let subLineaIds = {};
+  console.log('Consultando sub_lineas en Supabase...');
   try {
-    const fetched = await fetchSubLineaIds();
-    if (Object.keys(fetched).length > 0) {
-      subLineaIds = fetched;
-      console.log(`  IDs obtenidos: ${Object.entries(subLineaIds).map(([k,v])=>`${k}=${v}`).join(', ')}`);
-    } else {
-      console.log(`  ⚠ Respuesta vacía. Usando IDs del seed.`);
-    }
+    subLineaIds = await fetchSubLineaIds();
+    console.log(`  OK: ${Object.entries(subLineaIds).map(([k,v])=>`${k}=${v}`).join(', ')}`);
   } catch (e) {
-    console.log(`  ⚠ Supabase no accesible (${e.message}). Usando IDs del seed.`);
-    console.log(`  Seed IDs: ${Object.entries(subLineaIds).map(([k,v])=>`${k}=${v}`).join(', ')}`);
+    console.error(`  ❌ Error: ${e.message}`);
+    process.exit(1);
   }
-
   console.log('');
 
   // 2. Parsear Excel
   console.log('Parseando Excel...');
   const keywords = parseExcel();
-  console.log(`\nTotal keywords parseadas: ${keywords.length}`);
+  console.log(`\nTotal keywords extraídas: ${keywords.length}`);
 
   if (keywords.length === 0) {
-    console.error('❌ No se encontraron keywords. Verificar estructura del Excel.');
+    console.error('❌ Sin keywords. Verificar estructura del Excel.');
     process.exit(1);
   }
 
-  // Resumen por sub-línea
-  const bySubLinea = {};
-  for (const k of keywords) {
-    bySubLinea[k.sub_linea_codigo] = (bySubLinea[k.sub_linea_codigo] || 0) + 1;
-  }
+  // Resumen
+  const bySL = {};
+  for (const k of keywords) bySL[k.sub_linea_codigo] = (bySL[k.sub_linea_codigo] || 0) + 1;
   console.log('\nPor sub-línea:');
-  for (const [sl, cnt] of Object.entries(bySubLinea)) {
-    const slId = subLineaIds[sl] || '❌ NO MAPEADO';
-    console.log(`  ${sl} (id=${slId}): ${cnt} keywords`);
+  for (const [sl, cnt] of Object.entries(bySL)) {
+    console.log(`  ${sl} (id=${subLineaIds[sl] ?? '❌ NO MAPEADO'}): ${cnt}`);
   }
 
   const sinId = keywords.filter(k => !subLineaIds[k.sub_linea_codigo]);
-  if (sinId.length > 0) {
-    console.log(`\n⚠ ${sinId.length} keywords con sub-línea no mapeada (se omitirán)`);
-  }
+  if (sinId.length) console.log(`\n⚠ ${sinId.length} keywords sin ID mapeado (se omitirán)`);
 
   console.log('');
 
-  // 3. Generar SQL o insertar
+  // 3. SQL o insertar
   if (GENERATE_SQL) {
     const sql     = generateSql(keywords, subLineaIds);
     const sqlPath = path.join(__dirname, 'keywords_import.sql');
     fs.writeFileSync(sqlPath, sql, 'utf-8');
     console.log(`✅ SQL generado: ${sqlPath}`);
-    console.log('');
-    console.log('INSTRUCCIONES:');
-    console.log('  1. Ir a https://supabase.valparaiso.cafe → SQL Editor');
-    console.log('  2. Pegar el contenido del archivo keywords_import.sql');
-    console.log('  3. Ejecutar y verificar el COUNT por sub-línea al final');
+    console.log(`   ${keywords.filter(k=>subLineaIds[k.sub_linea_codigo]).length} keywords en el archivo`);
     return;
   }
 
-  console.log('Insertando en Supabase (POST /rest/v1/palabras_clave_por_linea)...');
-  const { inserted, skipped } = await insertKeywords(keywords, subLineaIds);
-
-  console.log('');
-  console.log(`  Insertadas/actualizadas: ${inserted}`);
-  console.log(`  Omitidas (sin ID):       ${skipped}`);
-
-  // 4. Verificar count por sub-línea
-  if (!DRY_RUN) {
-    try {
-      const verify = await verifyCountBySubLinea();
-      if (verify) {
-        console.log(`\n  Total activas en DB: ${verify.total}`);
-        console.log('  Por sub-línea:');
-        for (const [id, cnt] of Object.entries(verify.byId)) {
-          const codigo = Object.entries(subLineaIds).find(([,v]) => v == id)?.[0] || `id=${id}`;
-          console.log(`    ${codigo}: ${cnt} keywords`);
-        }
-        if (verify.total < 30) {
-          console.log('  ⚠ ADVERTENCIA: Menos de 30 keywords activas. Verificar seed.');
-        } else {
-          console.log('  ✔ Keywords verificadas correctamente.');
-        }
-      }
-    } catch (e) {
-      console.log(`  ⚠ No se pudo verificar count: ${e.message}`);
+  if (DRY_RUN) {
+    console.log('[DRY RUN] No se insertará nada. Ejemplo de primer registro:');
+    const ex = keywords.find(k => subLineaIds[k.sub_linea_codigo]);
+    if (ex) {
+      console.log(`  { sub_linea_id: ${subLineaIds[ex.sub_linea_codigo]}, palabra: "${ex.palabra}", idioma: "${ex.idioma}", tipo: "${ex.tipo}", peso: ${ex.peso} }`);
     }
+    console.log(`\n✅ DRY RUN OK — ${keywords.length} keywords listas para insertar`);
+    return;
   }
+
+  console.log('Insertando en Supabase...');
+  const { inserted, errors } = await insertKeywords(keywords, subLineaIds);
+  console.log(`\n  Insertadas/actualizadas: ${inserted}`);
+  if (errors) console.log(`  Con error: ${errors}`);
+
+  // 4. Verificar
+  try {
+    const v = await verifyFinal();
+    if (v) {
+      console.log(`\n  Total activas en DB: ${v.total}`);
+      for (const [id, cnt] of Object.entries(v.byId)) {
+        const codigo = Object.entries(subLineaIds).find(([,v2]) => v2 == id)?.[0] ?? `id=${id}`;
+        console.log(`    ${codigo}: ${cnt}`);
+      }
+      console.log(v.total >= 50 ? '  ✔ ≥50 keywords ✅' : `  ⚠ Solo ${v.total} keywords activas`);
+    }
+  } catch { /* swallow */ }
 
   console.log('');
   console.log('✅ Importación completada (Sprint F2.1)');
-  console.log('');
-  console.log('PRÓXIMOS PASOS:');
-  console.log('  1. Probar WF02 con DHL Express / Colombia / Intralogística');
-  console.log('  2. Verificar en n8n que "HTTP: Fetch Keywords Supabase" devuelve datos');
 }
 
 main().catch(e => {
