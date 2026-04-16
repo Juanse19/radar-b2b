@@ -13,7 +13,7 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
     scoreGte, scoreLt, from, to,
     sort = 'score_radar', order = 'desc',
     limit = 100, offset = 0,
-    empresaId,
+    empresaId, ejecutadoPorId,
   } = filter;
 
   const safeSort = ALLOWED_SORT.has(sort) ? sort : 'score_radar';
@@ -22,14 +22,15 @@ export async function getSenales(filter: GetSenalesFilter): Promise<SenalRow[]> 
     .order(safeSort, { ascending: order === 'asc' })
     .range(offset, offset + limit - 1);
 
-  if (linea && linea !== 'ALL') q = q.eq('linea_negocio', linea);
-  if (pais)                      q = q.ilike('empresa_pais', `%${pais}%`);
-  if (activos)                   q = q.eq('radar_activo', true);
-  if (scoreGte !== undefined)    q = q.gte('score_radar', scoreGte);
-  if (scoreLt  !== undefined)    q = q.lt('score_radar',  scoreLt);
-  if (from)                      q = q.gte('created_at',  from);
-  if (to)                        q = q.lte('created_at',  to);
-  if (empresaId !== undefined)   q = q.eq('empresa_id',   empresaId);
+  if (linea && linea !== 'ALL')         q = q.eq('linea_negocio', linea);
+  if (pais)                             q = q.ilike('empresa_pais', `%${pais}%`);
+  if (activos)                          q = q.eq('radar_activo', true);
+  if (scoreGte !== undefined)           q = q.gte('score_radar', scoreGte);
+  if (scoreLt  !== undefined)           q = q.lt('score_radar',  scoreLt);
+  if (from)                             q = q.gte('created_at',  from);
+  if (to)                               q = q.lte('created_at',  to);
+  if (empresaId !== undefined)          q = q.eq('empresa_id',   empresaId);
+  if (ejecutadoPorId)                   q = q.eq('ejecutado_por_id', ejecutadoPorId);
 
   const { data, error } = await q;
   if (error) throw new Error(`Supabase getSenales: ${error.message}`);

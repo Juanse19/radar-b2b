@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import type { ColumnDef } from '@tanstack/react-table';
-import { ExternalLink, Radar, Loader2 } from 'lucide-react';
+import { ExternalLink, Radar, Loader2, User } from 'lucide-react';
 import { ScoreBadge } from '@/components/ScoreBadge';
 import { LineaBadge } from '@/components/LineaBadge';
 import { toast } from 'sonner';
@@ -200,6 +200,26 @@ export function createResultsColumns(
             <ExternalLink size={11} />
             {row.original.fuente || 'Ver'}
           </a>
+        );
+      },
+    },
+    {
+      id: 'ejecutado_por',
+      header: 'Escaneado por',
+      enableSorting: false,
+      cell: ({ row }) => {
+        const nombre = row.original.ejecutadoPorNombre;
+        if (!nombre) return (
+          <span className="flex items-center gap-1 text-xs text-gray-600">
+            <User size={10} />
+            —
+          </span>
+        );
+        return (
+          <span className="flex items-center gap-1 text-xs text-muted-foreground" title={nombre}>
+            <User size={10} />
+            {nombre}
+          </span>
         );
       },
     },
