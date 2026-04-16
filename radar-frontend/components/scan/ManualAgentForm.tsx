@@ -22,6 +22,7 @@ import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
+import { RadarSignalCard }   from '@/components/scan/RadarSignalCard';
 import { LINEA_OPTIONS_ALL } from '@/lib/constants/lineas';
 import { useLineasActivas } from '@/hooks/useLineasActivas';
 import { cn } from '@/lib/utils';
@@ -94,6 +95,8 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const [selected, setSelected]           = useState<Empresa[]>([]);
   const [firing, setFiring]               = useState(false);
   const [lastExecutionId, setLastExecutionId] = useState<string | null>(null);
+  const [lastFiredEmpresaId, setLastFiredEmpresaId] = useState<number | null>(null);
+  const [lastFiredEmpresaNombre, setLastFiredEmpresaNombre] = useState<string>('');
   const [error, setError]                 = useState<string | null>(null);
 
   // ── Execution status (real-time from n8n) ────────────────────────────────
@@ -245,6 +248,9 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
         }
         if (fireEmpresas.length === 1) {
           const e = fireEmpresas[0]!;
+          // Track fired empresa for RadarSignalCard post-scan display
+          setLastFiredEmpresaId(typeof e.id === 'number' && e.id > 0 ? e.id : null);
+          setLastFiredEmpresaNombre(e.nombre);
           body.options = {
             empresa:            e.nombre,
             pais:               radarPais.trim() || e.pais || 'Colombia',
@@ -735,6 +741,15 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
         {lastExecutionId && (
           <AgentPipelineCard executionId={lastExecutionId} />
+        )}
+
+        {/* ── Radar MAOA Signal Card (F3.1) — shown after successful radar scan ── */}
+        {agent === 'radar' && (
+          <RadarSignalCard
+            empresaId={lastFiredEmpresaId}
+            empresaNombre={lastFiredEmpresaNombre}
+            visible={agentStatus.isDone && agentStatus.status === 'success' && !!lastFiredEmpresaNombre}
+          />
         )}
       </section>
     </div>
