@@ -13,6 +13,9 @@ import {
   Shield,
   ClipboardList,
   CheckCircle2,
+  Zap,
+  TrendingUp,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useState } from 'react';
@@ -27,6 +30,9 @@ const navItems = [
   { href: '/results',           label: 'Resultados',        icon: Table2 },
   { href: '/contactos',         label: 'Contactos',         icon: Users },
   { href: '/schedule',          label: 'Cronograma',        icon: Calendar },
+  { href: '/radar-v2',          label: 'Radar v2',          icon: Zap },
+  { href: '/resultados-v2',     label: 'Resultados v2',     icon: TrendingUp },
+  { href: '/radar-v2/metricas', label: 'Métricas v2',       icon: BarChart3 },
 ];
 
 const adminNavItem = { href: '/admin', label: 'Administración', icon: Shield };
