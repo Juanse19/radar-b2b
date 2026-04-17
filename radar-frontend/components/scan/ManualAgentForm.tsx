@@ -385,12 +385,24 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           <div className="flex flex-wrap gap-2">
             {(() => {
               // Match each DB linea to its static metadata (icon, colors).
-              // Falls back to a generic option if the name isn't in LINEA_OPTIONS_ALL.
+              // Primary match: by `codigo` (robust against name changes).
+              // Secondary match: by `nombre` exact string (belt-and-suspenders).
               const staticAll = LINEA_OPTIONS_ALL;
-              const dbNames = lineasActivas.map(l => l.nombre);
+              const VALUE_TO_CODIGO: Record<string, string> = {
+                'BHS':           'bhs',
+                'Cartón':        'carton_papel',
+                'Intralogística':'intralogistica',
+                'Final de Línea':'final_linea',
+                'Motos':         'motos',
+                'SOLUMAT':       'solumat',
+              };
+              const dbCodigos = new Set(lineasActivas.map(l => l.codigo).filter(Boolean));
+              const dbNames   = new Set(lineasActivas.map(l => l.nombre));
               // Build the rendered list: DB-active lines + ALL at the end.
-              const opts = staticAll.filter(
-                o => o.value === 'ALL' || dbNames.includes(o.value),
+              const opts = staticAll.filter(o =>
+                o.value === 'ALL'
+                || dbCodigos.has(VALUE_TO_CODIGO[o.value] ?? '')
+                || dbNames.has(o.value),
               );
               return opts.map(opt => {
                 const isActive = linea === opt.value;
