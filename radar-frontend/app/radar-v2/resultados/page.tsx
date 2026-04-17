@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
 import { TrendingUp } from 'lucide-react';
 import { ResultadosTable } from './components/ResultadosTable';
 import { InformeEjecucion } from '@/app/radar-v2/components/InformeEjecucion';
@@ -87,27 +88,51 @@ export default function ResultadosV2Page() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <TrendingUp size={20} className="text-primary" />
-            Resultados v2
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Historial de señales detectadas por el Agente 1 RADAR (Claude)
-          </p>
-        </div>
-        <div className="flex items-center gap-2">
-          <Badge variant="secondary" className="bg-green-500/15 text-green-700">
-            {activeCount} activas
-          </Badge>
-          <Badge variant="secondary" className="text-muted-foreground">
-            {discardedCount} descartadas
-          </Badge>
-        </div>
+      <div>
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          <TrendingUp size={20} className="text-primary" />
+          Resultados v2
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Historial de señales detectadas por el Agente 1 RADAR (Claude)
+        </p>
       </div>
 
-      {/* Filters */}
+      {/* KPI summary row */}
+      {loading ? (
+        <div className="grid grid-cols-3 gap-3">
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+          <Skeleton className="h-16 rounded-xl" />
+        </div>
+      ) : (
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl border border-border bg-card px-4 py-3">
+            <p className="text-xs text-muted-foreground">Total resultados</p>
+            <p className="mt-0.5 text-2xl font-bold leading-none">{results.length}</p>
+          </div>
+          <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
+            <p className="text-xs text-green-700 dark:text-green-400">Activas</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className="text-2xl font-bold leading-none text-green-700 dark:text-green-400">{activeCount}</p>
+              <Badge variant="secondary" className="bg-green-500/15 text-green-700 text-xs">
+                con señal
+              </Badge>
+            </div>
+          </div>
+          <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
+            <p className="text-xs text-muted-foreground">Descartadas</p>
+            <div className="mt-0.5 flex items-center gap-2">
+              <p className="text-2xl font-bold leading-none text-muted-foreground">{discardedCount}</p>
+              <Badge variant="secondary" className="text-muted-foreground text-xs">
+                sin señal
+              </Badge>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Filters — grouped in single card */}
       <Card>
         <CardHeader className="pb-2 pt-4">
           <CardTitle className="text-sm font-medium text-muted-foreground">Filtros</CardTitle>
@@ -130,8 +155,8 @@ export default function ResultadosV2Page() {
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="ALL"  className="text-xs">Todos</SelectItem>
-              <SelectItem value="Sí"   className="text-xs">✓ Con señal</SelectItem>
-              <SelectItem value="No"   className="text-xs">✗ Descartados</SelectItem>
+              <SelectItem value="Sí"   className="text-xs">Con señal</SelectItem>
+              <SelectItem value="No"   className="text-xs">Descartados</SelectItem>
             </SelectContent>
           </Select>
 

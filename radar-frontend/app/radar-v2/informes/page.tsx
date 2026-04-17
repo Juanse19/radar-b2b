@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
 import { Download, FileText } from 'lucide-react';
 import { InformeEjecucion } from '@/app/radar-v2/components/InformeEjecucion';
 
@@ -19,6 +21,37 @@ interface RawResult {
   linea_negocio?: string;
   created_at?:    string;
   cost_usd?:      number;
+}
+
+// Color mapping for linea_negocio left border
+const LINEA_BORDER: Record<string, string> = {
+  'BHS':             'border-l-blue-500',
+  'Intralogística':  'border-l-purple-500',
+  'Cartón':          'border-l-amber-500',
+  'Final de Línea':  'border-l-orange-500',
+  'Motos':           'border-l-red-500',
+  'SOLUMAT':         'border-l-teal-500',
+  'Solumat':         'border-l-teal-500',
+  'Cargo':           'border-l-sky-500',
+};
+
+const LINEA_BADGE: Record<string, string> = {
+  'BHS':             'bg-blue-500/10 text-blue-700',
+  'Intralogística':  'bg-purple-500/10 text-purple-700',
+  'Cartón':          'bg-amber-500/10 text-amber-700',
+  'Final de Línea':  'bg-orange-500/10 text-orange-700',
+  'Motos':           'bg-red-500/10 text-red-700',
+  'SOLUMAT':         'bg-teal-500/10 text-teal-700',
+  'Solumat':         'bg-teal-500/10 text-teal-700',
+  'Cargo':           'bg-sky-500/10 text-sky-700',
+};
+
+function getLineBorder(linea: string): string {
+  return LINEA_BORDER[linea] ?? 'border-l-border';
+}
+
+function getLineBadge(linea: string): string {
+  return LINEA_BADGE[linea] ?? 'bg-muted text-muted-foreground';
 }
 
 export default function InformesPage() {
@@ -59,7 +92,14 @@ export default function InformesPage() {
   }, []);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Cargando...</p>;
+    return (
+      <div className="space-y-3">
+        <h1 className="text-xl font-semibold">Informes de Ejecución</h1>
+        {Array.from({ length: 3 }).map((_, i) => (
+          <Skeleton key={i} className="h-16 w-full rounded-xl" />
+        ))}
+      </div>
+    );
   }
 
   if (sessions.length === 0) {
@@ -76,15 +116,29 @@ export default function InformesPage() {
   return (
     <div className="space-y-3">
       <h1 className="text-xl font-semibold">Informes de Ejecución</h1>
-      {sessions.map(s => (
+      {sessions.map((s, idx) => (
         <Card
           key={s.session_id}
-          className="flex items-center justify-between gap-3 p-4"
+          className={`flex items-center justify-between gap-3 border-l-4 p-4 ${getLineBorder(s.linea_negocio)}`}
         >
-          <div className="min-w-0">
-            <p className="truncate font-medium">{s.linea_negocio}</p>
-            <p className="text-xs text-muted-foreground">
-              {new Date(s.created_at).toLocaleString('es-CO')} · {s.empresas_count} empresas · ${s.total_cost_usd.toFixed(4)} USD
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <span
+                className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${getLineBadge(s.linea_negocio)}`}
+              >
+                {s.linea_negocio || 'Sin línea'}
+              </span>
+              <Badge variant="secondary" className="text-xs">
+                {s.empresas_count} {s.empresas_count === 1 ? 'empresa' : 'empresas'}
+              </Badge>
+              {idx === 0 && (
+                <Badge variant="secondary" className="bg-primary/10 text-primary text-xs">
+                  Última sesión
+                </Badge>
+              )}
+            </div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              {new Date(s.created_at).toLocaleString('es-CO')} · ${s.total_cost_usd.toFixed(4)} USD
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

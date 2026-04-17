@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { BarChart3 } from 'lucide-react';
+import { BarChart3, Activity } from 'lucide-react';
 import {
   Select,
   SelectContent,
@@ -10,6 +10,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Separator } from '@/components/ui/separator';
 import { KpiCard } from './components/KpiCard';
 import { MetricsTable } from './components/MetricsTable';
 import type { RadarV2Metrics } from '@/lib/radar-v2/types';
@@ -115,15 +116,17 @@ export default function MetricasV2Page() {
 
       {/* Empty state (no scans in range) */}
       {!loading && !error && metrics && metrics.totals.scans === 0 && (
-        <div className="rounded-lg border border-border bg-muted/20 py-16 px-6 text-center">
-          <BarChart3 size={32} className="mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm font-medium">Sin scans en este período</p>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Ejecuta un escaneo desde el módulo Radar v2 para ver métricas aquí.
+        <div className="rounded-xl border border-border bg-muted/10 py-16 px-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-background">
+            <Activity size={24} className="text-muted-foreground/50" />
+          </div>
+          <p className="text-sm font-semibold">Sin actividad en este período</p>
+          <p className="mt-1.5 text-xs text-muted-foreground max-w-xs mx-auto">
+            No se registraron escaneos en el intervalo seleccionado. Ejecuta un escaneo para comenzar a ver métricas.
           </p>
           <a
             href="/radar-v2/escanear"
-            className="mt-4 inline-block rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+            className="mt-5 inline-block rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
           >
             Ir a Escanear →
           </a>
@@ -170,14 +173,22 @@ export default function MetricasV2Page() {
                 {metrics.totals.activas} activas de {metrics.totals.scans} scans
               </span>
             </div>
-            {/* Progress bar */}
-            <div className="mt-3 h-2 w-full overflow-hidden rounded-full bg-muted">
+            {/* Progress bar with inline percentage label */}
+            <div className="relative mt-3 h-5 w-full overflow-hidden rounded-full bg-muted">
               <div
                 className="h-full rounded-full bg-green-500 transition-all duration-500"
                 style={{ width: `${pctActivas}%` }}
               />
+              {Number(pctActivas) >= 10 && (
+                <span className="absolute inset-y-0 right-2 flex items-center text-[10px] font-semibold text-white/90 mix-blend-normal">
+                  {pctActivas}%
+                </span>
+              )}
             </div>
           </div>
+
+          {/* Section divider */}
+          {metrics.por_linea.length > 0 && <Separator />}
 
           {/* Breakdown by line */}
           {metrics.por_linea.length > 0 && (
