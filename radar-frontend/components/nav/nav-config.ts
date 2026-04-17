@@ -73,8 +73,9 @@ export const navTree: NavNode[] = [
       { label: 'Empresas', href: '/empresas',       icon: Building2 },
       { label: 'Líneas',   href: '/admin/lineas',   icon: Activity },
       { label: 'Fuentes',  href: '/admin/fuentes',  icon: FileText },
-      { label: 'Keywords', href: '/admin/keywords', icon: Key },
-      { label: 'Tokens',   href: '/admin/tokens',   icon: Coins, badge: 'Nuevo' },
+      { label: 'Keywords',  href: '/admin/keywords',  icon: Key },
+      { label: 'API Keys',  href: '/admin/api-keys',  icon: Key,   badge: 'Nuevo' },
+      { label: 'Tokens',    href: '/admin/tokens',    icon: Coins },
     ],
   },
 
