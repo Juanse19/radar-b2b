@@ -1,17 +1,21 @@
-import Link from 'next/link';
-import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
+import { Suspense } from 'react';
+import { Wizard } from './components/Wizard';
+
+export const dynamic = 'force-dynamic';
+
+function WizardFallback() {
+  return (
+    <div className="space-y-4">
+      <div className="h-10 animate-pulse rounded bg-muted" />
+      <div className="h-64 animate-pulse rounded bg-muted" />
+    </div>
+  );
+}
 
 export default function EscanearPage() {
   return (
-    <Card className="p-8 text-center">
-      <h1 className="mb-2 text-xl font-semibold">Escanear — Wizard</h1>
-      <p className="mb-4 text-sm text-muted-foreground">
-        El wizard de 3 pasos estará disponible próximamente.
-      </p>
-      <Link href="/radar-v2">
-        <Button>Volver a landing</Button>
-      </Link>
-    </Card>
+    <Suspense fallback={<WizardFallback />}>
+      <Wizard />
+    </Suspense>
   );
 }

@@ -1,0 +1,178 @@
+'use client';
+
+import { useEffect, useState } from 'react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { AutoCountSlider } from './AutoCountSlider';
+import { CompanySelector } from '../../components/CompanySelector';
+import type { WizardState } from '@/lib/radar-v2/wizard-state';
+import type { RadarV2Company } from '@/lib/radar-v2/types';
+
+const MOCK_FUENTES = [
+  { country: 'Colombia', sources: ['SECOP', 'ANI', 'Aerocivil', 'DNP'] },
+  { country: 'México',   sources: ['AFAC', 'CompraNet', 'ASUR/GAP/OMA'] },
+  { country: 'Chile',    sources: ['Mercado Público', 'DGAC', 'MOP'] },
+  { country: 'Brasil',   sources: ['ANAC', 'Infraestrutura.gov', 'Portal Transparência'] },
+];
+
+const MOCK_KEYWORDS = [
+  'terminal pasajeros',
+  'sistema BHS',
+  'carrusel equipaje',
+  'CUTE CUSS CBIS',
+  'ampliación aeropuerto',
+  'concesión aeroportuaria',
+  'self bag drop',
+];
+
+interface Props {
+  state:    WizardState;
+  onChange: (updates: Partial<WizardState>) => void;
+}
+
+export function Step2Configure({ state, onChange }: Props) {
+  // The CompanySelector needs a full RadarV2Company[] locally — the URL only
+  // persists IDs. We re-hydrate from the /api/radar-v2/companies endpoint.
+  const [selectedCompanies, setSelectedCompanies] = useState<RadarV2Company[]>([]);
+  const [hydrated, setHydrated] = useState(false);
+
+  useEffect(() => {
+    if (state.mode !== 'manual' || !state.line || hydrated) return;
+
+    let cancelled = false;
+    const markHydrated = () => { if (!cancelled) setHydrated(true); };
+
+    if (state.selectedIds.length === 0) {
+      // Defer the state update to the next microtask so we don't update
+      // during the same commit phase.
+      Promise.resolve().then(markHydrated);
+      return () => { cancelled = true; };
+    }
+
+    const params = new URLSearchParams({ linea: state.line, limit: '200' });
+    fetch(`/api/radar-v2/companies?${params}`)
+      .then((r) => r.ok ? r.json() : [])
+      .then((all: RadarV2Company[]) => {
+        if (cancelled) return;
+        const picked = all.filter((c) => state.selectedIds.includes(c.id));
+        setSelectedCompanies(picked);
+        setHydrated(true);
+      })
+      .catch(markHydrated);
+
+    return () => { cancelled = true; };
+  }, [state.line, state.mode, state.selectedIds, hydrated]);
+
+  const handleCompaniesChange = (cs: RadarV2Company[]) => {
+    setSelectedCompanies(cs);
+    onChange({ selectedIds: cs.map((c) => c.id) });
+  };
+
+  return (
+    <div className="space-y-6">
+      {state.mode === 'auto' ? (
+        <div>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Elige cuántas empresas de <strong className="text-foreground">{state.line || '—'}</strong> quieres escanear.
+            El sistema seleccionará las de mayor prioridad (ORO/MONITOREO).
+          </p>
+          <AutoCountSlider
+            value={state.count}
+            onChange={(v) => onChange({ count: v })}
+          />
+        </div>
+      ) : (
+        <div>
+          <p className="mb-3 text-sm text-muted-foreground">
+            Selecciona las empresas a escanear de <strong className="text-foreground">{state.line || '—'}</strong>.
+          </p>
+          {!state.line ? (
+            <p className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+              Falta seleccionar la línea de negocio en el paso anterior.
+            </p>
+          ) : (
+            <CompanySelector
+              line={state.line}
+              selected={selectedCompanies}
+              onChange={handleCompaniesChange}
+              maxSelect={20}
+            />
+          )}
+        </div>
+      )}
+
+      <Collapsible>
+        <CollapsibleTrigger
+          className={cn(
+            'group flex w-full items-center justify-between rounded-lg border border-border',
+            'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+          )}
+        >
+          <span className="font-medium">Fuentes institucionales</span>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="h-5 text-[10px]">
+              17 activas
+            </Badge>
+            <ChevronDown
+              size={14}
+              className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+            />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <div className="space-y-1 rounded-lg border border-border/50 bg-background p-3 text-xs">
+            {MOCK_FUENTES.map((f) => (
+              <div key={f.country} className="flex flex-wrap items-baseline gap-1.5">
+                <span className="font-medium text-foreground">{f.country}:</span>
+                <span className="text-muted-foreground">{f.sources.join(', ')}</span>
+              </div>
+            ))}
+            <p className="pt-2 text-muted-foreground">
+              Configuración avanzada disponible en Admin → Fuentes.
+            </p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+
+      <Collapsible>
+        <CollapsibleTrigger
+          className={cn(
+            'group flex w-full items-center justify-between rounded-lg border border-border',
+            'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+          )}
+        >
+          <span className="font-medium">Palabras clave</span>
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="h-5 text-[10px]">
+              {MOCK_KEYWORDS.length}
+            </Badge>
+            <ChevronDown
+              size={14}
+              className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+            />
+          </div>
+        </CollapsibleTrigger>
+        <CollapsibleContent className="mt-2">
+          <div className="rounded-lg border border-border/50 bg-background p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {MOCK_KEYWORDS.map((k) => (
+                <Badge key={k} variant="outline" className="text-[11px]">
+                  {k}
+                </Badge>
+              ))}
+            </div>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Configuración avanzada disponible en Admin → Keywords.
+            </p>
+          </div>
+        </CollapsibleContent>
+      </Collapsible>
+    </div>
+  );
+}
