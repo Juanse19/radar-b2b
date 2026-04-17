@@ -194,9 +194,9 @@ export function Step3Review({ state, onChange }: Props) {
           throw new Error('No hay empresas disponibles para esa línea');
         }
       } else {
-        // Manual mode — re-hydrate to get name/country from companies endpoint
-        const params = new URLSearchParams({ linea: state.line, limit: '200' });
-        const lookupRes = await fetch(`/api/radar-v2/companies?${params}`);
+        // Manual mode — re-hydrate full name/country from companies endpoint
+        const qs = new URLSearchParams({ linea: state.line, limit: '200' });
+        const lookupRes = await fetch(`/api/radar-v2/companies?${qs}`);
         const all: RadarV2Company[] = lookupRes.ok ? await lookupRes.json() : [];
         companies = all.filter((c) => state.selectedIds.includes(c.id));
         if (companies.length === 0) {
@@ -204,28 +204,19 @@ export function Step3Review({ state, onChange }: Props) {
         }
       }
 
-      const scanRes = await fetch('/api/radar-v2', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ companies, line: state.line }),
+      // Generate a session id client-side and navigate to /vivo immediately.
+      // The SSE stream endpoint (/api/radar-v2/stream) runs the actual scan —
+      // the browser connects and starts receiving events right away.
+      const sessionId = crypto.randomUUID();
+      const vivoParams = new URLSearchParams({
+        sessionId,
+        line:     state.line,
+        provider: state.provider,
+        empresas: JSON.stringify(
+          companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
+        ),
       });
-      if (!scanRes.ok) throw new Error(await scanRes.text() || 'scan falló');
-
-      // Extract session_id from scan response to show live streaming on /vivo
-      const scanData = await scanRes.json().catch(() => ({}));
-      const sessionId = scanData?.session_id ?? scanData?.sessionId;
-
-      if (sessionId) {
-        // Redirect to live timeline with session context
-        const params = new URLSearchParams({
-          sessionId: String(sessionId),
-          line:      state.line,
-        });
-        router.push(`/radar-v2/vivo?${params.toString()}`);
-      } else {
-        // Fallback: go to results if no session_id returned (scan completed sync)
-        router.push('/radar-v2/resultados');
-      }
+      router.push(`/radar-v2/vivo?${vivoParams.toString()}`);
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');
       setFiring(false);
