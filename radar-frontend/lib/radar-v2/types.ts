@@ -12,6 +12,7 @@ export interface RadarV2Company {
 
 export interface RadarV2ScanRequest {
   companies: RadarV2Company[];
+  provider?: string;  // e.g. 'claude' | 'openai' | 'gemini'
   line: string;
 }
 

@@ -81,7 +81,7 @@ async function scanImpl(
   const { company, line } = params;
   const startedAt = Date.now();
 
-  const apiKey = process.env.GOOGLE_API_KEY;
+  const apiKey = params.apiKey ?? process.env.GOOGLE_API_KEY;
   if (!apiKey) {
     throw new Error('GOOGLE_API_KEY not configured — add it to .env.local');
   }

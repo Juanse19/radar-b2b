@@ -6,7 +6,8 @@ import {
   updateSessionStats,
   insertRadarV2Result,
 } from '@/lib/radar-v2/db';
-import { scanCompanyWithClaude } from '@/lib/radar-v2/scanner';
+import { scanCompany } from '@/lib/radar-v2/scanner';
+import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import { buildReport, insertReport } from '@/lib/radar-v2/report';
 import type { RadarV2ScanRequest, RadarV2Result, RadarV2ScanResponse } from '@/lib/radar-v2/types';
 
@@ -29,7 +30,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
   }
 
-  const { companies, line } = body;
+  const { companies, line, provider: providerName = 'claude' } = body;
   if (!companies?.length || !line) {
     return NextResponse.json({ error: 'companies[] and line are required' }, { status: 400 });
   }
@@ -54,6 +55,21 @@ export async function POST(req: NextRequest) {
     // Non-fatal — continue without session tracking
   }
 
+  // Look up API key from ai_provider_configs for the selected provider
+  let providerApiKey: string | undefined;
+  try {
+    const S = SCHEMA;
+    const providerDbName = providerName === 'claude' ? 'anthropic' : providerName;
+    const [cfg] = await pgQuery<{ api_key_enc: string }>(`
+      SELECT api_key_enc FROM ${S}.ai_provider_configs
+      WHERE provider = ${pgLit(providerDbName)} AND is_active = TRUE
+      ORDER BY is_default DESC LIMIT 1
+    `);
+    if (cfg?.api_key_enc) providerApiKey = cfg.api_key_enc;
+  } catch {
+    // Table might not exist yet — fall back to env var
+  }
+
   const results: RadarV2Result[] = [];
   const errors:  Array<{ empresa: string; error: string }> = [];
 
@@ -67,7 +83,11 @@ export async function POST(req: NextRequest) {
 
     try {
       const { result: agente1, tokens_input, tokens_output, cost_usd } =
-        await scanCompanyWithClaude(company, line);
+        await scanCompany(company, line, {
+          providerName: providerName,
+          apiKey:       providerApiKey,
+          sessionId:    scanSessionId ?? undefined,
+        });
 
       // Persist result to DB
       let inserted: RadarV2Result;

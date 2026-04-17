@@ -189,6 +189,8 @@ export interface ScanOptions {
   emit?:         SSEEmitter;
   /** Session id for RAG + token event linkage. */
   sessionId?:    string;
+  /** API key override — from ai_provider_configs DB, takes precedence over env var. */
+  apiKey?:       string;
 }
 
 /**
@@ -209,6 +211,7 @@ export async function scanCompany(
       line,
       sessionId: opts.sessionId,
       empresaId: company.id ?? null,
+      apiKey:    opts.apiKey,
     },
     opts.emit,
   );

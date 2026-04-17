@@ -16,6 +16,8 @@ export interface ScanParams {
   line: string;
   sessionId?: string;
   empresaId?: number | null;
+  /** Optional API key override — if set, the provider uses this instead of the env var. */
+  apiKey?: string;
 }
 
 export interface CostEstimate {
