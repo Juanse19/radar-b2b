@@ -85,6 +85,7 @@ async function scanImpl(
   emit?: SSEEmitter,
 ): Promise<ScanResult> {
   const { company, line, sessionId } = params;
+  const startedAt = Date.now();
 
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
@@ -117,8 +118,18 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
   const messages: Array<{ role: string; content: unknown }> = [
     { role: 'user', content: userMessage },
   ];
+  type WebSearchResult = { type: string; url?: string; title?: string };
+  type ContentBlock = {
+    type:     string;
+    text?:    string;
+    id?:      string;
+    name?:    string;
+    input?:   { query?: string };
+    url?:     string;
+    content?: WebSearchResult[];
+  };
   let lastData: {
-    content:     Array<{ type: string; text?: string; id?: string; input?: { query?: string }; url?: string }>;
+    content:     ContentBlock[];
     stop_reason: string;
     usage?:      { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
   } = { content: [], stop_reason: '' };
@@ -147,22 +158,46 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
     }
 
     lastData     = await resp.json() as typeof lastData;
-    totalInput  += lastData.usage?.input_tokens  ?? 0;
-    totalOutput += lastData.usage?.output_tokens ?? 0;
+    const turnIn  = lastData.usage?.input_tokens  ?? 0;
+    const turnOut = lastData.usage?.output_tokens ?? 0;
+    totalInput  += turnIn;
+    totalOutput += turnOut;
     totalCached += lastData.usage?.cache_read_input_tokens ?? 0;
+
+    // Emit per-turn token tick so the UI can update the budget badge live.
+    const turnCost  = (turnIn * PRICE_INPUT_PER_M + turnOut * PRICE_OUTPUT_PER_M) / 1_000_000;
+    const totalCost = (totalInput * PRICE_INPUT_PER_M + totalOutput * PRICE_OUTPUT_PER_M) / 1_000_000;
+    emit?.emit('token_tick', {
+      empresa:        company.name,
+      tokens_in:      totalInput,
+      tokens_out:     totalOutput,
+      cost_usd_delta: turnCost,
+      cost_usd_total: totalCost,
+    });
 
     if (lastData.stop_reason === 'end_turn') break;
 
     if (lastData.stop_reason === 'tool_use') {
-      // Emit per-search SSE events so the UI can show live queries
+      // Emit per-search SSE events so the UI can show live queries and sources
       for (const block of lastData.content) {
-        if (block.type === 'server_tool_use' || block.type === 'tool_use') {
+        if (
+          (block.type === 'server_tool_use' || block.type === 'tool_use') &&
+          block.name === 'web_search'
+        ) {
           searchCalls += 1;
           const q = block.input?.query;
           if (q) emit?.emit('search_query', { empresa: company.name, query: q });
         }
-        if (block.type === 'web_search_tool_result' && block.url) {
-          emit?.emit('reading_source', { empresa: company.name, url: block.url });
+        if (block.type === 'web_search_tool_result' && Array.isArray(block.content)) {
+          for (const res of block.content) {
+            if (res.url) {
+              emit?.emit('reading_source', {
+                empresa: company.name,
+                url:     res.url,
+                title:   res.title,
+              });
+            }
+          }
         }
       }
 
@@ -183,6 +218,41 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
   const result = parseAgente1Response(rawText);
   const cost   = (totalInput * PRICE_INPUT_PER_M / 1_000_000)
                + (totalOutput * PRICE_OUTPUT_PER_M / 1_000_000);
+
+  // Emit per-criterion evaluation events so the UI can show the checklist grow.
+  for (const crit of result.criterios_cumplidos ?? []) {
+    emit?.emit('criteria_eval', {
+      empresa:  company.name,
+      criterio: crit,
+      cumplido: true,
+    });
+  }
+
+  // Emit detected or discarded signal with key metadata.
+  if (result.radar_activo === 'Sí') {
+    emit?.emit('signal_detected', {
+      empresa:         company.name,
+      tipo_senal:      result.tipo_senal,
+      monto_inversion: result.monto_inversion,
+      ventana_compra:  result.ventana_compra,
+      fuente_link:     result.fuente_link,
+    });
+  } else {
+    emit?.emit('signal_discarded', {
+      empresa:         company.name,
+      motivo_descarte: result.motivo_descarte,
+    });
+  }
+
+  emit?.emit('company_done', {
+    empresa:      company.name,
+    radar_activo: result.radar_activo,
+    duration_ms:  Date.now() - startedAt,
+    tokens_in:    totalInput,
+    tokens_out:   totalOutput,
+    cost_usd:     cost,
+    search_calls: searchCalls,
+  });
 
   // Persist to Pinecone for future RAG context — non-fatal
   try {
