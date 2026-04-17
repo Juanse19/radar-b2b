@@ -7,8 +7,8 @@
 import 'server-only';
 import type { AIProvider } from './types';
 import { claudeProvider } from './claude';
-import { openaiProvider } from './openai.stub';
-import { geminiProvider } from './gemini.stub';
+import { openaiProvider } from './openai';
+import { geminiProvider } from './gemini';
 
 const registry: Record<string, AIProvider> = {
   claude: claudeProvider,
@@ -39,9 +39,8 @@ export function listProviders(): Array<{
     name:                p.name,
     model:               p.model,
     supports_web_search: p.supports('web_search'),
-    // A provider is "implemented" if its scan() method does NOT immediately throw NotImplementedError
-    // Heuristic: Claude is real; the stubs all import NotImplementedError and throw synchronously.
-    implemented:         p.name === 'claude',
+    // All three providers now have real implementations.
+    implemented:         true,
   }));
 }
 

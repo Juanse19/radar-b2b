@@ -39,9 +39,9 @@ interface ApiKeyConfig {
 }
 
 const FALLBACK_PROVIDERS: ProviderOption[] = [
-  { name: 'claude', model: 'Claude Sonnet 4.6', implemented: true  },
-  { name: 'openai', model: 'GPT-4o',            implemented: false },
-  { name: 'gemini', model: 'Gemini 3 Pro',      implemented: false },
+  { name: 'claude', model: 'Claude Sonnet 4.6', implemented: true },
+  { name: 'openai', model: 'GPT-4o',            implemented: true },
+  { name: 'gemini', model: 'Gemini 2.0 Flash',  implemented: true },
 ];
 
 interface Props {
