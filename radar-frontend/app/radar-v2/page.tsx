@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -103,6 +104,17 @@ export default function RadarV2Page() {
 
   return (
     <div className="mx-auto max-w-3xl space-y-6 p-6">
+      {/* Migration banner — Fase B */}
+      <div className="rounded-lg border border-primary/30 bg-primary/5 px-4 py-3 text-sm">
+        <p className="font-medium">✨ Nueva experiencia disponible</p>
+        <p className="mt-0.5 text-muted-foreground">
+          Hemos reorganizado Radar v2 en submódulos. Usa el sidebar o haz clic en{' '}
+          <Link href="/radar-v2/escanear" className="text-primary underline">Escanear</Link>,{' '}
+          <Link href="/radar-v2/resultados" className="text-primary underline">Resultados</Link>,{' '}
+          <Link href="/radar-v2/metricas" className="text-primary underline">Métricas</Link>.
+        </p>
+      </div>
+
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>

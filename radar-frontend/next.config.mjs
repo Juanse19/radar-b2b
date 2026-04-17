@@ -10,6 +10,20 @@ const nextConfig = {
       root: __dirname,
     },
   },
+  async redirects() {
+    return [
+      {
+        source: '/resultados-v2',
+        destination: '/radar-v2/resultados',
+        permanent: true,
+      },
+      {
+        source: '/resultados-v2/:path*',
+        destination: '/radar-v2/resultados/:path*',
+        permanent: true,
+      },
+    ];
+  },
 };
 
 export default nextConfig;
