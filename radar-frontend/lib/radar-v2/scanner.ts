@@ -82,15 +82,28 @@ export interface ScanResult {
 export async function scanCompanyWithClaude(
   company: { id?: number; name: string; country: string },
   line: string,
+  sessionId?: string,
 ): Promise<ScanResult> {
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
 
-  const userMessage = `Empresa: ${company.name}
+  // RAG context — optional, non-fatal
+  let ragBlock = '';
+  try {
+    const { retrieveContext, buildRagBlock } = await import('./rag');
+    const ragCtx = await retrieveContext(company.name, line);
+    ragBlock = buildRagBlock(ragCtx);
+  } catch { /* RAG is optional — scan continues without context */ }
+
+  const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}
 
 Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta empresa en LATAM.`;
+
+  const userMessage = ragBlock
+    ? `${ragBlock}\n\n---\n\n${basePrompt}`
+    : basePrompt;
 
   const baseBody = {
     model:      CLAUDE_MODEL,
@@ -151,6 +164,12 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
   const result = parseAgente1Response(rawText);
   const cost   = (totalInput * PRICE_INPUT_PER_M / 1_000_000)
                + (totalOutput * PRICE_OUTPUT_PER_M / 1_000_000);
+
+  // Persist to Pinecone for future RAG context — non-fatal
+  try {
+    const { upsertSenal } = await import('./rag');
+    await upsertSenal(result, sessionId ?? '');
+  } catch { /* non-fatal */ }
 
   return { result, tokens_input: totalInput, tokens_output: totalOutput, cost_usd: cost };
 }
