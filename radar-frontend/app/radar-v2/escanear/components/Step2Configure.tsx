@@ -14,22 +14,50 @@ import { CompanySelector } from '../../components/CompanySelector';
 import type { WizardState } from '@/lib/radar-v2/wizard-state';
 import type { RadarV2Company } from '@/lib/radar-v2/types';
 
-const MOCK_FUENTES = [
+// Fuentes and Keywords are fetched live from the admin API.
+// Fallback values (used if fetch fails) for graceful degradation.
+const FALLBACK_FUENTES = [
   { country: 'Colombia', sources: ['SECOP', 'ANI', 'Aerocivil', 'DNP'] },
   { country: 'México',   sources: ['AFAC', 'CompraNet', 'ASUR/GAP/OMA'] },
   { country: 'Chile',    sources: ['Mercado Público', 'DGAC', 'MOP'] },
   { country: 'Brasil',   sources: ['ANAC', 'Infraestrutura.gov', 'Portal Transparência'] },
 ];
 
-const MOCK_KEYWORDS = [
-  'terminal pasajeros',
-  'sistema BHS',
-  'carrusel equipaje',
-  'CUTE CUSS CBIS',
-  'ampliación aeropuerto',
-  'concesión aeroportuaria',
-  'self bag drop',
+const FALLBACK_KEYWORDS = [
+  'terminal pasajeros', 'sistema BHS', 'carrusel equipaje', 'CUTE CUSS CBIS',
+  'ampliación aeropuerto', 'concesión aeroportuaria', 'self bag drop',
 ];
+
+interface FuenteApi {
+  nombre?:         string;
+  url_base?:       string | null;
+  tipo?:           string | null;
+  lineas?:         string[] | null;
+  priority_score?: number | null;
+  notas?:          string | null;
+  pais?:           string | null;
+  country?:        string | null;
+}
+
+interface KeywordApi {
+  palabra?:       string;
+  tipo?:          string | null;
+  peso?:          number | null;
+  sub_linea_id?:  number | null;
+}
+
+function groupFuentesByCountry(rows: FuenteApi[]): Array<{ country: string; sources: string[] }> {
+  const groups = new Map<string, string[]>();
+  for (const f of rows) {
+    const country = f.pais ?? f.country ?? 'Otros';
+    const name    = f.nombre ?? '';
+    if (!name) continue;
+    const existing = groups.get(country) ?? [];
+    if (!existing.includes(name)) existing.push(name);
+    groups.set(country, existing);
+  }
+  return Array.from(groups.entries()).map(([country, sources]) => ({ country, sources }));
+}
 
 interface Props {
   state:    WizardState;
@@ -41,6 +69,46 @@ export function Step2Configure({ state, onChange }: Props) {
   // persists IDs. We re-hydrate from the /api/radar-v2/companies endpoint.
   const [selectedCompanies, setSelectedCompanies] = useState<RadarV2Company[]>([]);
   const [hydrated, setHydrated] = useState(false);
+
+  // Fuentes and Keywords — fetched from admin APIs with graceful fallback
+  const [fuentesGroups, setFuentesGroups] = useState<Array<{ country: string; sources: string[] }>>(FALLBACK_FUENTES);
+  const [keywords,      setKeywords]      = useState<string[]>(FALLBACK_KEYWORDS);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/fuentes')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: FuenteApi[] | { data: FuenteApi[] } | unknown) => {
+        if (cancelled) return;
+        const rows: FuenteApi[] = Array.isArray(data)
+          ? data
+          : (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data))
+              ? ((data as { data: FuenteApi[] }).data)
+              : [];
+        if (rows.length > 0) {
+          const grouped = groupFuentesByCountry(rows);
+          if (grouped.length > 0) setFuentesGroups(grouped);
+        }
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/keywords')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: KeywordApi[] | unknown) => {
+        if (cancelled) return;
+        const rows: KeywordApi[] = Array.isArray(data) ? data : [];
+        const words = rows
+          .map((k) => k.palabra ?? '')
+          .filter((w) => w.length > 0);
+        if (words.length > 0) setKeywords(words.slice(0, 40));  // cap to avoid visual overflow
+      })
+      .catch(() => { /* keep fallback */ });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (state.mode !== 'manual' || !state.line || hydrated) return;
@@ -127,15 +195,18 @@ export function Step2Configure({ state, onChange }: Props) {
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2">
           <div className="space-y-1 rounded-lg border border-border/50 bg-background p-3 text-xs">
-            {MOCK_FUENTES.map((f) => (
+            {fuentesGroups.map((f) => (
               <div key={f.country} className="flex flex-wrap items-baseline gap-1.5">
                 <span className="font-medium text-foreground">{f.country}:</span>
                 <span className="text-muted-foreground">{f.sources.join(', ')}</span>
               </div>
             ))}
-            <p className="pt-2 text-muted-foreground">
-              Configuración avanzada disponible en Admin → Fuentes.
-            </p>
+            <a
+              href="/admin/fuentes"
+              className="mt-2 inline-block text-primary hover:underline"
+            >
+              Editar en admin →
+            </a>
           </div>
         </CollapsibleContent>
       </Collapsible>
@@ -150,7 +221,7 @@ export function Step2Configure({ state, onChange }: Props) {
           <span className="font-medium">Palabras clave</span>
           <div className="flex items-center gap-2">
             <Badge variant="secondary" className="h-5 text-[10px]">
-              {MOCK_KEYWORDS.length}
+              {keywords.length}
             </Badge>
             <ChevronDown
               size={14}
@@ -161,15 +232,18 @@ export function Step2Configure({ state, onChange }: Props) {
         <CollapsibleContent className="mt-2">
           <div className="rounded-lg border border-border/50 bg-background p-3">
             <div className="flex flex-wrap gap-1.5">
-              {MOCK_KEYWORDS.map((k) => (
+              {keywords.map((k) => (
                 <Badge key={k} variant="outline" className="text-[11px]">
                   {k}
                 </Badge>
               ))}
             </div>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Configuración avanzada disponible en Admin → Keywords.
-            </p>
+            <a
+              href="/admin/keywords"
+              className="mt-2 inline-block text-xs text-primary hover:underline"
+            >
+              Editar en admin →
+            </a>
           </div>
         </CollapsibleContent>
       </Collapsible>
