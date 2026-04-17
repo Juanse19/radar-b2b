@@ -3,7 +3,7 @@
 import { useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
-export type WizardMode = 'auto' | 'manual';
+export type WizardMode = 'auto' | 'manual' | '';
 
 export interface WizardState {
   step:     1 | 2 | 3;
@@ -31,7 +31,7 @@ export function useWizardState() {
     const rawStep = Number(sp.get('step') ?? '1');
     const step    = (rawStep >= 1 && rawStep <= 3 ? rawStep : 1) as 1 | 2 | 3;
     const rawMode = sp.get('mode');
-    const mode: WizardMode = rawMode === 'auto' || rawMode === 'manual' ? rawMode : 'manual';
+    const mode: WizardMode = rawMode === 'auto' || rawMode === 'manual' ? rawMode : '';
     return {
       step,
       mode,
