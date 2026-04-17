@@ -31,11 +31,12 @@ export function Step1Target({ state, onChange }: Props) {
               key={l.value}
               type="button"
               onClick={() => onChange({ line: l.value })}
+              aria-pressed={state.line === l.value}
               className={cn(
-                'rounded-lg border px-3 py-2.5 text-left text-sm transition-colors',
+                'rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
                 state.line === l.value
-                  ? 'border-primary bg-primary/10 font-medium'
-                  : 'border-border hover:border-primary/50',
+                  ? 'border-primary bg-primary/20 font-semibold shadow-sm ring-2 ring-primary/30'
+                  : 'border-border hover:border-primary/50 hover:bg-muted/30',
               )}
             >
               {l.label}
@@ -48,12 +49,16 @@ export function Step1Target({ state, onChange }: Props) {
         <Label className="mb-2 block">Modo de escaneo</Label>
         <div className="grid grid-cols-2 gap-2">
           <Card
+            role="button"
+            tabIndex={0}
+            aria-pressed={state.mode === 'auto'}
             onClick={() => onChange({ mode: 'auto' })}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange({ mode: 'auto' }); } }}
             className={cn(
               'cursor-pointer p-4 text-center transition-all',
               state.mode === 'auto'
-                ? 'border-primary bg-primary/5'
-                : 'hover:border-primary/50',
+                ? 'border-primary bg-primary/15 shadow-md ring-2 ring-primary/40'
+                : 'hover:border-primary/50 hover:bg-muted/30',
             )}
           >
             <Zap size={24} className="mx-auto mb-1 text-primary" />
@@ -61,12 +66,16 @@ export function Step1Target({ state, onChange }: Props) {
             <p className="text-xs text-muted-foreground">Seleccionar N empresas</p>
           </Card>
           <Card
+            role="button"
+            tabIndex={0}
+            aria-pressed={state.mode === 'manual'}
             onClick={() => onChange({ mode: 'manual' })}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange({ mode: 'manual' }); } }}
             className={cn(
               'cursor-pointer p-4 text-center transition-all',
               state.mode === 'manual'
-                ? 'border-primary bg-primary/5'
-                : 'hover:border-primary/50',
+                ? 'border-primary bg-primary/15 shadow-md ring-2 ring-primary/40'
+                : 'hover:border-primary/50 hover:bg-muted/30',
             )}
           >
             <Target size={24} className="mx-auto mb-1 text-foreground" />

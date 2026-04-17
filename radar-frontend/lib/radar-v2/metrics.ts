@@ -96,25 +96,30 @@ export async function computeMetrics(range: MetricsRange): Promise<RadarV2Metric
     duracion_promedio_ms: string | null;
   };
 
+  // Aggregate from radar_v2_results (source of truth) joined to sessions.
+  // Fallback to sessions columns if results don't exist (should not happen).
   const totalsRows = await pgQuery<TotalsRow>(`
     SELECT
-      COUNT(DISTINCT s.id)::text                                           AS scans,
-      COALESCE(SUM(s.activas_count), 0)::text                             AS activas,
-      COALESCE(SUM(s.descartadas_count), 0)::text                         AS descartadas,
-      COALESCE(SUM(s.total_cost_usd), 0)::text                            AS costo_usd,
-      COALESCE(SUM(r.tokens_input_sum), 0)::text                          AS tokens_in,
-      COALESCE(SUM(r.tokens_output_sum), 0)::text                         AS tokens_out,
+      COUNT(DISTINCT s.id)::text                                                         AS scans,
+      COALESCE(SUM(agg.activas), 0)::text                                                AS activas,
+      COALESCE(SUM(agg.descartadas), 0)::text                                            AS descartadas,
+      COALESCE(SUM(agg.costo_usd), 0)::text                                              AS costo_usd,
+      COALESCE(SUM(agg.tokens_in), 0)::text                                              AS tokens_in,
+      COALESCE(SUM(agg.tokens_out), 0)::text                                             AS tokens_out,
       COALESCE(AVG(s.duration_ms) FILTER (WHERE s.duration_ms IS NOT NULL), 0)::text
-                                                                           AS duracion_promedio_ms
+                                                                                          AS duracion_promedio_ms
     FROM ${S}.radar_v2_sessions s
     LEFT JOIN (
       SELECT
         session_id,
-        SUM(tokens_input)::bigint  AS tokens_input_sum,
-        SUM(tokens_output)::bigint AS tokens_output_sum
+        COUNT(*) FILTER (WHERE radar_activo = 'Sí')::bigint  AS activas,
+        COUNT(*) FILTER (WHERE radar_activo = 'No')::bigint  AS descartadas,
+        COALESCE(SUM(cost_usd),     0)::numeric              AS costo_usd,
+        COALESCE(SUM(tokens_input), 0)::bigint               AS tokens_in,
+        COALESCE(SUM(tokens_output),0)::bigint               AS tokens_out
       FROM ${S}.radar_v2_results
       GROUP BY session_id
-    ) r ON r.session_id = s.id
+    ) agg ON agg.session_id = s.id
     WHERE s.created_at >= NOW() - INTERVAL ${pgLit(interval)}
   `);
 
@@ -141,11 +146,12 @@ export async function computeMetrics(range: MetricsRange): Promise<RadarV2Metric
 
   const lineaRows = await pgQuery<LineaRow>(`
     SELECT
-      s.linea_negocio                                 AS linea,
-      COUNT(DISTINCT s.id)::text                      AS scans,
-      COALESCE(SUM(s.activas_count), 0)::text         AS activas,
-      COALESCE(SUM(s.total_cost_usd), 0)::text        AS costo
+      s.linea_negocio                                                   AS linea,
+      COUNT(DISTINCT s.id)::text                                        AS scans,
+      COUNT(*) FILTER (WHERE r.radar_activo = 'Sí')::text              AS activas,
+      COALESCE(SUM(r.cost_usd), 0)::text                                AS costo
     FROM ${S}.radar_v2_sessions s
+    LEFT JOIN ${S}.radar_v2_results r ON r.session_id = s.id
     WHERE s.created_at >= NOW() - INTERVAL ${pgLit(interval)}
     GROUP BY s.linea_negocio
     ORDER BY COUNT(DISTINCT s.id) DESC

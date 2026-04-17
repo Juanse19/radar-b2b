@@ -96,13 +96,37 @@ export default function MetricasV2Page() {
         </div>
       )}
 
-      {/* Error / empty state */}
-      {!loading && (error || !metrics || metrics.totals.scans === 0) && (
-        <div className="rounded-lg border border-border bg-muted/20 py-16 text-center">
-          <BarChart3 size={32} className="mx-auto mb-3 text-muted-foreground/40" />
-          <p className="text-sm text-muted-foreground">
-            Sin scans en el período seleccionado.
+      {/* Error state (fetch failed) */}
+      {!loading && error && (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/5 py-12 px-6 text-center">
+          <BarChart3 size={32} className="mx-auto mb-3 text-destructive/60" />
+          <p className="text-sm font-medium text-destructive">Error al cargar las métricas</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Verifica que el endpoint <code className="rounded bg-muted px-1">/api/radar-v2/metrics</code> esté disponible.
           </p>
+          <button
+            onClick={() => fetchMetrics(range)}
+            className="mt-4 rounded-md border border-border px-3 py-1.5 text-xs hover:bg-muted"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Empty state (no scans in range) */}
+      {!loading && !error && metrics && metrics.totals.scans === 0 && (
+        <div className="rounded-lg border border-border bg-muted/20 py-16 px-6 text-center">
+          <BarChart3 size={32} className="mx-auto mb-3 text-muted-foreground/40" />
+          <p className="text-sm font-medium">Sin scans en este período</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Ejecuta un escaneo desde el módulo Radar v2 para ver métricas aquí.
+          </p>
+          <a
+            href="/radar-v2/escanear"
+            className="mt-4 inline-block rounded-md bg-primary px-4 py-1.5 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            Ir a Escanear →
+          </a>
         </div>
       )}
 

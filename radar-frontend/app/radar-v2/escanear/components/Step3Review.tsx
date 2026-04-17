@@ -156,7 +156,21 @@ export function Step3Review({ state, onChange }: Props) {
       });
       if (!scanRes.ok) throw new Error(await scanRes.text() || 'scan falló');
 
-      router.push('/radar-v2/resultados');
+      // Extract session_id from scan response to show live streaming on /vivo
+      const scanData = await scanRes.json().catch(() => ({}));
+      const sessionId = scanData?.session_id ?? scanData?.sessionId;
+
+      if (sessionId) {
+        // Redirect to live timeline with session context
+        const params = new URLSearchParams({
+          sessionId: String(sessionId),
+          line:      state.line,
+        });
+        router.push(`/radar-v2/vivo?${params.toString()}`);
+      } else {
+        // Fallback: go to results if no session_id returned (scan completed sync)
+        router.push('/radar-v2/resultados');
+      }
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');
       setFiring(false);
