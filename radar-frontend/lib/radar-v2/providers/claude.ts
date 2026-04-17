@@ -1,12 +1,22 @@
 /**
- * scanner.ts — Direct Claude API call for Agente 1 RADAR.
- * Used by the Next.js API route in dev (bypasses Supabase Edge Function).
- * server-only: never import this from client components.
+ * providers/claude.ts — Real Claude Sonnet 4.6 provider.
+ *
+ * Moved (as-is) from lib/radar-v2/scanner.ts. System prompt, multi-turn loop,
+ * and API call semantics are preserved byte-for-byte. Only the public surface
+ * changes: the logic now lives behind the AIProvider contract, and optional
+ * SSE emission hooks have been added at key points in the turn loop.
  */
 import 'server-only';
-import { parseAgente1Response, type Agente1Result } from '@/lib/radar-v2/schema';
-import { getProvider } from './providers';
-import type { SSEEmitter } from './providers/types';
+import { parseAgente1Response } from '@/lib/radar-v2/schema';
+import type {
+  AIProvider,
+  CostEstimate,
+  EstimateParams,
+  ScanParams,
+  ScanResult,
+  SSEEmitter,
+  SupportedFeature,
+} from './types';
 
 const CLAUDE_MODEL       = 'claude-sonnet-4-6';
 const PRICE_INPUT_PER_M  = 3.0;
@@ -67,32 +77,22 @@ FEW-SHOT EXAMPLE — DESCARTE:
 const RADAR_SYSTEM_PROMPT = buildSystemPrompt();
 
 // ---------------------------------------------------------------------------
-// Public types
+// Internal scan implementation — mirrors the previous scanCompanyWithClaude
 // ---------------------------------------------------------------------------
 
-export interface ScanResult {
-  result:        Agente1Result;
-  tokens_input:  number;
-  tokens_output: number;
-  cost_usd:      number;
-}
-
-// ---------------------------------------------------------------------------
-// Main scan function — multi-turn loop until stop_reason=end_turn
-// ---------------------------------------------------------------------------
-
-export async function scanCompanyWithClaude(
-  company: { id?: number; name: string; country: string },
-  line: string,
-  sessionId?: string,
+async function scanImpl(
+  params: ScanParams,
+  emit?: SSEEmitter,
 ): Promise<ScanResult> {
+  const { company, line, sessionId } = params;
+
   const apiKey = process.env.CLAUDE_API_KEY;
   if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
 
   // RAG context — optional, non-fatal
   let ragBlock = '';
   try {
-    const { retrieveContext, buildRagBlock } = await import('./rag');
+    const { retrieveContext, buildRagBlock } = await import('../rag');
     const ragCtx = await retrieveContext(company.name, line);
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG is optional — scan continues without context */ }
@@ -118,12 +118,16 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
     { role: 'user', content: userMessage },
   ];
   let lastData: {
-    content:     Array<{ type: string; text?: string; id?: string }>;
+    content:     Array<{ type: string; text?: string; id?: string; input?: { query?: string }; url?: string }>;
     stop_reason: string;
-    usage?:      { input_tokens: number; output_tokens: number };
+    usage?:      { input_tokens: number; output_tokens: number; cache_read_input_tokens?: number };
   } = { content: [], stop_reason: '' };
   let totalInput  = 0;
   let totalOutput = 0;
+  let totalCached = 0;
+  let searchCalls = 0;
+
+  emit?.emit('thinking', { empresa: company.name, linea: line });
 
   for (let turn = 0; turn < 10; turn++) {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -145,10 +149,23 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
     lastData     = await resp.json() as typeof lastData;
     totalInput  += lastData.usage?.input_tokens  ?? 0;
     totalOutput += lastData.usage?.output_tokens ?? 0;
+    totalCached += lastData.usage?.cache_read_input_tokens ?? 0;
 
     if (lastData.stop_reason === 'end_turn') break;
 
     if (lastData.stop_reason === 'tool_use') {
+      // Emit per-search SSE events so the UI can show live queries
+      for (const block of lastData.content) {
+        if (block.type === 'server_tool_use' || block.type === 'tool_use') {
+          searchCalls += 1;
+          const q = block.input?.query;
+          if (q) emit?.emit('search_query', { empresa: company.name, query: q });
+        }
+        if (block.type === 'web_search_tool_result' && block.url) {
+          emit?.emit('reading_source', { empresa: company.name, url: block.url });
+        }
+      }
+
       messages.push({ role: 'assistant', content: lastData.content });
       const toolResults = lastData.content
         .filter(b => b.type === 'tool_use')
@@ -169,60 +186,73 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
 
   // Persist to Pinecone for future RAG context — non-fatal
   try {
-    const { upsertSenal } = await import('./rag');
+    const { upsertSenal } = await import('../rag');
     await upsertSenal(result, sessionId ?? '');
   } catch { /* non-fatal */ }
 
-  return { result, tokens_input: totalInput, tokens_output: totalOutput, cost_usd: cost };
-}
-
-// ---------------------------------------------------------------------------
-// Provider-aware scan — new path for v3 (streaming + multi-model)
-// Delegates to the selected AIProvider (claude | openai | gemini).
-// Keeps RAG retrieve/upsert at this layer so it's orthogonal to the provider.
-// ---------------------------------------------------------------------------
-
-export interface ScanOptions {
-  /** Provider name (claude|openai|gemini). Defaults to RADAR_V2_DEFAULT_PROVIDER env, then 'claude'. */
-  providerName?: string;
-  /** Optional SSE emitter for live streaming (Fase G). */
-  emit?:         SSEEmitter;
-  /** Session id for RAG + token event linkage. */
-  sessionId?:    string;
-}
-
-/**
- * v3 entry point — delegates to a provider while keeping RAG orthogonal.
- * The existing `scanCompanyWithClaude` is preserved for backward compatibility
- * with the v1/v2 API route. New callers (wizard, SSE endpoint) should use this.
- */
-export async function scanCompany(
-  company: { id?: number; name: string; country: string },
-  line: string,
-  opts: ScanOptions = {},
-): Promise<ScanResult> {
-  const provider = getProvider(opts.providerName);
-
-  const scan = await provider.scan(
-    {
-      company,
-      line,
-      sessionId: opts.sessionId,
-      empresaId: company.id ?? null,
-    },
-    opts.emit,
-  );
-
-  // RAG upsert — non-fatal, orthogonal to provider.
-  try {
-    const { upsertSenal } = await import('./rag');
-    await upsertSenal(scan.result, opts.sessionId ?? '');
-  } catch { /* RAG optional */ }
-
   return {
-    result:        scan.result,
-    tokens_input:  scan.tokens_input,
-    tokens_output: scan.tokens_output,
-    cost_usd:      scan.cost_usd,
+    result,
+    tokens_input:  totalInput,
+    tokens_output: totalOutput,
+    cached_tokens: totalCached,
+    search_calls:  searchCalls,
+    cost_usd:      cost,
+    model:         CLAUDE_MODEL,
   };
 }
+
+// ---------------------------------------------------------------------------
+// Cost estimate — matches the pricing matrix in the Radar v2 master plan
+// ---------------------------------------------------------------------------
+
+function estimateImpl(params: EstimateParams): CostEstimate {
+  const tokens_in_est  = params.empresas_count * 6500;
+  const tokens_out_est = params.empresas_count * 800;
+  const cached_percentage = params.empresas_count >= 2 ? 0.3 : 0;
+
+  // Effective input billed accounts for ~10% rate for cache reads (90% discount)
+  const cached_tokens   = tokens_in_est * cached_percentage;
+  const uncached_tokens = tokens_in_est - cached_tokens;
+  const cost_input  = (uncached_tokens * PRICE_INPUT_PER_M + cached_tokens * PRICE_INPUT_PER_M * 0.1) / 1_000_000;
+  const cost_output = (tokens_out_est * PRICE_OUTPUT_PER_M) / 1_000_000;
+
+  return {
+    tokens_in_est,
+    tokens_out_est,
+    cost_usd_est: cost_input + cost_output,
+    cached_percentage,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Factory + singleton
+// ---------------------------------------------------------------------------
+
+function createClaudeProvider(): AIProvider {
+  return {
+    name:  'claude',
+    model: CLAUDE_MODEL,
+
+    async scan(params, emit) {
+      return scanImpl(params, emit);
+    },
+
+    estimate(params) {
+      return estimateImpl(params);
+    },
+
+    supports(feature: SupportedFeature): boolean {
+      switch (feature) {
+        case 'web_search':
+        case 'streaming':
+        case 'batch':
+        case 'prompt_caching':
+          return true;
+        default:
+          return false;
+      }
+    },
+  };
+}
+
+export const claudeProvider: AIProvider = createClaudeProvider();
