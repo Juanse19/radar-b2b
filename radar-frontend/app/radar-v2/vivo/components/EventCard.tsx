@@ -138,14 +138,22 @@ function formatBody(event: StreamEvent): { title: string; detail?: string } {
         title:  `Empresa completada — ${d.empresa as string}`,
         detail: `${d.radar_activo as string === 'Sí' ? 'ACTIVA' : 'Descartada'} · ${Math.round((d.duration_ms as number) / 1000)}s · $${(d.cost_usd as number).toFixed(4)}`,
       };
-    case 'company_error':
+    case 'company_error': {
+      const errText = (d.error as string) ?? '';
+      const isQuota = errText.includes('cuota agotada')
+                   || errText.includes('quota')
+                   || errText.includes('429')
+                   || errText.includes('credit balance');
       return {
         title:  `Error — ${d.empresa as string}`,
-        detail: (d.error as string).slice(0, 140),
+        detail: isQuota
+          ? `${errText.slice(0, 180)} → Revisa Admin → Configuración de API`
+          : errText.slice(0, 200),
       };
+    }
     case 'provider_fallback':
       return {
-        title:  `OpenAI sin cuota — usando Claude para ${d.empresa as string}`,
+        title:  `Proveedor ${(d.original_provider as string | undefined) ?? ''} sin cuota — ${d.empresa as string}`,
         detail: (d.reason as string | undefined)?.slice(0, 120),
       };
     case 'session_done':

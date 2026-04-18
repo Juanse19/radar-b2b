@@ -302,36 +302,36 @@ export async function scanCompany(
     );
   } catch (primaryErr) {
     const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
-    const is429  = errMsg.includes('429')
-                || errMsg.includes('insufficient_quota')
-                || errMsg.includes('rate_limit_exceeded');
 
-    // Auto-fallback: retry with Claude when the primary provider hits a quota/rate
-    // error and the primary is not already Claude.
-    if (is429 && providerName !== 'claude') {
-      opts.emit?.emit('provider_fallback', {
-        empresa:           company.name,
-        original_provider: providerName,
-        fallback_provider: 'claude',
-        reason:            errMsg.slice(0, 120),
-      });
+    // Detect quota / credit exhaustion errors (distinct from rate limits).
+    const isQuotaExhausted =
+      errMsg.includes('insufficient_quota') ||
+      errMsg.includes('credit balance is too low') ||
+      errMsg.includes('exceeded your current quota') ||
+      (errMsg.includes('429') && errMsg.includes('quota'));
 
-      const claudeProvider = getProvider('claude');
-      const claudeConfig   = await resolveProviderConfig('claude');
-      scan = await claudeProvider.scan(
-        {
-          company,
-          line,
-          sessionId:  opts.sessionId,
-          empresaId:  company.id ?? null,
-          apiKey:     claudeConfig.apiKey,
-          model:      claudeConfig.model,
-        },
-        opts.emit,
-      );
-    } else {
-      throw primaryErr; // re-throw if already Claude or non-quota error
+    const isRateLimit =
+      errMsg.includes('rate_limit_exceeded') ||
+      (errMsg.includes('429') && !isQuotaExhausted);
+
+    if (isQuotaExhausted || isRateLimit) {
+      // Surface the error clearly — do NOT auto-fallback to another provider.
+      // Rationale: the user chose this provider explicitly. Silently switching
+      // to a fallback provider (which may also have no credits) produces two
+      // confusing errors instead of one actionable message.
+      const label = providerName === 'openai'  ? 'OpenAI'
+                  : providerName === 'claude'  ? 'Claude (Anthropic)'
+                  : providerName === 'gemini'  ? 'Gemini (Google)'
+                  : providerName;
+
+      const hint = isQuotaExhausted
+        ? `${label}: cuota agotada. Verifica que tu API key en Admin → Configuración de API sea válida y que tu cuenta tenga saldo.`
+        : `${label}: límite de tasa alcanzado (429). Intenta de nuevo en unos minutos.`;
+
+      throw new Error(`${hint}\nDetalle: ${errMsg.slice(0, 300)}`);
     }
+
+    throw primaryErr;
   }
 
   // RAG upsert — non-fatal, orthogonal to provider.
