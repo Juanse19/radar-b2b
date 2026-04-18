@@ -83,6 +83,10 @@ export async function POST(req: NextRequest) {
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[/api/admin/api-keys POST]', msg);
+    // Duplicate provider (UNIQUE constraint 23505)
+    if (msg.includes('23505') || msg.includes('duplicate key')) {
+      return NextResponse.json({ error: 'Ya existe una configuración para ese proveedor. Usa el botón Editar para actualizarla.' }, { status: 409 });
+    }
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
