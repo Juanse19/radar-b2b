@@ -11,6 +11,8 @@ import type {
   StreamEventType,
   SessionDonePayload,
 } from '@/lib/radar-v2/stream-events';
+import { scanActivityStore } from '@/lib/radar-v2/scan-activity-store';
+import type { ScanEventType } from '@/lib/radar-v2/scan-activity-store';
 
 const EVENT_LIMIT = 100;
 
@@ -53,6 +55,15 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     });
     if (provider) params.set('provider', provider);
 
+    // Register scan in the global activity store so the widget can track it
+    // even after the user navigates away from /vivo.
+    scanActivityStore.startScan(
+      sessionId,
+      line,
+      empresas.map(e => e.name),
+      provider ?? 'claude',
+    );
+
     const es = new EventSource(`/api/radar-v2/stream?${params.toString()}`);
 
     const handlers: Partial<Record<StreamEventType, (ev: MessageEvent) => void>> = {
@@ -72,21 +83,36 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
       },
     };
 
+    // Map full StreamEventType → ScanEventType understood by the activity store.
+    // Only the subset the store cares about is forwarded; the rest are dropped.
+    const STORE_EVENT_TYPES = new Set<StreamEventType>([
+      'scan_started', 'company_done', 'company_error', 'session_done', 'error',
+    ]);
+
     const pushEvent = (ev: MessageEvent, type: StreamEventType) => {
       if (phase === 'connecting') setPhase('live');
       let data: unknown;
       try { data = JSON.parse(ev.data); } catch { data = ev.data; }
+      const now = Date.now();
       const rec: StreamEvent = {
         id:   Number.parseInt(ev.lastEventId || '0', 10) || 0,
         type,
         data,
-        ts:   Date.now(),
+        ts:   now,
       };
       setEvents(prev => {
         const next = [...prev, rec];
         if (next.length > EVENT_LIMIT) next.splice(0, next.length - EVENT_LIMIT);
         return next;
       });
+      // Forward eligible events to the global activity store.
+      if (STORE_EVENT_TYPES.has(type)) {
+        scanActivityStore.addEvent({
+          type: type as ScanEventType,
+          data: (typeof data === 'object' && data !== null ? data : { raw: data }) as Record<string, unknown>,
+          ts:   now,
+        });
+      }
     };
 
     const types: StreamEventType[] = [

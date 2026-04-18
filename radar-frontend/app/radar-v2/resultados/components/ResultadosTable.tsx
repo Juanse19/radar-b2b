@@ -53,7 +53,7 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                 <th className="px-3 py-2.5 text-left font-medium">Empresa</th>
                 <th className="px-3 py-2.5 text-left font-medium">Radar</th>
                 <th className="px-3 py-2.5 text-left font-medium">Tipo señal</th>
-                <th className="px-3 py-2.5 text-left font-medium">Criterios</th>
+                <th className="px-3 py-2.5 text-left font-medium">Score</th>
                 <th className="px-3 py-2.5 text-left font-medium">Descripción</th>
                 <th className="px-3 py-2.5 text-left font-medium">Ventana</th>
                 <th className="px-3 py-2.5 text-left font-medium">Monto</th>
@@ -75,9 +75,11 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                 return (
                   <tr
                     key={r.id ?? i}
+                    onClick={() => r.session_id && onVerInforme?.(r.session_id)}
                     className={cn(
                       'border-b border-border/50 transition-colors hover:bg-muted/30',
                       i % 2 === 0 ? 'bg-background' : 'bg-muted/10',
+                      r.session_id && onVerInforme ? 'cursor-pointer' : '',
                     )}
                   >
                     <td className="max-w-[180px] px-3 py-2.5">
@@ -85,17 +87,15 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       {r.pais && <p className="text-xs text-muted-foreground">{r.pais}</p>}
                     </td>
                     <td className="px-3 py-2.5">
-                      <Badge
-                        variant="secondary"
-                        className={cn(
-                          'text-xs font-semibold',
-                          r.radar_activo === 'Sí'
-                            ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                            : 'bg-red-500/15 text-red-600',
-                        )}
-                      >
-                        {r.radar_activo === 'Sí' ? '✓ Sí' : '✗ No'}
-                      </Badge>
+                      {r.radar_activo === 'Sí' ? (
+                        <Badge className="bg-green-500/10 text-green-400 border-green-500/30 text-xs font-semibold">
+                          Activa
+                        </Badge>
+                      ) : (
+                        <Badge variant="outline" className="text-xs text-muted-foreground">
+                          Descartada
+                        </Badge>
+                      )}
                     </td>
                     <td className="max-w-[140px] px-3 py-2.5">
                       <p className="truncate text-xs">{r.tipo_senal ?? '—'}</p>
@@ -104,19 +104,22 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       {criteriosCount > 0 ? (
                         <Tooltip>
                           <TooltipTrigger>
-                            <Badge
-                              variant="secondary"
-                              className={cn(
-                                'cursor-default text-xs font-semibold',
-                                criteriosCount >= 4
-                                  ? 'bg-green-500/15 text-green-700 dark:text-green-400'
-                                  : criteriosCount >= 2
-                                  ? 'bg-amber-500/15 text-amber-700 dark:text-amber-400'
-                                  : 'bg-muted text-muted-foreground',
-                              )}
-                            >
-                              {criteriosCount}/6
-                            </Badge>
+                            <div className="flex items-center gap-2">
+                              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                                <div
+                                  className={cn(
+                                    'h-full rounded-full',
+                                    criteriosCount >= 4
+                                      ? 'bg-green-500'
+                                      : criteriosCount >= 2
+                                      ? 'bg-amber-500'
+                                      : 'bg-primary',
+                                  )}
+                                  style={{ width: `${Math.round((criteriosCount / 6) * 100)}%` }}
+                                />
+                              </div>
+                              <span className="tabular-nums text-xs">{criteriosCount}/6</span>
+                            </div>
                           </TooltipTrigger>
                           <TooltipContent side="top" className="max-w-xs">
                             <ul className="list-disc space-y-0.5 pl-4 text-xs">
@@ -127,9 +130,12 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                           </TooltipContent>
                         </Tooltip>
                       ) : (
-                        <Badge variant="secondary" className="bg-muted text-xs text-muted-foreground">
-                          0/6
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-16 overflow-hidden rounded-full bg-muted">
+                            <div className="h-full w-0 rounded-full bg-primary" />
+                          </div>
+                          <span className="tabular-nums text-xs text-muted-foreground">0/6</span>
+                        </div>
                       )}
                     </td>
                     <td className="max-w-[220px] px-3 py-2.5">

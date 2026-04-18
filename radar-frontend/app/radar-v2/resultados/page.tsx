@@ -108,20 +108,29 @@ export default function ResultadosV2Page() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <TrendingUp size={20} className="text-primary" />
-            Resultados v2
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Historial de señales detectadas por el Agente 1 RADAR (Claude)
-          </p>
-        </div>
+      <div>
+        <h1 className="flex items-center gap-2 text-xl font-semibold">
+          <TrendingUp size={20} className="text-primary" />
+          Resultados v2
+        </h1>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Historial de señales detectadas por el Agente 1 RADAR (Claude)
+        </p>
+      </div>
+
+      {/* Sticky export bar */}
+      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
+        <span className="text-sm font-medium text-muted-foreground">
+          {loading ? (
+            <span className="animate-pulse">Cargando...</span>
+          ) : (
+            <><span className="font-semibold text-foreground">{totalCount}</span> resultado{totalCount !== 1 ? 's' : ''}</>
+          )}
+        </span>
         <a
           href={`/api/radar-v2/export/csv?${buildExportParams()}`}
           download
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
         >
           <Download size={13} />
           Exportar CSV

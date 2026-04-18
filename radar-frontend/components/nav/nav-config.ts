@@ -5,6 +5,7 @@ import {
   Calendar,
   CheckCircle2,
   ClipboardList,
+  Code2,
   Coins,
   FileText,
   Home,
@@ -59,6 +60,7 @@ export const navTree: NavNode[] = [
       { label: 'Métricas',   href: '/radar-v2/metricas',   icon: BarChart3 },
       { label: 'Cronograma', href: '/radar-v2/cronograma', icon: Calendar },
       { label: 'Informes',   href: '/radar-v2/informes',   icon: FileText },
+      { label: 'Prompt',     href: '/radar-v2/prompt',     icon: Code2 },
     ],
   },
 

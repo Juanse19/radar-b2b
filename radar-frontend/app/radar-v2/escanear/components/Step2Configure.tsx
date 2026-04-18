@@ -7,12 +7,51 @@ import {
   CollapsibleTrigger,
   CollapsibleContent,
 } from '@/components/ui/collapsible';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AutoCountSlider } from './AutoCountSlider';
 import { CompanySelector } from '../../components/CompanySelector';
 import type { WizardState } from '@/lib/radar-v2/wizard-state';
 import type { RadarV2Company } from '@/lib/radar-v2/types';
+
+// Map tier to badge classes
+const TIER_BADGE: Record<string, string> = {
+  ORO:       'bg-amber-500/15 text-amber-700 dark:text-amber-400 border-amber-500/30',
+  MONITOREO: 'bg-blue-500/15  text-blue-700  dark:text-blue-400  border-blue-500/30',
+  ARCHIVO:   'bg-muted        text-muted-foreground',
+};
+
+function TierBadge({ tier }: { tier?: string }) {
+  if (!tier) return null;
+  const cls = TIER_BADGE[tier.toUpperCase()] ?? TIER_BADGE['ARCHIVO'];
+  return (
+    <Badge variant="outline" className={cn('h-4 px-1 text-[10px] font-medium', cls)}>
+      {tier}
+    </Badge>
+  );
+}
+
+interface EstimateResponse {
+  cost_usd_est: number;
+}
+
+function useCostEstimate(line: string, count: number) {
+  const [cost, setCost] = useState<number | null>(null);
+  useEffect(() => {
+    if (!line || count < 1) { setCost(null); return; }
+    let cancelled = false;
+    fetch('/api/radar-v2/estimate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ linea: line, empresas_count: count, provider: 'claude' }),
+    })
+      .then(r => r.ok ? r.json() as Promise<EstimateResponse> : null)
+      .then(d => { if (!cancelled && d) setCost(d.cost_usd_est); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [line, count]);
+  return cost;
+}
 
 // Fuentes and Keywords are fetched live from the admin API.
 // Fallback values (used if fetch fails) for graceful degradation.
@@ -69,6 +108,13 @@ export function Step2Configure({ state, onChange }: Props) {
   // persists IDs. We re-hydrate from the /api/radar-v2/companies endpoint.
   const [selectedCompanies, setSelectedCompanies] = useState<RadarV2Company[]>([]);
   const [hydrated, setHydrated] = useState(false);
+
+  const manualCount = state.mode === 'manual' ? selectedCompanies.length : 0;
+  const autoCount   = state.mode === 'auto'   ? state.count            : 0;
+  const costEstimate = useCostEstimate(
+    state.line ?? '',
+    state.mode === 'manual' ? manualCount : autoCount,
+  );
 
   // Fuentes and Keywords — fetched from admin APIs with graceful fallback
   const [fuentesGroups, setFuentesGroups] = useState<Array<{ country: string; sources: string[] }>>(FALLBACK_FUENTES);
@@ -156,8 +202,8 @@ export function Step2Configure({ state, onChange }: Props) {
           />
         </div>
       ) : (
-        <div>
-          <p className="mb-3 text-sm text-muted-foreground">
+        <div className="space-y-4">
+          <p className="text-sm text-muted-foreground">
             Selecciona las empresas a escanear de <strong className="text-foreground">{state.line || '—'}</strong>.
           </p>
           {!state.line ? (
@@ -171,6 +217,46 @@ export function Step2Configure({ state, onChange }: Props) {
               onChange={handleCompaniesChange}
               maxSelect={20}
             />
+          )}
+
+          {/* Selected companies table with tier badges */}
+          {selectedCompanies.length > 0 && (
+            <div className="overflow-hidden rounded-lg border border-border">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                    <th className="px-3 py-2 text-left font-medium">Empresa</th>
+                    <th className="px-3 py-2 text-left font-medium">País</th>
+                    <th className="px-3 py-2 text-left font-medium">Tier</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {selectedCompanies.map((c) => (
+                    <tr key={c.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20">
+                      <td className="px-3 py-2 font-medium">{c.name}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{c.country}</td>
+                      <td className="px-3 py-2">
+                        <TierBadge tier={c.tier} />
+                      </td>
+                    </tr>
+                  ))}
+                  {/* Total estimado row */}
+                  <tr className="bg-muted/30">
+                    <td className="px-3 py-2 font-semibold text-foreground" colSpan={2}>
+                      <div className="flex items-center gap-1">
+                        <DollarSign size={11} className="text-muted-foreground" />
+                        Total estimado
+                      </div>
+                    </td>
+                    <td className="px-3 py-2 font-mono font-semibold text-foreground">
+                      {costEstimate !== null
+                        ? `~$${costEstimate.toFixed(4)}`
+                        : <span className="text-muted-foreground">—</span>}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
           )}
         </div>
       )}

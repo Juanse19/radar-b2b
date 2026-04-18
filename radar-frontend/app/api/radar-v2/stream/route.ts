@@ -14,7 +14,7 @@
  */
 import type { NextRequest } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
-import { scanCompany } from '@/lib/radar-v2/scanner';
+import { scanCompany, getActiveBudget } from '@/lib/radar-v2/scanner';
 import {
   createSSEEmitter,
   getReplayEvents,
@@ -26,8 +26,10 @@ export const runtime = 'nodejs';
 // Scans can take several minutes on a multi-company batch (each + rate-limit delays).
 export const maxDuration = 300;
 
-// ms to wait between companies so Claude's 10K tokens/min rate limit isn't hit.
-const RATE_LIMIT_DELAY_MS = 65_000;
+// ms to wait between companies — 2s is sufficient for all providers.
+// The original 65s was overly conservative for Claude's rate limit and unusable
+// for OpenAI/Gemini. Callers that need a longer delay can pass it as a query param.
+const RATE_LIMIT_DELAY_MS = 2_000;
 
 interface CompanyInput {
   id?:      number;
@@ -105,11 +107,14 @@ export async function GET(req: NextRequest) {
         provider: provider ?? 'claude',
       });
 
-      const sessionStart = Date.now();
+      const sessionStart  = Date.now();
       let totalCost   = 0;
       let activas     = 0;
       let descartadas = 0;
       let errors      = 0;
+
+      // Look up monthly budget once before the loop — non-fatal if DB unavailable.
+      const monthlyBudget = await getActiveBudget(provider ?? 'claude').catch(() => null);
 
       for (let i = 0; i < empresas.length; i++) {
         if (emitter.closed) break;
@@ -128,6 +133,15 @@ export async function GET(req: NextRequest) {
           totalCost += scan.cost_usd;
           if (scan.result.radar_activo === 'Sí') activas += 1;
           else                                    descartadas += 1;
+
+          // Warn when cumulative spend reaches 80% of the monthly budget.
+          if (monthlyBudget && totalCost >= monthlyBudget * 0.8) {
+            emitter.emit('budget_warning', {
+              consumed_usd: totalCost,
+              budget_usd:   monthlyBudget,
+              pct:          Math.round((totalCost / monthlyBudget) * 100),
+            });
+          }
         } catch (err) {
           errors += 1;
           const msg = err instanceof Error ? err.message : String(err);

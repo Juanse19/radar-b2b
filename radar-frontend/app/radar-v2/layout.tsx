@@ -11,6 +11,7 @@ const breadcrumbMap: Record<string, string> = {
   metricas:   'Métricas',
   cronograma: 'Cronograma',
   informes:   'Informes',
+  prompt:     'Visor de Prompts',
 };
 
 export default function RadarV2Layout({ children }: { children: React.ReactNode }) {

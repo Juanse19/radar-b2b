@@ -5,6 +5,7 @@ import { Providers } from './providers';
 import { AppShellLoader } from '@/components/AppShellLoader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
+import { ScanActivityWidget } from '@/components/radar-v2/ScanActivityWidget';
 
 /* Barlow — títulos y headings (equivalente a Futura MDBT del manual de marca) */
 const displayFont = Barlow({
@@ -48,6 +49,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <TooltipProvider>
             <AppShellLoader>{children}</AppShellLoader>
             <Toaster richColors position="top-right" />
+            <ScanActivityWidget />
           </TooltipProvider>
         </Providers>
       </body>

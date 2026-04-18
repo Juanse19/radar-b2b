@@ -11,6 +11,7 @@ import { Rocket, Loader2, AlertCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardState } from '@/lib/radar-v2/wizard-state';
 import type { RadarV2Company } from '@/lib/radar-v2/types';
+import { scanActivityStore } from '@/lib/radar-v2/scan-activity-store';
 
 interface EstimateResponse {
   tokens_in_est:          number;
@@ -221,6 +222,16 @@ export function Step3Review({ state, onChange }: Props) {
       // The SSE stream endpoint (/api/radar-v2/stream) runs the actual scan —
       // the browser connects and starts receiving events right away.
       const sessionId = crypto.randomUUID();
+
+      // Pre-register scan in global activity store so the floating widget
+      // appears immediately and survives navigation to /vivo.
+      scanActivityStore.startScan(
+        sessionId,
+        state.line,
+        companies.map(c => c.name),
+        state.provider,
+      );
+
       const vivoParams = new URLSearchParams({
         sessionId,
         line:     state.line,
@@ -270,6 +281,9 @@ export function Step3Review({ state, onChange }: Props) {
           <div className="grid grid-cols-3 gap-2">
             {providers.map((p) => {
               const isActive = state.provider === p.name;
+              const costPerCompany = estimate && empresasCount > 0
+                ? estimate.cost_usd_est / Math.max(empresasCount, 1)
+                : null;
               return (
                 <button
                   key={p.name}
@@ -277,20 +291,27 @@ export function Step3Review({ state, onChange }: Props) {
                   onClick={() => p.implemented && onChange({ provider: p.name })}
                   disabled={!p.implemented}
                   className={cn(
-                    'rounded-lg border px-2 py-2 text-left text-xs transition-colors',
+                    'relative rounded-lg border p-3 text-left text-xs transition-all duration-200',
                     isActive && p.implemented
-                      ? 'border-primary bg-primary/10'
-                      : 'border-border',
-                    p.implemented ? 'hover:border-primary/50' : 'cursor-not-allowed opacity-60',
+                      ? 'border-primary bg-primary/10 ring-2 ring-primary shadow-sm'
+                      : 'border-border hover:border-primary/50',
+                    p.implemented ? '' : 'cursor-not-allowed opacity-60',
                   )}
                 >
                   <p className="font-semibold capitalize">{p.name}</p>
-                  <p className="text-muted-foreground">{p.model}</p>
-                  {!p.implemented && (
+                  <p className="mt-0.5 leading-tight text-muted-foreground">{p.model}</p>
+                  {isActive && p.implemented && costPerCompany !== null ? (
+                    <Badge
+                      variant="secondary"
+                      className="mt-1.5 h-4 bg-primary/15 px-1 text-[9px] text-primary"
+                    >
+                      ~${costPerCompany.toFixed(4)}/emp
+                    </Badge>
+                  ) : !p.implemented ? (
                     <Badge variant="secondary" className="mt-1 h-4 text-[9px]">
                       Próximamente
                     </Badge>
-                  )}
+                  ) : null}
                 </button>
               );
             })}

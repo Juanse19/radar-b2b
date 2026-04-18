@@ -79,7 +79,7 @@ export function Step1Target({ state, onChange }: Props) {
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+        <div className="grid grid-cols-3 gap-2">
           {LINEAS.map((l) => {
             const selected = selectedLines.includes(l.value);
             return (
@@ -89,10 +89,10 @@ export function Step1Target({ state, onChange }: Props) {
                 onClick={() => toggleLine(l.value)}
                 aria-pressed={selected}
                 className={cn(
-                  'rounded-lg border px-3 py-2.5 text-left text-sm transition-all',
+                  'rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-200',
                   selected
-                    ? 'border-primary bg-primary/20 font-semibold shadow-sm ring-2 ring-primary/30'
-                    : 'border-border hover:border-primary/50 hover:bg-muted/30',
+                    ? 'border-primary bg-primary/15 font-semibold ring-1 ring-primary/50 shadow-sm'
+                    : 'border-border bg-muted/30 hover:border-primary/50',
                 )}
               >
                 <span className="block font-medium leading-tight">{l.label}</span>

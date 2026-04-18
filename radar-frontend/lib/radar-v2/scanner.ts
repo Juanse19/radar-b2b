@@ -7,6 +7,7 @@ import 'server-only';
 import { parseAgente1Response, type Agente1Result } from '@/lib/radar-v2/schema';
 import { getProvider } from './providers';
 import type { SSEEmitter } from './providers/types';
+import { pgFirst, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 
 const CLAUDE_MODEL       = 'claude-sonnet-4-6';
 const PRICE_INPUT_PER_M  = 3.0;
@@ -182,6 +183,70 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
 // Keeps RAG retrieve/upsert at this layer so it's orthogonal to the provider.
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// DB helpers — resolve API key, model, and budget from ai_provider_configs
+// ---------------------------------------------------------------------------
+
+/**
+ * Maps the provider name used in code (claude|openai|gemini) to the value
+ * stored in the `provider` column of ai_provider_configs.
+ */
+function toDbProviderName(providerName: string): string {
+  if (providerName === 'claude')  return 'anthropic';
+  if (providerName === 'gemini')  return 'google';
+  return providerName; // 'openai' stays as 'openai'
+}
+
+interface ProviderConfig {
+  apiKey: string | undefined;
+  model:  string | undefined;
+  budget: number | null;
+}
+
+/**
+ * Looks up the active ai_provider_configs row for the given provider.
+ * Returns undefined values when the table doesn't exist or has no active row —
+ * callers fall back to environment variables in that case.
+ */
+async function resolveProviderConfig(
+  providerName: string,
+  overrideKey?:   string,
+  overrideModel?: string,
+): Promise<ProviderConfig> {
+  // If both overrides are supplied, skip the DB entirely.
+  if (overrideKey && overrideModel) {
+    return { apiKey: overrideKey, model: overrideModel, budget: null };
+  }
+
+  const dbName = toDbProviderName(providerName);
+  try {
+    const row = await pgFirst<{ api_key_enc: string; model: string; monthly_budget_usd: string | null }>(
+      `SELECT api_key_enc, model, monthly_budget_usd
+         FROM ${SCHEMA}.ai_provider_configs
+        WHERE provider = ${pgLit(dbName)} AND is_active = TRUE
+        LIMIT 1`,
+    );
+    const apiKey = overrideKey  ?? (row?.api_key_enc?.trim() || undefined);
+    const model  = overrideModel ?? (row?.model?.trim()      || undefined);
+    const budget = row?.monthly_budget_usd != null ? Number(row.monthly_budget_usd) : null;
+    return { apiKey, model, budget };
+  } catch {
+    // Table may not exist yet or Supabase is unreachable — fall through.
+    return { apiKey: overrideKey, model: overrideModel, budget: null };
+  }
+}
+
+/**
+ * Returns the monthly_budget_usd for the given provider, or null if unknown.
+ * Used by the stream route for budget_warning events.
+ */
+export async function getActiveBudget(providerName: string): Promise<number | null> {
+  const { budget } = await resolveProviderConfig(providerName);
+  return budget;
+}
+
+// ---------------------------------------------------------------------------
+
 export interface ScanOptions {
   /** Provider name (claude|openai|gemini). Defaults to RADAR_V2_DEFAULT_PROVIDER env, then 'claude'. */
   providerName?: string;
@@ -205,7 +270,15 @@ export async function scanCompany(
   line: string,
   opts: ScanOptions = {},
 ): Promise<ScanResult> {
-  const provider = getProvider(opts.providerName);
+  const providerName = opts.providerName ?? process.env.RADAR_V2_DEFAULT_PROVIDER ?? 'claude';
+  const provider = getProvider(providerName);
+
+  // Resolve API key and model from DB, falling back to env vars inside each provider.
+  const { apiKey, model } = await resolveProviderConfig(
+    providerName,
+    opts.apiKey,
+    opts.model,
+  );
 
   const scan = await provider.scan(
     {
@@ -213,8 +286,8 @@ export async function scanCompany(
       line,
       sessionId: opts.sessionId,
       empresaId: company.id ?? null,
-      apiKey:    opts.apiKey,
-      model:     opts.model,
+      apiKey,
+      model,
     },
     opts.emit,
   );
