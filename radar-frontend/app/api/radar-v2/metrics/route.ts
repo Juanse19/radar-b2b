@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { computeMetrics, type MetricsRange } from '@/lib/radar-v2/metrics';
+import { ensureRadarV2Tables } from '@/lib/radar-v2/db-migrations';
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
@@ -17,6 +18,7 @@ export async function GET(req: NextRequest) {
     : 'week';
 
   try {
+    await ensureRadarV2Tables();
     const metrics = await computeMetrics(range);
     return NextResponse.json(metrics);
   } catch (err) {

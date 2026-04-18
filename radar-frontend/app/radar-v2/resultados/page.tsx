@@ -139,13 +139,13 @@ export default function ResultadosV2Page() {
 
       {/* KPI summary row */}
       {loading ? (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <Skeleton className="h-16 rounded-xl" />
           <Skeleton className="h-16 rounded-xl" />
           <Skeleton className="h-16 rounded-xl" />
         </div>
       ) : (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
           <div className="rounded-xl border border-border bg-card px-4 py-3">
             <p className="text-xs text-muted-foreground">Total resultados</p>
             <p className="mt-0.5 text-2xl font-bold leading-none">{totalCount}</p>
@@ -178,7 +178,7 @@ export default function ResultadosV2Page() {
         </CardHeader>
         <CardContent className="flex flex-wrap gap-3 pb-4">
           <Select value={linea} onValueChange={v => { setLinea(v ?? 'ALL'); }}>
-            <SelectTrigger className="h-8 w-44 text-xs">
+            <SelectTrigger className="h-8 w-full sm:w-44 text-xs">
               <SelectValue placeholder="Línea..." />
             </SelectTrigger>
             <SelectContent>
@@ -189,7 +189,7 @@ export default function ResultadosV2Page() {
           </Select>
 
           <Select value={radarActivo} onValueChange={v => setRadarActivo(v as 'ALL' | 'Sí' | 'No')}>
-            <SelectTrigger className="h-8 w-36 text-xs">
+            <SelectTrigger className="h-8 w-full sm:w-36 text-xs">
               <SelectValue placeholder="Radar activo..." />
             </SelectTrigger>
             <SelectContent>
@@ -200,7 +200,7 @@ export default function ResultadosV2Page() {
           </Select>
 
           <Select value={ventana} onValueChange={v => setVentana(v ?? 'ALL')}>
-            <SelectTrigger className="h-8 w-44 text-xs">
+            <SelectTrigger className="h-8 w-full sm:w-44 text-xs">
               <SelectValue placeholder="Ventana de compra..." />
             </SelectTrigger>
             <SelectContent>

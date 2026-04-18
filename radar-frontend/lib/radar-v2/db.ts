@@ -5,14 +5,16 @@ import type { RadarV2Result, RadarV2Session, RadarV2ResultsFilter } from './type
 const S = SCHEMA;
 
 export async function createRadarV2Session(data: {
+  id?:           string;
   user_id?:      string | null;
   linea_negocio: string;
   empresas_count: number;
 }): Promise<RadarV2Session> {
-  const cols = Object.entries(data)
-    .filter(([, v]) => v !== undefined)
-    .map(([k]) => k);
-  const vals = cols.map((k) => pgLit((data as Record<string, unknown>)[k]));
+  const cols: string[] = ['linea_negocio', 'empresas_count'];
+  const vals: string[] = [pgLit(data.linea_negocio), pgLit(data.empresas_count)];
+
+  if (data.id      !== undefined) { cols.unshift('id');      vals.unshift(pgLit(data.id)); }
+  if (data.user_id !== undefined) { cols.push('user_id');    vals.push(pgLit(data.user_id)); }
 
   const [row] = await pgQuery<RadarV2Session>(
     `INSERT INTO ${S}.radar_v2_sessions (${cols.join(', ')}) VALUES (${vals.join(', ')}) RETURNING *`

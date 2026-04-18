@@ -178,8 +178,9 @@ export async function computeMetrics(range: MetricsRange): Promise<RadarV2Metric
     SELECT
       DATE_TRUNC(${pgLit(bucket)}, s.created_at)::text   AS bucket,
       COUNT(DISTINCT s.id)::text                         AS scans,
-      COALESCE(SUM(s.total_cost_usd), 0)::text           AS costo
+      COALESCE(SUM(r.cost_usd), 0)::text                 AS costo
     FROM ${S}.radar_v2_sessions s
+    LEFT JOIN ${S}.radar_v2_results r ON r.session_id = s.id
     WHERE s.created_at >= NOW() - INTERVAL ${pgLit(interval)}
     GROUP BY DATE_TRUNC(${pgLit(bucket)}, s.created_at)
     ORDER BY DATE_TRUNC(${pgLit(bucket)}, s.created_at) ASC

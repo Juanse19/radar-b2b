@@ -14,8 +14,8 @@ import type { RadarV2ScanRequest, RadarV2Result, RadarV2ScanResponse } from '@/l
 // Allow long-running scans (each company can take 20-60s + 65s rate-limit delay between them)
 export const maxDuration = 300;
 
-// ms to wait between companies to respect the 10K tokens/min rate limit
-const RATE_LIMIT_DELAY_MS = 65_000;
+// ms to wait between companies. 2s is sufficient for all providers.
+const RATE_LIMIT_DELAY_MS = 2_000;
 
 export async function POST(req: NextRequest) {
   const session = await getCurrentSession();

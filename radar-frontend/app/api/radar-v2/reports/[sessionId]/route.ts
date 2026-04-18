@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { getRadarV2Report } from '@/lib/radar-v2/db';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
+import { ensureRadarV2Tables } from '@/lib/radar-v2/db-migrations';
 import type { InformeSesion } from '@/lib/radar-v2/types';
 
 const S = SCHEMA;
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest, { params }: RouteParams) {
   }
 
   try {
+    await ensureRadarV2Tables();
     const report = await getRadarV2Report(sessionId);
 
     if (!report) {

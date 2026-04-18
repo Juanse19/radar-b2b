@@ -231,8 +231,15 @@ async function resolveProviderConfig(
     const budget = row?.monthly_budget_usd != null ? Number(row.monthly_budget_usd) : null;
     return { apiKey, model, budget };
   } catch {
-    // Table may not exist yet or Supabase is unreachable — fall through.
-    return { apiKey: overrideKey, model: overrideModel, budget: null };
+    // Table may not exist yet or Supabase is unreachable.
+    // Fall back to environment variables so scans still work.
+    const normalizedName = toDbProviderName(providerName);
+    const envKey =
+      normalizedName === 'anthropic' ? process.env.CLAUDE_API_KEY :
+      normalizedName === 'openai'    ? process.env.OPENAI_API_KEY :
+      normalizedName === 'google'    ? process.env.GOOGLE_API_KEY :
+      undefined;
+    return { apiKey: overrideKey ?? envKey, model: overrideModel, budget: null };
   }
 }
 

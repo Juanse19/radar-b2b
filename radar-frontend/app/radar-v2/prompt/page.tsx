@@ -238,7 +238,8 @@ export default function PromptViewerPage() {
   }, [activeProvider]);
 
   return (
-    <div className="space-y-6">
+    <main className="min-h-screen bg-[#0d0f1a]">
+    <div className="mx-auto max-w-6xl space-y-6 px-6 py-6">
       {/* Header */}
       <div className="flex items-start justify-between">
         <div>
@@ -367,5 +368,6 @@ export default function PromptViewerPage() {
         </div>
       )}
     </div>
+    </main>
   );
 }
