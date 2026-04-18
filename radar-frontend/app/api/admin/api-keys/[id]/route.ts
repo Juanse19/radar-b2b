@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
+import { ensureAiProviderConfigsTable } from '@/lib/radar-v2/db-migrations';
 
 const S = SCHEMA;
 
@@ -15,6 +16,7 @@ export async function PUT(
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 });
 
   try {
+    await ensureAiProviderConfigsTable();
     const body = await req.json();
     const {
       label,
@@ -82,6 +84,7 @@ export async function DELETE(
   if (!id) return NextResponse.json({ error: 'id requerido' }, { status: 400 });
 
   try {
+    await ensureAiProviderConfigsTable();
     const rows = await pgQuery<{ id: string }>(`
       DELETE FROM ${S}.ai_provider_configs
       WHERE id = ${pgLit(id)}

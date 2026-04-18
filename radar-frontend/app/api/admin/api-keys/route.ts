@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
+import { ensureAiProviderConfigsTable } from '@/lib/radar-v2/db-migrations';
 
 const S = SCHEMA;
 
@@ -18,7 +19,8 @@ type ConfigRow = {
 };
 
 function mask(key: string): string {
-  if (!key || key.length < 8) return key ? '••••••••' : '';
+  if (!key || key.trim() === '') return '(sin configurar)';
+  if (key.length <= 4) return '••••••••';
   return '••••••••' + key.slice(-4);
 }
 
@@ -27,6 +29,7 @@ export async function GET(req: NextRequest) {
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   const activeOnly = req.nextUrl.searchParams.get('active') === 'true';
   try {
+    await ensureAiProviderConfigsTable();
     const rows = await pgQuery<ConfigRow>(`
       SELECT id, provider, label, model, api_key_enc,
              is_active, is_default, monthly_budget_usd, created_at, updated_at
@@ -50,6 +53,7 @@ export async function POST(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   try {
+    await ensureAiProviderConfigsTable();
     const body = await req.json();
     const { provider, label, model, api_key, is_active, is_default, monthly_budget_usd } = body as {
       provider?: string;
