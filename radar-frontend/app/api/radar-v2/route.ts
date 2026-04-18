@@ -46,7 +46,7 @@ export async function POST(req: NextRequest) {
   try {
     dbSession = await createRadarV2Session({
       user_id:        session.id ?? null,
-      linea_negocio:  line,
+      linea_negocio:  line.split(',')[0],
       empresas_count: companies.length,
     });
     scanSessionId = dbSession.id;
@@ -55,17 +55,19 @@ export async function POST(req: NextRequest) {
     // Non-fatal — continue without session tracking
   }
 
-  // Look up API key from ai_provider_configs for the selected provider
+  // Look up API key and model from ai_provider_configs for the selected provider
   let providerApiKey: string | undefined;
+  let providerModel:  string | undefined;
   try {
     const S = SCHEMA;
-    const providerDbName = providerName === 'claude' ? 'anthropic' : providerName;
-    const [cfg] = await pgQuery<{ api_key_enc: string }>(`
-      SELECT api_key_enc FROM ${S}.ai_provider_configs
+    const providerDbName = providerName === 'claude' ? 'anthropic' : providerName === 'gemini' ? 'google' : providerName;
+    const [cfg] = await pgQuery<{ api_key_enc: string; model: string }>(`
+      SELECT api_key_enc, model FROM ${S}.ai_provider_configs
       WHERE provider = ${pgLit(providerDbName)} AND is_active = TRUE
       ORDER BY is_default DESC LIMIT 1
     `);
     if (cfg?.api_key_enc) providerApiKey = cfg.api_key_enc;
+    if (cfg?.model)       providerModel  = cfg.model;
   } catch {
     // Table might not exist yet — fall back to env var
   }
@@ -86,6 +88,7 @@ export async function POST(req: NextRequest) {
         await scanCompany(company, line, {
           providerName: providerName,
           apiKey:       providerApiKey,
+          model:        providerModel,
           sessionId:    scanSessionId ?? undefined,
         });
 
@@ -97,7 +100,7 @@ export async function POST(req: NextRequest) {
           empresa_id:          company.id ?? null,
           empresa_evaluada:    agente1.empresa_evaluada,
           radar_activo:        agente1.radar_activo,
-          linea_negocio:       agente1.linea_negocio,
+          linea_negocio:       agente1.linea_negocio ?? company.linea ?? line.split(',')[0],
           tipo_senal:          agente1.tipo_senal,
           pais:                agente1.pais,
           empresa_o_proyecto:  agente1.empresa_o_proyecto,

@@ -138,18 +138,20 @@ export async function computeMetrics(range: MetricsRange): Promise<RadarV2Metric
 
   // 2) Por línea
   type LineaRow = {
-    linea:   string;
-    scans:   string;
-    activas: string;
-    costo:   string | null;
+    linea:       string;
+    scans:       string;
+    activas:     string;
+    descartadas: string;
+    costo:       string | null;
   };
 
   const lineaRows = await pgQuery<LineaRow>(`
     SELECT
-      s.linea_negocio                                                   AS linea,
-      COUNT(DISTINCT s.id)::text                                        AS scans,
-      COUNT(*) FILTER (WHERE r.radar_activo = 'Sí')::text              AS activas,
-      COALESCE(SUM(r.cost_usd), 0)::text                                AS costo
+      s.linea_negocio                                                        AS linea,
+      COUNT(DISTINCT s.id)::text                                             AS scans,
+      COUNT(*) FILTER (WHERE r.radar_activo = 'Sí')::text                   AS activas,
+      COUNT(*) FILTER (WHERE r.radar_activo = 'No')::text                   AS descartadas,
+      COALESCE(SUM(r.cost_usd), 0)::text                                     AS costo
     FROM ${S}.radar_v2_sessions s
     LEFT JOIN ${S}.radar_v2_results r ON r.session_id = s.id
     WHERE s.created_at >= NOW() - INTERVAL ${pgLit(interval)}
@@ -158,10 +160,11 @@ export async function computeMetrics(range: MetricsRange): Promise<RadarV2Metric
   `);
 
   const porLinea = lineaRows.map((row) => ({
-    linea:   row.linea   ?? 'Sin línea',
-    scans:   parseInt(row.scans   ?? '0', 10),
-    activas: parseInt(row.activas ?? '0', 10),
-    costo:   parseFloat(row.costo ?? '0'),
+    linea:       row.linea       ?? 'Sin línea',
+    scans:       parseInt(row.scans       ?? '0', 10),
+    activas:     parseInt(row.activas     ?? '0', 10),
+    descartadas: parseInt(row.descartadas ?? '0', 10),
+    costo:       parseFloat(row.costo ?? '0'),
   }));
 
   // 3) Serie temporal

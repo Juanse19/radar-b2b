@@ -77,7 +77,7 @@ export interface RadarV2Metrics {
     tokens_por_scan:  number;
   };
   ratio_activas: number;
-  por_linea: Array<{ linea: string; scans: number; activas: number; costo: number }>;
+  por_linea: Array<{ linea: string; scans: number; activas: number; descartadas: number; costo: number }>;
   serie:     Array<{ bucket: string; scans: number; costo: number }>;
 }
 

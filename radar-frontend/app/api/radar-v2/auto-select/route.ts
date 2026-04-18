@@ -42,22 +42,33 @@ export async function POST(req: NextRequest) {
   }
 
   const where: string[] = [];
-  const mapping = LINE_FILTER[body.linea];
-  if (mapping) {
-    if (mapping.type === 'parent') {
-      where.push(`EXISTS (
-        SELECT 1 FROM ${S}.empresa_sub_lineas esl
-        JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-        JOIN ${S}.lineas_negocio ln ON ln.id = sl.linea_id
-        WHERE esl.empresa_id = e.id AND ln.codigo = ${pgLit(mapping.code)}
-      )`);
-    } else {
-      where.push(`EXISTS (
-        SELECT 1 FROM ${S}.empresa_sub_lineas esl
-        JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-        WHERE esl.empresa_id = e.id AND sl.codigo = ${pgLit(mapping.code)}
-      )`);
+
+  // Support comma-separated multi-line values (e.g. 'BHS,Cartón')
+  const lines = body.linea.split(',').map(l => l.trim()).filter(Boolean);
+  const lineConditions: string[] = [];
+  for (const line of lines) {
+    const mapping = LINE_FILTER[line];
+    if (mapping) {
+      if (mapping.type === 'parent') {
+        lineConditions.push(`EXISTS (
+          SELECT 1 FROM ${S}.empresa_sub_lineas esl
+          JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+          JOIN ${S}.lineas_negocio ln ON ln.id = sl.linea_id
+          WHERE esl.empresa_id = e.id AND ln.codigo = ${pgLit(mapping.code)}
+        )`);
+      } else {
+        lineConditions.push(`EXISTS (
+          SELECT 1 FROM ${S}.empresa_sub_lineas esl
+          JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+          WHERE esl.empresa_id = e.id AND sl.codigo = ${pgLit(mapping.code)}
+        )`);
+      }
     }
+  }
+  if (lineConditions.length === 1) {
+    where.push(lineConditions[0]);
+  } else if (lineConditions.length > 1) {
+    where.push(`(${lineConditions.join(' OR ')})`);
   }
 
   try {

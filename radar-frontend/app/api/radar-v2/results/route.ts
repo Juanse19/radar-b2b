@@ -1,7 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { getRadarV2Results } from '@/lib/radar-v2/db';
+import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import type { RadarV2ResultsFilter } from '@/lib/radar-v2/types';
+
+const S = SCHEMA;
 
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
@@ -21,8 +24,33 @@ export async function GET(req: NextRequest) {
   };
 
   try {
-    const results = await getRadarV2Results(filter);
-    return NextResponse.json(results);
+    // Build same WHERE conditions as getRadarV2Results for the count query
+    const countWhere: string[] = [];
+    if (filter.linea)        countWhere.push(`linea_negocio = ${pgLit(filter.linea)}`);
+    if (filter.radar_activo) countWhere.push(`radar_activo = ${pgLit(filter.radar_activo)}`);
+    if (filter.ventana)      countWhere.push(`ventana_compra = ${pgLit(filter.ventana)}`);
+    if (filter.from)         countWhere.push(`created_at >= ${pgLit(filter.from)}`);
+    if (filter.to)           countWhere.push(`created_at <= ${pgLit(filter.to)}`);
+
+    const [resultsRows, countRows] = await Promise.all([
+      getRadarV2Results(filter),
+      pgQuery<{ total: string; activas: string; descartadas: string }>(
+        `SELECT
+           COUNT(*)::text                                               AS total,
+           COUNT(*) FILTER (WHERE radar_activo = 'Sí')::text          AS activas,
+           COUNT(*) FILTER (WHERE radar_activo = 'No')::text          AS descartadas
+         FROM ${S}.radar_v2_results
+         ${countWhere.length ? 'WHERE ' + countWhere.join(' AND ') : ''}`,
+      ),
+    ]);
+
+    const totals = countRows[0];
+    return NextResponse.json({
+      results:     resultsRows,
+      total_count: parseInt(totals?.total       ?? '0', 10),
+      activas:     parseInt(totals?.activas     ?? '0', 10),
+      descartadas: parseInt(totals?.descartadas ?? '0', 10),
+    });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     console.error('[/api/radar-v2/results] Error:', msg);

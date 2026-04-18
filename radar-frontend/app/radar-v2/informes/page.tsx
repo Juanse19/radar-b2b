@@ -20,7 +20,8 @@ interface RawResult {
   session_id?:    string;
   linea_negocio?: string;
   created_at?:    string;
-  cost_usd?:      number;
+  // BUG I2: Postgres NUMERIC columns arrive as strings over HTTP
+  cost_usd?:      number | string | null;
 }
 
 // Color mapping for linea_negocio left border
@@ -68,16 +69,19 @@ export default function InformesPage() {
         for (const r of rows) {
           if (!r.session_id) continue;
           const existing = grouped.get(r.session_id);
+          // BUG I2 FIX: Postgres NUMERIC columns come back as strings over HTTP.
+          // Always coerce to number before arithmetic to avoid string concatenation.
+          const rowCost = parseFloat(r.cost_usd as unknown as string) || 0;
           if (existing) {
             existing.empresas_count += 1;
-            existing.total_cost_usd += r.cost_usd ?? 0;
+            existing.total_cost_usd += rowCost;
           } else {
             grouped.set(r.session_id, {
               session_id:     r.session_id,
               linea_negocio:  r.linea_negocio ?? '',
               created_at:     r.created_at ?? '',
               empresas_count: 1,
-              total_cost_usd: r.cost_usd ?? 0,
+              total_cost_usd: rowCost,
             });
           }
         }
@@ -138,7 +142,8 @@ export default function InformesPage() {
               )}
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {new Date(s.created_at).toLocaleString('es-CO')} · ${s.total_cost_usd.toFixed(4)} USD
+              {/* BUG I4 FIX: guard created_at and total_cost_usd before calling methods */}
+              {s.created_at ? new Date(s.created_at).toLocaleString('es-CO') : '—'} · ${(s.total_cost_usd ?? 0).toFixed(4)} USD
             </p>
           </div>
           <div className="flex shrink-0 gap-2">

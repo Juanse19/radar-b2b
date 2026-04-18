@@ -23,39 +23,51 @@ export async function GET(req: NextRequest) {
   }
 
   const { searchParams } = req.nextUrl;
-  const linea  = searchParams.get('linea');
+  // Decode URI encoding (e.g. 'BHS%2CCart%C3%B3n' → 'BHS,Cartón') then split on comma
+  const lineaRaw = searchParams.get('linea') ?? '';
+  const lineaDecoded = decodeURIComponent(lineaRaw);
   const limit  = Math.min(Number(searchParams.get('limit') ?? 200), 500);
   const search = searchParams.get('q');
 
   const where: string[] = [];
 
-  if (linea && linea !== 'ALL') {
-    const mapping = LINE_FILTER[linea];
-    if (mapping) {
-      if (mapping.type === 'parent') {
-        where.push(`EXISTS (
-          SELECT 1 FROM ${S}.empresa_sub_lineas esl
-          JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-          JOIN ${S}.lineas_negocio ln ON ln.id = sl.linea_id
-          WHERE esl.empresa_id = e.id
-            AND ln.codigo = ${pgLit(mapping.code)}
-        )`);
+  if (lineaDecoded && lineaDecoded !== 'ALL') {
+    // Support comma-separated multi-line values (e.g. 'BHS,Cartón')
+    const lines = lineaDecoded.split(',').map(l => l.trim()).filter(Boolean);
+    const lineConditions: string[] = [];
+    for (const line of lines) {
+      const mapping = LINE_FILTER[line];
+      if (mapping) {
+        if (mapping.type === 'parent') {
+          lineConditions.push(`EXISTS (
+            SELECT 1 FROM ${S}.empresa_sub_lineas esl
+            JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+            JOIN ${S}.lineas_negocio ln ON ln.id = sl.linea_id
+            WHERE esl.empresa_id = e.id
+              AND ln.codigo = ${pgLit(mapping.code)}
+          )`);
+        } else {
+          lineConditions.push(`EXISTS (
+            SELECT 1 FROM ${S}.empresa_sub_lineas esl
+            JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+            WHERE esl.empresa_id = e.id
+              AND sl.codigo = ${pgLit(mapping.code)}
+          )`);
+        }
       } else {
-        where.push(`EXISTS (
+        // Fallback: ILIKE on sub-line name
+        lineConditions.push(`EXISTS (
           SELECT 1 FROM ${S}.empresa_sub_lineas esl
           JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
           WHERE esl.empresa_id = e.id
-            AND sl.codigo = ${pgLit(mapping.code)}
+            AND sl.nombre ILIKE ${pgLit('%' + line + '%')}
         )`);
       }
-    } else {
-      // Fallback: ILIKE on sub-line name
-      where.push(`EXISTS (
-        SELECT 1 FROM ${S}.empresa_sub_lineas esl
-        JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-        WHERE esl.empresa_id = e.id
-          AND sl.nombre ILIKE ${pgLit('%' + linea + '%')}
-      )`);
+    }
+    if (lineConditions.length === 1) {
+      where.push(lineConditions[0]);
+    } else if (lineConditions.length > 1) {
+      where.push(`(${lineConditions.join(' OR ')})`);
     }
   }
 

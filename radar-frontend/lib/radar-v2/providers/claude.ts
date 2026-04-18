@@ -87,8 +87,9 @@ async function scanImpl(
   const { company, line, sessionId } = params;
   const startedAt = Date.now();
 
-  const apiKey = process.env.CLAUDE_API_KEY;
+  const apiKey = params.apiKey ?? process.env.CLAUDE_API_KEY;
   if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
+  const model = params.model ?? CLAUDE_MODEL;
 
   // RAG context — optional, non-fatal
   let ragBlock = '';
@@ -109,7 +110,7 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
     : basePrompt;
 
   const baseBody = {
-    model:      CLAUDE_MODEL,
+    model:      model,
     max_tokens: 2048,
     system: [{ type: 'text', text: RADAR_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
     tools:  [{ type: 'web_search_20250305', name: 'web_search' }],
@@ -267,7 +268,7 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
     cached_tokens: totalCached,
     search_calls:  searchCalls,
     cost_usd:      cost,
-    model:         CLAUDE_MODEL,
+    model:         model,
   };
 }
 

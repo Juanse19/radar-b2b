@@ -63,6 +63,9 @@ export async function POST(req: NextRequest) {
     if (!provider || !label || !model) {
       return NextResponse.json({ error: 'provider, label, model requeridos' }, { status: 400 });
     }
+    if (!api_key || api_key.trim().length === 0) {
+      return NextResponse.json({ error: 'api_key is required' }, { status: 400 });
+    }
     const [row] = await pgQuery<{ id: string }>(`
       INSERT INTO ${S}.ai_provider_configs
         (provider, label, model, api_key_enc, is_active, is_default, monthly_budget_usd)

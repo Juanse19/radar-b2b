@@ -85,6 +85,7 @@ async function scanImpl(
   if (!apiKey) {
     throw new Error('GOOGLE_API_KEY not configured — add it to .env.local');
   }
+  const model = params.model ?? process.env.GOOGLE_MODEL ?? 'gemini-2.0-flash';
 
   // RAG context — optional, non-fatal
   let ragBlock = '';
@@ -106,7 +107,7 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
-  const url = `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`;
+  const url = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;
 
   const body = {
     systemInstruction: {
@@ -198,7 +199,7 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
     cached_tokens: 0,
     search_calls:  0,
     cost_usd:      cost,
-    model:         GEMINI_MODEL,
+    model:         model,
   };
 }
 

@@ -83,6 +83,7 @@ async function scanImpl(
   if (!apiKey) {
     throw new Error('OPENAI_API_KEY not configured — add it to .env.local');
   }
+  const model = params.model ?? process.env.OPENAI_MODEL ?? 'gpt-4o';
 
   // RAG context — optional, non-fatal
   let ragBlock = '';
@@ -105,7 +106,7 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
   const body = {
-    model:      OPENAI_MODEL,
+    model:      model,
     max_tokens: 2048,
     messages: [
       { role: 'system', content: buildSystemPrompt() },
@@ -185,7 +186,7 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
     cached_tokens: 0,
     search_calls:  0,
     cost_usd:      cost,
-    model:         OPENAI_MODEL,
+    model:         model,
   };
 }
 

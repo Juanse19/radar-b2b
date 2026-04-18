@@ -63,6 +63,14 @@ export function Step3Review({ state, onChange }: Props) {
     ? state.count
     : state.selectedIds.length;
 
+  // Number of lines selected (e.g. 'BHS,Cartón' → 2)
+  const lineCount = state.line
+    ? state.line.split(',').map(l => l.trim()).filter(Boolean).length || 1
+    : 1;
+
+  // Total scans = empresas × lines (each company is scanned once per line)
+  const totalScans = empresasCount * lineCount;
+
   // Fetch active provider configs from admin API
   useEffect(() => {
     let cancelled = false;
@@ -119,7 +127,7 @@ export function Step3Review({ state, onChange }: Props) {
       headers: { 'Content-Type': 'application/json' },
       body:    JSON.stringify({
         linea:          state.line,
-        empresas_count: empresasCount,
+        empresas_count: totalScans,
         provider:       state.provider,
       }),
     })
@@ -159,6 +167,11 @@ export function Step3Review({ state, onChange }: Props) {
   const effectiveBudget = state.budgetUsd > 0
     ? state.budgetUsd
     : estimate?.budget_recommended_usd ?? 0;
+
+  // Clamp effectiveBudget to valid slider range (W6)
+  const clampedBudget = budgetRange.min > 0
+    ? Math.min(Math.max(effectiveBudget, budgetRange.min), budgetRange.max)
+    : effectiveBudget;
 
   async function handleFire() {
     if (firing) return;
@@ -236,7 +249,7 @@ export function Step3Review({ state, onChange }: Props) {
 
           <dt className="text-muted-foreground">Modo</dt>
           <dd className="col-span-1 font-medium capitalize sm:col-span-2">
-            {state.mode === 'auto' ? 'Automático' : 'Manual'}
+            {state.mode === 'auto' ? 'Automático' : state.mode === 'manual' ? 'Manual' : '—'}
           </dd>
 
           <dt className="text-muted-foreground">Empresas</dt>
@@ -301,6 +314,14 @@ export function Step3Review({ state, onChange }: Props) {
         ) : estimate ? (
           <>
             <dl className="grid grid-cols-2 gap-y-1.5 text-xs">
+              {lineCount > 1 && (
+                <>
+                  <dt className="text-muted-foreground">Scans totales</dt>
+                  <dd className="text-right font-mono">
+                    {empresasCount} emp. × {lineCount} líneas = {totalScans}
+                  </dd>
+                </>
+              )}
               <dt className="text-muted-foreground">Tokens entrada</dt>
               <dd className="text-right font-mono">
                 {estimate.tokens_in_est.toLocaleString()}
@@ -324,7 +345,7 @@ export function Step3Review({ state, onChange }: Props) {
               <div className="flex items-baseline justify-between">
                 <Label className="text-xs">Presupuesto máximo</Label>
                 <span className="text-sm font-semibold text-foreground">
-                  ${effectiveBudget.toFixed(2)}
+                  ${clampedBudget.toFixed(2)}
                 </span>
               </div>
               <input
@@ -332,7 +353,7 @@ export function Step3Review({ state, onChange }: Props) {
                 min={budgetRange.min}
                 max={budgetRange.max}
                 step={0.01}
-                value={effectiveBudget}
+                value={clampedBudget}
                 onChange={(e) => onChange({ budgetUsd: Number(e.target.value) })}
                 className="h-2 w-full cursor-pointer appearance-none rounded-lg bg-muted accent-primary"
                 aria-label="Presupuesto máximo"

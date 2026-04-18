@@ -21,5 +21,5 @@ INSERT INTO matec_radar.ai_provider_configs (provider, label, model, api_key_enc
 VALUES
   ('anthropic', 'Claude Sonnet 4.6', 'claude-sonnet-4-6', '', FALSE, TRUE),
   ('openai',    'GPT-4o',            'gpt-4o',            '', FALSE, FALSE),
-  ('google',    'Gemini 3 Pro',      'gemini-3-pro',      '', FALSE, FALSE)
+  ('google',    'Gemini 2.0 Flash',  'gemini-2.0-flash',  '', FALSE, FALSE)
 ON CONFLICT DO NOTHING;

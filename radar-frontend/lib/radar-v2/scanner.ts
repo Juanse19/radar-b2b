@@ -191,6 +191,8 @@ export interface ScanOptions {
   sessionId?:    string;
   /** API key override — from ai_provider_configs DB, takes precedence over env var. */
   apiKey?:       string;
+  /** Model override — from ai_provider_configs DB, takes precedence over provider default. */
+  model?:        string;
 }
 
 /**
@@ -212,6 +214,7 @@ export async function scanCompany(
       sessionId: opts.sessionId,
       empresaId: company.id ?? null,
       apiKey:    opts.apiKey,
+      model:     opts.model,
     },
     opts.emit,
   );

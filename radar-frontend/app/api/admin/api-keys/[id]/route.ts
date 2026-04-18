@@ -32,6 +32,11 @@ export async function PUT(
       monthly_budget_usd?: number | null;
     };
 
+    // If setting as default, clear all other defaults first
+    if (body.is_default === true) {
+      await pgQuery(`UPDATE ${S}.ai_provider_configs SET is_default = FALSE WHERE id != ${pgLit(id)}`);
+    }
+
     // Build SET clause dynamically — only update provided fields
     const setClauses: string[] = ['updated_at = NOW()'];
 

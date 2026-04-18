@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp } from 'lucide-react';
+import { TrendingUp, Download } from 'lucide-react';
 import { ResultadosTable } from './components/ResultadosTable';
 import { InformeEjecucion } from '@/app/radar-v2/components/InformeEjecucion';
 import type { RadarV2Result, RadarV2ResultsFilter } from '@/lib/radar-v2/types';
@@ -32,10 +32,13 @@ const VENTANA_OPTIONS = [
 const PAGE_SIZE = 50;
 
 export default function ResultadosV2Page() {
-  const [results,  setResults]  = useState<RadarV2Result[]>([]);
-  const [loading,  setLoading]  = useState(true);
-  const [offset,   setOffset]   = useState(0);
-  const [hasMore,  setHasMore]  = useState(false);
+  const [results,      setResults]      = useState<RadarV2Result[]>([]);
+  const [loading,      setLoading]      = useState(true);
+  const [offset,       setOffset]       = useState(0);
+  const [hasMore,      setHasMore]      = useState(false);
+  const [totalCount,   setTotalCount]   = useState(0);
+  const [totalActivas, setTotalActivas] = useState(0);
+  const [totalDesc,    setTotalDesc]    = useState(0);
 
   // Filters
   const [linea,        setLinea]       = useState('ALL');
@@ -67,12 +70,23 @@ export default function ResultadosV2Page() {
       const res = await fetch(`/api/radar-v2/results?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
 
-      const data: RadarV2Result[] = await res.json();
-      const page = data.slice(0, PAGE_SIZE);
+      const data = await res.json() as {
+        results:     RadarV2Result[];
+        total_count: number;
+        activas:     number;
+        descartadas: number;
+      };
+      const page = data.results.slice(0, PAGE_SIZE);
 
-      setHasMore(data.length > PAGE_SIZE);
+      setHasMore(data.results.length > PAGE_SIZE);
       setResults(prev => append ? [...prev, ...page] : page);
       setOffset(newOffset);
+      // Update totals from server-side counts (not current-page counts)
+      if (!append) {
+        setTotalCount(data.total_count);
+        setTotalActivas(data.activas);
+        setTotalDesc(data.descartadas);
+      }
     } catch { /* ignore */ }
     finally { setLoading(false); }
   }, [linea, radarActivo, ventana]);
@@ -82,20 +96,36 @@ export default function ResultadosV2Page() {
 
   const loadMore = () => fetchResults(offset + PAGE_SIZE, true);
 
-  const activeCount    = results.filter(r => r.radar_activo === 'Sí').length;
-  const discardedCount = results.filter(r => r.radar_activo === 'No').length;
+  // Build CSV export URL with active filters
+  const buildExportParams = useCallback(() => {
+    const p = new URLSearchParams();
+    if (linea       !== 'ALL') p.set('linea',        linea);
+    if (radarActivo !== 'ALL') p.set('radar_activo', radarActivo);
+    if (ventana     !== 'ALL') p.set('ventana',      ventana);
+    return p.toString();
+  }, [linea, radarActivo, ventana]);
 
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <TrendingUp size={20} className="text-primary" />
-          Resultados v2
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Historial de señales detectadas por el Agente 1 RADAR (Claude)
-        </p>
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            <TrendingUp size={20} className="text-primary" />
+            Resultados v2
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Historial de señales detectadas por el Agente 1 RADAR (Claude)
+          </p>
+        </div>
+        <a
+          href={`/api/radar-v2/export/csv?${buildExportParams()}`}
+          download
+          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-card px-3 py-1.5 text-xs font-medium hover:bg-muted"
+        >
+          <Download size={13} />
+          Exportar CSV
+        </a>
       </div>
 
       {/* KPI summary row */}
@@ -109,12 +139,12 @@ export default function ResultadosV2Page() {
         <div className="grid grid-cols-3 gap-3">
           <div className="rounded-xl border border-border bg-card px-4 py-3">
             <p className="text-xs text-muted-foreground">Total resultados</p>
-            <p className="mt-0.5 text-2xl font-bold leading-none">{results.length}</p>
+            <p className="mt-0.5 text-2xl font-bold leading-none">{totalCount}</p>
           </div>
           <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
             <p className="text-xs text-green-700 dark:text-green-400">Activas</p>
             <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold leading-none text-green-700 dark:text-green-400">{activeCount}</p>
+              <p className="text-2xl font-bold leading-none text-green-700 dark:text-green-400">{totalActivas}</p>
               <Badge variant="secondary" className="bg-green-500/15 text-green-700 text-xs">
                 con señal
               </Badge>
@@ -123,7 +153,7 @@ export default function ResultadosV2Page() {
           <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
             <p className="text-xs text-muted-foreground">Descartadas</p>
             <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold leading-none text-muted-foreground">{discardedCount}</p>
+              <p className="text-2xl font-bold leading-none text-muted-foreground">{totalDesc}</p>
               <Badge variant="secondary" className="text-muted-foreground text-xs">
                 sin señal
               </Badge>

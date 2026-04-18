@@ -18,6 +18,8 @@ export interface ScanParams {
   empresaId?: number | null;
   /** Optional API key override — if set, the provider uses this instead of the env var. */
   apiKey?: string;
+  /** Optional model override — if set, the provider uses this instead of its default. */
+  model?: string;
 }
 
 export interface CostEstimate {

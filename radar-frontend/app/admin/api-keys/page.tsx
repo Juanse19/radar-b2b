@@ -54,7 +54,7 @@ type Provider = 'anthropic' | 'openai' | 'google';
 const PROVIDER_DEFAULTS: Record<Provider, { label: string; model: string }> = {
   anthropic: { label: 'Claude Sonnet 4.6', model: 'claude-sonnet-4-6' },
   openai:    { label: 'GPT-4o',            model: 'gpt-4o'            },
-  google:    { label: 'Gemini 3 Pro',      model: 'gemini-3-pro'      },
+  google:    { label: 'Gemini 2.0 Flash',  model: 'gemini-2.0-flash'  },
 };
 
 // ---------------------------------------------------------------------------
@@ -323,11 +323,12 @@ function ConfigDialog({ open, editing, onClose, onSaved }: ConfigDialogProps) {
 // ---------------------------------------------------------------------------
 
 export default function AdminApiKeysPage() {
-  const [configs,   setConfigs]   = useState<ApiKeyConfig[]>([]);
-  const [loading,   setLoading]   = useState(true);
-  const [error,     setError]     = useState<string | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing,   setEditing]   = useState<ApiKeyConfig | null>(null);
+  const [configs,     setConfigs]     = useState<ApiKeyConfig[]>([]);
+  const [loading,     setLoading]     = useState(true);
+  const [error,       setError]       = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [dialogOpen,  setDialogOpen]  = useState(false);
+  const [editing,     setEditing]     = useState<ApiKeyConfig | null>(null);
 
   async function loadConfigs() {
     setLoading(true);
@@ -349,38 +350,41 @@ export default function AdminApiKeysPage() {
   }, []);
 
   async function handleToggleActive(config: ApiKeyConfig) {
-    try {
-      await fetch(`/api/admin/api-keys/${config.id}`, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ is_active: !config.is_active }),
-      });
+    setActionError(null);
+    const res = await fetch(`/api/admin/api-keys/${config.id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_active: !config.is_active }),
+    });
+    if (!res.ok) {
+      setActionError('Error al actualizar. Intenta de nuevo.');
+    } else {
       void loadConfigs();
-    } catch {
-      // silently fail — state will be correct on next load
     }
   }
 
   async function handleSetDefault(config: ApiKeyConfig) {
-    try {
-      await fetch(`/api/admin/api-keys/${config.id}`, {
-        method:  'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body:    JSON.stringify({ is_default: true }),
-      });
+    setActionError(null);
+    const res = await fetch(`/api/admin/api-keys/${config.id}`, {
+      method:  'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ is_default: true }),
+    });
+    if (!res.ok) {
+      setActionError('Error al actualizar. Intenta de nuevo.');
+    } else {
       void loadConfigs();
-    } catch {
-      // silently fail
     }
   }
 
   async function handleDelete(config: ApiKeyConfig) {
     if (!confirm(`Eliminar "${config.label}"? Esta accion no se puede deshacer.`)) return;
-    try {
-      await fetch(`/api/admin/api-keys/${config.id}`, { method: 'DELETE' });
+    setActionError(null);
+    const res = await fetch(`/api/admin/api-keys/${config.id}`, { method: 'DELETE' });
+    if (!res.ok) {
+      setActionError('Error al eliminar. Intenta de nuevo.');
+    } else {
       void loadConfigs();
-    } catch {
-      // silently fail
     }
   }
 
@@ -417,6 +421,11 @@ export default function AdminApiKeysPage() {
           Nueva configuracion
         </Button>
       </div>
+
+      {/* Action error banner */}
+      {actionError && (
+        <p className="text-sm text-red-500">{actionError}</p>
+      )}
 
       {/* Loading */}
       {loading && (

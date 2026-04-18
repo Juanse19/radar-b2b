@@ -49,9 +49,12 @@ export default function MetricasV2Page() {
     fetchMetrics(range);
   }, [range, fetchMetrics]);
 
+  const denominator = metrics
+    ? (metrics.totals.activas ?? 0) + (metrics.totals.descartadas ?? 0)
+    : 0;
   const pctActivas = metrics
-    ? metrics.totals.scans > 0
-      ? ((metrics.ratio_activas) * 100).toFixed(1)
+    ? denominator > 0
+      ? ((metrics.totals.activas / denominator) * 100).toFixed(1)
       : '0.0'
     : null;
 
@@ -170,7 +173,7 @@ export default function MetricasV2Page() {
                 {pctActivas}%
               </span>
               <span className="mb-0.5 text-sm text-muted-foreground">
-                {metrics.totals.activas} activas de {metrics.totals.scans} scans
+                {metrics.totals.activas} activas · {metrics.totals.descartadas} descartadas
               </span>
             </div>
             {/* Progress bar with inline percentage label */}
@@ -186,6 +189,30 @@ export default function MetricasV2Page() {
               )}
             </div>
           </div>
+
+          {/* Time-series bar chart */}
+          {metrics.serie && metrics.serie.length > 0 && (
+            <div className="rounded-xl border border-border bg-muted/20 px-5 py-4">
+              <p className="mb-3 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Actividad por {range === 'day' ? 'hora' : 'día'}
+              </p>
+              <div className="flex items-end gap-1 h-16">
+                {metrics.serie.map((point, i) => {
+                  const maxScans = Math.max(...metrics.serie.map(d => d.scans), 1);
+                  const heightPct = (point.scans / maxScans) * 100;
+                  return (
+                    <div key={i} className="flex-1 flex flex-col items-center gap-1">
+                      <div
+                        className="w-full rounded-t bg-primary/60 transition-all"
+                        style={{ height: `${heightPct}%`, minHeight: point.scans > 0 ? '2px' : '0' }}
+                        title={`${point.bucket}: ${point.scans} scans`}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* Section divider */}
           {metrics.por_linea.length > 0 && <Separator />}
