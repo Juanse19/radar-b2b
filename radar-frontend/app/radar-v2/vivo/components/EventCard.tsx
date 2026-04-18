@@ -11,6 +11,7 @@ import {
   Flag,
   AlertTriangle,
   Radar,
+  RefreshCw,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { StreamEvent, StreamEventType } from '@/lib/radar-v2/stream-events';
@@ -31,6 +32,7 @@ const iconForType: Record<StreamEventType, React.ComponentType<{ size?: number; 
   token_tick:       Brain,
   company_done:     CheckCircle2,
   company_error:    AlertTriangle,
+  provider_fallback: RefreshCw,
   session_done:     Flag,
   error:            AlertTriangle,
 };
@@ -46,6 +48,7 @@ const borderForType: Record<StreamEventType, string> = {
   token_tick:       'border-l-muted-foreground/30',
   company_done:     'border-l-emerald-500',
   company_error:    'border-l-destructive',
+  provider_fallback: 'border-l-amber-400',
   session_done:     'border-l-primary',
   error:            'border-l-destructive',
 };
@@ -61,6 +64,7 @@ const iconColorForType: Record<StreamEventType, string> = {
   token_tick:       'text-muted-foreground',
   company_done:     'text-emerald-500',
   company_error:    'text-destructive',
+  provider_fallback: 'text-amber-500',
   session_done:     'text-primary',
   error:            'text-destructive',
 };
@@ -139,6 +143,11 @@ function formatBody(event: StreamEvent): { title: string; detail?: string } {
         title:  `Error — ${d.empresa as string}`,
         detail: (d.error as string).slice(0, 140),
       };
+    case 'provider_fallback':
+      return {
+        title:  `OpenAI sin cuota — usando Claude para ${d.empresa as string}`,
+        detail: (d.reason as string | undefined)?.slice(0, 120),
+      };
     case 'session_done':
       return {
         title:  '🏁 Escaneo finalizado',
@@ -161,6 +170,7 @@ export function EventCard({ event, now }: Props) {
         'group flex gap-3 rounded-md border border-border bg-card px-3 py-2 text-sm',
         'border-l-4 transition-opacity animate-in fade-in slide-in-from-bottom-1 duration-200',
         borderForType[event.type] ?? 'border-l-border',
+        event.type === 'provider_fallback' && 'bg-amber-50 dark:bg-amber-950/20',
       )}
     >
       <span className={cn('mt-0.5 shrink-0', iconColorForType[event.type] ?? 'text-foreground')}>

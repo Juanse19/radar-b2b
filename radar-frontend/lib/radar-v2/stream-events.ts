@@ -17,6 +17,7 @@ export type StreamEventType =
   | 'token_tick'
   | 'company_done'
   | 'company_error'
+  | 'provider_fallback'
   | 'session_done'
   | 'error';
 
@@ -85,6 +86,13 @@ export interface CompanyErrorPayload {
   error:   string;
 }
 
+export interface ProviderFallbackPayload {
+  empresa:           string;
+  original_provider: string;
+  fallback_provider: string;
+  reason:            string;
+}
+
 export interface SessionDonePayload {
   sessionId:         string;
   total_empresas:    number;
@@ -108,10 +116,11 @@ export type StreamEventPayload =
   | { type: 'signal_detected';  data: SignalDetectedPayload }
   | { type: 'signal_discarded'; data: SignalDiscardedPayload }
   | { type: 'token_tick';       data: TokenTickPayload }
-  | { type: 'company_done';     data: CompanyDonePayload }
-  | { type: 'company_error';    data: CompanyErrorPayload }
-  | { type: 'session_done';     data: SessionDonePayload }
-  | { type: 'error';            data: ErrorPayload };
+  | { type: 'company_done';      data: CompanyDonePayload }
+  | { type: 'company_error';     data: CompanyErrorPayload }
+  | { type: 'provider_fallback'; data: ProviderFallbackPayload }
+  | { type: 'session_done';      data: SessionDonePayload }
+  | { type: 'error';             data: ErrorPayload };
 
 export interface StreamEvent {
   id:   number;

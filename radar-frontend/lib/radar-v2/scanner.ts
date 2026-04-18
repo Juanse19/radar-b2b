@@ -287,17 +287,52 @@ export async function scanCompany(
     opts.model,
   );
 
-  const scan = await provider.scan(
-    {
-      company,
-      line,
-      sessionId: opts.sessionId,
-      empresaId: company.id ?? null,
-      apiKey,
-      model,
-    },
-    opts.emit,
-  );
+  let scan: import('./providers/types').ScanResult;
+  try {
+    scan = await provider.scan(
+      {
+        company,
+        line,
+        sessionId: opts.sessionId,
+        empresaId: company.id ?? null,
+        apiKey,
+        model,
+      },
+      opts.emit,
+    );
+  } catch (primaryErr) {
+    const errMsg = primaryErr instanceof Error ? primaryErr.message : String(primaryErr);
+    const is429  = errMsg.includes('429')
+                || errMsg.includes('insufficient_quota')
+                || errMsg.includes('rate_limit_exceeded');
+
+    // Auto-fallback: retry with Claude when the primary provider hits a quota/rate
+    // error and the primary is not already Claude.
+    if (is429 && providerName !== 'claude') {
+      opts.emit?.emit('provider_fallback', {
+        empresa:           company.name,
+        original_provider: providerName,
+        fallback_provider: 'claude',
+        reason:            errMsg.slice(0, 120),
+      });
+
+      const claudeProvider = getProvider('claude');
+      const claudeConfig   = await resolveProviderConfig('claude');
+      scan = await claudeProvider.scan(
+        {
+          company,
+          line,
+          sessionId:  opts.sessionId,
+          empresaId:  company.id ?? null,
+          apiKey:     claudeConfig.apiKey,
+          model:      claudeConfig.model,
+        },
+        opts.emit,
+      );
+    } else {
+      throw primaryErr; // re-throw if already Claude or non-quota error
+    }
+  }
 
   // RAG upsert — non-fatal, orthogonal to provider.
   try {

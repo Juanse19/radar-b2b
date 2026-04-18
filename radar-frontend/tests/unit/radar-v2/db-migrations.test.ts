@@ -124,6 +124,70 @@ describe('ensureAiProviderConfigsTable', () => {
   });
 });
 
+// ── ensureRadarV2Tables ───────────────────────────────────────────────────────
+
+describe('ensureRadarV2Tables', () => {
+  it('runs 5 pgQuery calls (5 SQL statements) on first call', async () => {
+    const { mod, pgQuery } = await freshModule();
+    pgQuery.mockResolvedValue([]);
+
+    await mod.ensureRadarV2Tables();
+
+    expect(pgQuery).toHaveBeenCalledTimes(5);
+  });
+
+  it('is idempotent — second call on same module instance makes no extra pgQuery calls', async () => {
+    const { mod, pgQuery } = await freshModule();
+    pgQuery.mockResolvedValue([]);
+
+    await mod.ensureRadarV2Tables();
+    const callsAfterFirst = pgQuery.mock.calls.length;
+
+    await mod.ensureRadarV2Tables();
+    const callsAfterSecond = pgQuery.mock.calls.length;
+
+    expect(callsAfterFirst).toBe(5);
+    expect(callsAfterSecond).toBe(5); // no new calls on second invocation
+  });
+
+  it('throws and leaves radarV2TablesRan = false when first pgQuery fails', async () => {
+    const { mod, pgQuery } = await freshModule();
+    pgQuery.mockRejectedValue(new Error('relation does not exist'));
+
+    await expect(mod.ensureRadarV2Tables()).rejects.toThrow('does not exist');
+
+    // After failure, a second call should retry — pgQuery is invoked again
+    pgQuery.mockResolvedValue([]);
+    await mod.ensureRadarV2Tables();
+
+    // First call: 1 failing pgQuery. Second call: 5 pgQuery calls. Total >= 6.
+    expect(pgQuery.mock.calls.length).toBeGreaterThanOrEqual(6);
+  });
+
+  it('SQL targets ${SCHEMA}.radar_v2_sessions table name', async () => {
+    const { mod, pgQuery } = await freshModule();
+    pgQuery.mockResolvedValue([]);
+
+    await mod.ensureRadarV2Tables();
+
+    const firstSql: string = pgQuery.mock.calls[0][0];
+    expect(firstSql).toContain('matec_radar.radar_v2_sessions');
+  });
+
+  it('SQL includes ALTER TABLE ... ADD COLUMN IF NOT EXISTS duration_ms', async () => {
+    const { mod, pgQuery } = await freshModule();
+    pgQuery.mockResolvedValue([]);
+
+    await mod.ensureRadarV2Tables();
+
+    // Step 2 (index 1) is the ALTER TABLE adding duration_ms
+    const alterSql: string = pgQuery.mock.calls[1][0];
+    expect(alterSql.toUpperCase()).toContain('ALTER TABLE');
+    expect(alterSql.toUpperCase()).toContain('ADD COLUMN IF NOT EXISTS');
+    expect(alterSql).toContain('duration_ms');
+  });
+});
+
 // ── isTableMissingError ───────────────────────────────────────────────────────
 
 describe('isTableMissingError', () => {

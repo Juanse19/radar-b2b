@@ -118,7 +118,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     const types: StreamEventType[] = [
       'scan_started', 'thinking', 'search_query', 'reading_source',
       'criteria_eval', 'signal_detected', 'signal_discarded', 'token_tick',
-      'company_done', 'company_error', 'session_done', 'error',
+      'company_done', 'company_error', 'provider_fallback', 'session_done', 'error',
     ];
     const listeners: Array<[string, (ev: MessageEvent) => void]> = [];
 
