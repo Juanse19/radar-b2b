@@ -1,10 +1,9 @@
 /**
  * providers/openai.ts — Real OpenAI GPT-4o provider for Radar v2.
  *
- * Implemented using raw fetch (no `openai` npm package needed).
- * Web search is NOT available here; the system prompt includes enough
- * structured context for the model to reason from its training data and
- * the company information provided.
+ * Uses the OpenAI Responses API (POST /v1/responses) with the
+ * web_search_preview tool so the model can fetch live signals before
+ * producing the structured JSON output.
  */
 import 'server-only';
 import { parseAgente1Response } from '@/lib/radar-v2/schema';
@@ -24,7 +23,37 @@ const PRICE_INPUT_PER_M  = 2.5;
 const PRICE_OUTPUT_PER_M = 10.0;
 
 // ---------------------------------------------------------------------------
-// System prompt — same radar methodology, adapted for a non-search model
+// Responses API types
+// ---------------------------------------------------------------------------
+
+type ResponsesOutputItem =
+  | {
+      type: 'web_search_call';
+      id: string;
+      status: string;
+      queries?: string[];
+    }
+  | {
+      type: 'message';
+      role: 'assistant';
+      content: Array<{ type: string; text: string }>;
+    }
+  | {
+      type: string;
+      [key: string]: unknown;
+    };
+
+interface ResponsesApiResponse {
+  output: ResponsesOutputItem[];
+  usage: {
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// System prompt — radar methodology with live web search
 // ---------------------------------------------------------------------------
 
 function buildSystemPrompt(): string {
@@ -34,10 +63,7 @@ function buildSystemPrompt(): string {
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
 
-IMPORTANTE: No tienes acceso a búsqueda web en tiempo real. Debes razonar a partir de:
-1. Tu conocimiento de la empresa y el sector hasta tu fecha de corte.
-2. La información de contexto proporcionada en el mensaje del usuario.
-3. Patrones de expansión documentados de la empresa.
+Tienes acceso a búsqueda web en tiempo real. Ejecuta 3-5 búsquedas web con sub-preguntas específicas para cada empresa: expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
 DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
@@ -97,7 +123,7 @@ async function scanImpl(
 País: ${company.country}
 Línea de negocio: ${line}
 
-Analiza si esta empresa tiene señales de inversión futura relevantes para las líneas de negocio de Matec en LATAM para el período 2026-2028. Usa tu conocimiento de la empresa, su sector y sus planes declarados de expansión.`;
+Busca en la web y analiza si esta empresa tiene señales de inversión futura relevantes para las líneas de negocio de Matec en LATAM para el período 2026-2028. Ejecuta búsquedas sobre expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
@@ -106,15 +132,17 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
   const body = {
-    model:      model,
-    max_tokens: 2048,
-    messages: [
+    model,
+    tools: [{ type: 'web_search_preview' }],
+    input: [
       { role: 'system', content: buildSystemPrompt() },
       { role: 'user',   content: userMessage },
     ],
+    max_output_tokens: 2048,
+    store: false,
   };
 
-  const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+  const resp = await fetch('https://api.openai.com/v1/responses', {
     method:  'POST',
     headers: {
       'Authorization': `Bearer ${apiKey}`,
@@ -128,16 +156,32 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
     throw new Error(`OpenAI API ${resp.status}: ${errText.slice(0, 300)}`);
   }
 
-  const data = await resp.json() as {
-    choices: Array<{ message: { content: string } }>;
-    usage?: { prompt_tokens: number; completion_tokens: number };
-  };
+  const data = await resp.json() as ResponsesApiResponse;
 
-  const rawText   = data.choices?.[0]?.message?.content ?? '';
-  if (!rawText) throw new Error('No content in OpenAI response');
+  let rawText = '';
+  let searchCalls = 0;
 
-  const tokensIn  = data.usage?.prompt_tokens     ?? 0;
-  const tokensOut = data.usage?.completion_tokens  ?? 0;
+  for (const item of data.output ?? []) {
+    if (item.type === 'web_search_call') {
+      searchCalls += 1;
+      const searchItem = item as Extract<ResponsesOutputItem, { type: 'web_search_call' }>;
+      emit?.emit('search_query', {
+        empresa: company.name,
+        query: searchItem.queries?.[0] ?? 'búsqueda web',
+      });
+    } else if (item.type === 'message') {
+      const msgItem = item as Extract<ResponsesOutputItem, { type: 'message' }>;
+      const textContent = msgItem.content.find(c => c.type === 'output_text');
+      if (textContent) {
+        rawText = textContent.text;
+      }
+    }
+  }
+
+  if (!rawText) throw new Error('No content in OpenAI Responses API output');
+
+  const tokensIn  = data.usage?.input_tokens  ?? 0;
+  const tokensOut = data.usage?.output_tokens ?? 0;
   const cost      = (tokensIn * PRICE_INPUT_PER_M + tokensOut * PRICE_OUTPUT_PER_M) / 1_000_000;
 
   emit?.emit('token_tick', {
@@ -176,7 +220,7 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
     tokens_in:    tokensIn,
     tokens_out:   tokensOut,
     cost_usd:     cost,
-    search_calls: 0,
+    search_calls: searchCalls,
   });
 
   return {
@@ -184,9 +228,9 @@ Analiza si esta empresa tiene señales de inversión futura relevantes para las 
     tokens_input:  tokensIn,
     tokens_output: tokensOut,
     cached_tokens: 0,
-    search_calls:  0,
+    search_calls:  searchCalls,
     cost_usd:      cost,
-    model:         model,
+    model,
   };
 }
 
@@ -221,8 +265,7 @@ function createOpenAIProvider(): AIProvider {
     },
 
     supports(feature: SupportedFeature): boolean {
-      // OpenAI chat completions: streaming yes, no native web search or prompt caching
-      return feature === 'streaming';
+      return feature === 'web_search' || feature === 'streaming';
     },
   };
 }

@@ -1,18 +1,29 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Loader2, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { EventCard } from './EventCard';
 import type {
   StreamEvent,
   StreamEventType,
   SessionDonePayload,
+  CompanyDonePayload,
 } from '@/lib/radar-v2/stream-events';
 import { scanActivityStore } from '@/lib/radar-v2/scan-activity-store';
 import type { ScanEventType } from '@/lib/radar-v2/scan-activity-store';
+
+interface CompanyGroup {
+  name:     string;
+  status:   'scanning' | 'done' | 'error';
+  expanded: boolean;
+  events:   StreamEvent[];
+  summary?: CompanyDonePayload;
+  error?:   string;
+}
 
 const EVENT_LIMIT = 100;
 
@@ -32,9 +43,66 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
   const [errorMsg, setErrorMsg]     = useState<string | null>(null);
   const [now, setNow]               = useState<number>(() => Date.now());
   const [autoScroll, setAutoScroll] = useState(true);
+  const [expandedSet, setExpandedSet] = useState<Set<string>>(() => new Set());
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+
+  const groups = useMemo<CompanyGroup[]>(() => {
+    const map = new Map<string, CompanyGroup>();
+
+    for (const ev of events) {
+      const d = ev.data as Record<string, unknown>;
+      const empresa = typeof d.empresa === 'string' ? d.empresa : null;
+
+      if (!empresa) continue;
+
+      if (!map.has(empresa)) {
+        map.set(empresa, {
+          name:     empresa,
+          status:   'scanning',
+          expanded: false,
+          events:   [],
+        });
+      }
+
+      const group = map.get(empresa)!;
+      group.events.push(ev);
+
+      if (ev.type === 'company_done') {
+        group.status  = 'done';
+        group.summary = d as unknown as CompanyDonePayload;
+      } else if (ev.type === 'company_error') {
+        group.status = 'error';
+        group.error  = typeof d.error === 'string' ? d.error : 'Error desconocido';
+      }
+    }
+
+    return Array.from(map.values());
+  }, [events]);
+
+  // Auto-expand the last empresa when a NEW group is added.
+  // Intentionally depends only on groups.length so the effect fires only
+  // when the count grows, not on every event update inside a group.
+  useEffect(() => {
+    if (groups.length === 0) return;
+    const last = groups[groups.length - 1].name;
+    setExpandedSet(prev => {
+      if (prev.has(last)) return prev;
+      const next = new Set(prev);
+      next.add(last);
+      return next;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [groups.length]);
+
+  const toggleGroup = (name: string) => {
+    setExpandedSet(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  };
 
   // Tick for relative timestamps ("hace 2s")
   useEffect(() => {
@@ -193,9 +261,58 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
         onScroll={handleScroll}
         className="max-h-[60vh] min-h-[360px] space-y-1.5 overflow-y-auto px-4 py-3"
       >
-        {events.map((e, idx) => (
-          <EventCard key={`${e.id}-${idx}`} event={e} now={now} />
+        {/* Global events without empresa (e.g. scan_started) */}
+        {events.filter(e => {
+          const d = e.data as Record<string, unknown>;
+          return !('empresa' in d) || typeof d.empresa !== 'string';
+        }).map((e, idx) => (
+          <EventCard key={`global-${e.id}-${idx}`} event={e} now={now} />
         ))}
+
+        {/* Per-company groups */}
+        {groups.map(group => {
+          const isExpanded = expandedSet.has(group.name);
+          const statusDot = group.status === 'scanning' ? '🟡'
+                          : group.status === 'done' && group.summary?.radar_activo === 'Sí' ? '🟢'
+                          : group.status === 'done' ? '⚪'
+                          : '🔴';
+          return (
+            <div key={group.name} className="rounded-md border border-border overflow-hidden">
+              <button
+                type="button"
+                onClick={() => toggleGroup(group.name)}
+                className="flex w-full items-center justify-between px-3 py-2 text-sm font-medium bg-muted/30 hover:bg-muted/60 transition-colors"
+              >
+                <span className="flex items-center gap-2">
+                  {statusDot}
+                  <span>{group.name}</span>
+                  {group.status === 'scanning' && (
+                    <Loader2 size={12} className="animate-spin text-muted-foreground" />
+                  )}
+                  {group.summary?.radar_activo === 'Sí' && (
+                    <span className="text-xs text-emerald-600 font-semibold">✨ Señal activa</span>
+                  )}
+                </span>
+                <span className="flex items-center gap-3 text-xs text-muted-foreground">
+                  {group.summary && (
+                    <span>{Math.round(group.summary.duration_ms / 1000)}s · ${group.summary.cost_usd.toFixed(4)}</span>
+                  )}
+                  <ChevronDown
+                    size={14}
+                    className={cn('transition-transform', isExpanded && 'rotate-180')}
+                  />
+                </span>
+              </button>
+              {isExpanded && (
+                <div className="space-y-1 px-3 py-2">
+                  {group.events.map((e, idx) => (
+                    <EventCard key={`${group.name}-${e.id}-${idx}`} event={e} now={now} />
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
         <div ref={bottomRef} />
       </div>
 
