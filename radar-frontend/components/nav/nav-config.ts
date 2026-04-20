@@ -11,6 +11,7 @@ import {
   Home,
   Key,
   Radar,
+  Search,
   Shield,
   Table2,
   TrendingUp,
@@ -54,8 +55,9 @@ export const navTree: NavNode[] = [
     icon:  Zap,
     badge: 'Nuevo',
     children: [
-      { label: 'Escanear',   href: '/radar-v2/escanear',   icon: Zap },
+      { label: 'Escanear',    href: '/radar-v2/escanear',   icon: Zap },
       { label: 'En vivo',    href: '/radar-v2/vivo',       icon: Activity },
+      { label: 'Investigar', href: '/radar-v2/investigar', icon: Search },
       { label: 'Resultados', href: '/radar-v2/resultados', icon: TrendingUp },
       { label: 'Métricas',   href: '/radar-v2/metricas',   icon: BarChart3 },
       { label: 'Cronograma', href: '/radar-v2/cronograma', icon: Calendar },
