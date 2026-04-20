@@ -2,8 +2,17 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/db/supabase/server';
-import { getAdminDb } from '@/lib/db/supabase/admin';
+import { pgFirst, pgQuery, pgLit } from '@/lib/db/supabase/pg_client';
 import type { SessionUser, UserRole, AccessState } from './types';
+
+// Row type returned by pgFirst queries on matec_radar.usuarios
+interface UsuarioRow {
+  id:            string;
+  nombre:        string | null;
+  email:         string | null;
+  rol:           string | null;
+  estado_acceso: string | null;
+}
 
 const SESSION_COOKIE = 'matec_session';
 /** Non-httpOnly companion cookie — readable by document.cookie for UI rendering.
@@ -46,39 +55,36 @@ export async function resolveSessionFromSupabaseUser(input: {
   email: string;
   nameFallback?: string;
 }): Promise<SessionUser | null> {
-  const admin = getAdminDb();
+  // Use pgFirst (direct /pg/query HTTP, bypasses PostgREST PGRST_DB_SCHEMAS restriction)
+  const S = 'matec_radar';
 
   // Try by auth_user_id first
-  const { data: byAuth } = await admin
-    .from('usuarios')
-    .select('id, nombre, email, rol, estado_acceso')
-    .eq('auth_user_id', input.authUserId)
-    .maybeSingle();
+  let row = await pgFirst<UsuarioRow>(
+    `SELECT id, nombre, email, rol, estado_acceso
+     FROM ${S}.usuarios
+     WHERE auth_user_id = ${pgLit(input.authUserId)}
+     LIMIT 1`
+  );
 
-  let row = byAuth as {
-    id: string;
-    nombre: string | null;
-    email: string | null;
-    rol: string | null;
-    estado_acceso: string | null;
-  } | null;
-
-  // Fallback: try by email and link the auth_user_id
+  // Fallback: try by email and backfill auth_user_id
   if (!row) {
-    const { data: byEmail } = await admin
-      .from('usuarios')
-      .select('id, nombre, email, rol, estado_acceso')
-      .eq('email', input.email)
-      .maybeSingle();
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    row = byEmail as any;
+    row = await pgFirst<UsuarioRow>(
+      `SELECT id, nombre, email, rol, estado_acceso
+       FROM ${S}.usuarios
+       WHERE email = ${pgLit(input.email)}
+       LIMIT 1`
+    );
 
     if (row) {
-      await admin
-        .from('usuarios')
-        .update({ auth_user_id: input.authUserId })
-        .eq('id', (row as { id: string }).id);
+      // Link this auth identity to the existing user row
+      await pgQuery(
+        `UPDATE ${S}.usuarios
+         SET auth_user_id = ${pgLit(input.authUserId)}, updated_at = now()
+         WHERE id = ${pgLit(row.id)} AND auth_user_id IS NULL`
+      ).catch(err => {
+        // Non-fatal: may already be linked or column may be missing temporarily
+        console.warn('[auth] backfill auth_user_id failed:', err instanceof Error ? err.message : err);
+      });
     }
   }
 
