@@ -1,4 +1,5 @@
 'server-only';
+import { getIronSession } from 'iron-session';
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSupabaseServerClient } from '@/lib/db/supabase/server';
@@ -14,11 +15,33 @@ interface UsuarioRow {
   estado_acceso: string | null;
 }
 
+interface AppSessionData {
+  user?: SessionUser;
+}
+
 const SESSION_COOKIE = 'matec_session';
 /** Non-httpOnly companion cookie — readable by document.cookie for UI rendering.
- *  Security is unaffected: all server-side auth uses SESSION_COOKIE (httpOnly). */
+ *  Security is unaffected: all server-side auth uses SESSION_COOKIE (signed httpOnly). */
 const SESSION_COOKIE_PUB = 'matec_session_pub';
 const MAX_AGE = 60 * 60 * 8; // 8 hours
+
+function getSessionOptions() {
+  const password = process.env.SESSION_SECRET;
+  if (!password || password.length < 32) {
+    throw new Error('SESSION_SECRET env var must be set to at least 32 characters');
+  }
+  return {
+    cookieName: SESSION_COOKIE,
+    password,
+    cookieOptions: {
+      httpOnly: true,
+      secure:   process.env.NODE_ENV === 'production',
+      sameSite: 'lax' as const,
+      path:     '/',
+      maxAge:   MAX_AGE,
+    },
+  };
+}
 
 function normalizeRole(role?: string | null): UserRole {
   if (role === 'ADMIN' || role === 'COMERCIAL' || role === 'AUXILIAR') return role;
@@ -32,16 +55,18 @@ function normalizeAccessState(state?: string | null): AccessState {
 
 export async function setAppSession(session: SessionUser): Promise<void> {
   const store = await cookies();
-  const serialized = JSON.stringify(session);
-  const opts = {
+  const ironSession = await getIronSession<AppSessionData>(store, getSessionOptions());
+  ironSession.user = session;
+  await ironSession.save();
+
+  // Non-httpOnly companion so AppShellLoader can read it via document.cookie.
+  store.set(SESSION_COOKIE_PUB, JSON.stringify(session), {
     sameSite: 'lax' as const,
     secure:   process.env.NODE_ENV === 'production',
     path:     '/',
     maxAge:   MAX_AGE,
-  };
-  store.set(SESSION_COOKIE, serialized, { ...opts, httpOnly: true });
-  // Non-httpOnly companion so AppShellLoader can read it via document.cookie.
-  store.set(SESSION_COOKIE_PUB, serialized, { ...opts, httpOnly: false });
+    httpOnly: false,
+  });
 }
 
 export async function clearSession(): Promise<void> {
@@ -101,18 +126,18 @@ export async function resolveSessionFromSupabaseUser(input: {
 
 export async function getCurrentSession(): Promise<SessionUser | null> {
   const store = await cookies();
-  const cookie = store.get(SESSION_COOKIE);
 
-  if (cookie?.value) {
-    try {
-      const parsed = JSON.parse(cookie.value) as SessionUser;
-      return { ...parsed, role: normalizeRole(parsed.role) };
-    } catch {
-      // invalid cookie — continue to Supabase validation
+  try {
+    const ironSession = await getIronSession<AppSessionData>(store, getSessionOptions());
+    if (ironSession.user) {
+      const u = ironSession.user;
+      return { ...u, role: normalizeRole(u.role) };
     }
+  } catch {
+    // Malformed or tampered cookie — fall through to Supabase validation
   }
 
-  // No cookie or invalid — try Supabase auth
+  // No valid signed session — try Supabase auth
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   if (!supabaseUrl) return null;
 
