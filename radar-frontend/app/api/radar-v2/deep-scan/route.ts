@@ -7,6 +7,12 @@
  * Returns text/event-stream. Emits the same StreamEventType taxonomy as the
  * batch stream route so the client can reuse the same EventSource handler.
  * On completion, persists the result to radar_v2_results.
+ *
+ * Security controls:
+ *   - Authentication: requires valid session with ACTIVO access state
+ *   - Input validation: length caps + allowlist for linea de negocio
+ *   - Rate limiting: 5 scans/minute per user (in-memory sliding window)
+ *   - Error sanitisation: internal errors logged server-side, generic message sent to client
  */
 import 'server-only';
 import type { NextRequest } from 'next/server';
@@ -27,6 +33,43 @@ export const runtime = 'nodejs';
 // Deep scans use up to 20 turns and more detailed prompts — allow extra time.
 export const maxDuration = 180;
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+const MAX_EMPRESA_LEN = 200;
+const MAX_PAIS_LEN    = 100;
+
+const VALID_LINEAS = new Set([
+  'BHS',
+  'Intralogística',
+  'Cartón Corrugado',
+  'Final de Línea',
+  'Motos',
+  'Solumat',
+]);
+
+// ---------------------------------------------------------------------------
+// Simple in-memory rate limiter — 5 requests / 60 s per user
+// ---------------------------------------------------------------------------
+
+const RATE_WINDOW_MS  = 60_000;
+const RATE_MAX        = 5;
+const rateBuckets     = new Map<string, number[]>();
+
+function isRateLimited(userId: string): boolean {
+  const now  = Date.now();
+  const hits  = (rateBuckets.get(userId) ?? []).filter(t => now - t < RATE_WINDOW_MS);
+  if (hits.length >= RATE_MAX) return true;
+  hits.push(now);
+  rateBuckets.set(userId, hits);
+  return false;
+}
+
+// ---------------------------------------------------------------------------
+// Body type + validation
+// ---------------------------------------------------------------------------
+
 interface DeepScanBody {
   empresa:    string;
   pais:       string;
@@ -37,19 +80,37 @@ interface DeepScanBody {
 function isValidBody(v: unknown): v is DeepScanBody {
   if (typeof v !== 'object' || v === null) return false;
   const rec = v as Record<string, unknown>;
-  return (
-    typeof rec.empresa === 'string' && rec.empresa.trim().length > 0 &&
-    typeof rec.pais    === 'string' && rec.pais.trim().length    > 0 &&
-    typeof rec.linea   === 'string' && rec.linea.trim().length   > 0
-  );
+  if (typeof rec.empresa !== 'string' || rec.empresa.trim().length === 0) return false;
+  if (typeof rec.pais    !== 'string' || rec.pais.trim().length    === 0) return false;
+  if (typeof rec.linea   !== 'string' || rec.linea.trim().length   === 0) return false;
+  if (rec.empresa.trim().length > MAX_EMPRESA_LEN) return false;
+  if (rec.pais.trim().length    > MAX_PAIS_LEN)    return false;
+  if (!VALID_LINEAS.has(rec.linea.trim())) return false;
+  return true;
 }
 
+// ---------------------------------------------------------------------------
+// Route handler
+// ---------------------------------------------------------------------------
+
 export async function POST(req: NextRequest) {
+  // ── Authentication ───────────────────────────────────────────────────────
   const session = await getCurrentSession();
   if (!session) {
     return new Response('Unauthorized', { status: 401 });
   }
 
+  // Only ACTIVO users can trigger scans (avoids PENDIENTE/INACTIVO abuse).
+  if (session.accessState !== 'ACTIVO') {
+    return new Response('Forbidden: account not active', { status: 403 });
+  }
+
+  // ── Rate limiting (per authenticated user) ───────────────────────────────
+  if (isRateLimited(session.id)) {
+    return new Response('Too Many Requests', { status: 429 });
+  }
+
+  // ── Body parsing + validation ─────────────────────────────────────────────
   let body: unknown;
   try {
     body = await req.json();
@@ -58,7 +119,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (!isValidBody(body)) {
-    return new Response('empresa, pais and linea are required strings', { status: 400 });
+    return new Response(
+      `empresa (max ${MAX_EMPRESA_LEN} chars), pais (max ${MAX_PAIS_LEN} chars), and linea (one of: ${[...VALID_LINEAS].join(', ')}) are required`,
+      { status: 400 },
+    );
   }
 
   const { empresa, pais, linea } = body;
@@ -68,6 +132,7 @@ export async function POST(req: NextRequest) {
 
   const company = { name: empresa.trim(), country: pais.trim() };
 
+  // ── Stream setup ──────────────────────────────────────────────────────────
   const { readable, writable } = new TransformStream<Uint8Array, Uint8Array>();
   const writer  = writable.getWriter();
   const emitter = createSSEEmitter(writer, sessionId);
@@ -84,7 +149,7 @@ export async function POST(req: NextRequest) {
           id:             sessionId,
           linea_negocio:  linea,
           empresas_count: 1,
-          user_id:        null,
+          user_id:        session.id,   // attribute cost to authenticated user
         });
       } catch (err) {
         console.error('[deep-scan] createRadarV2Session failed:', err);
@@ -161,9 +226,10 @@ export async function POST(req: NextRequest) {
         result:            scan.result,
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : String(err);
-      console.error('[deep-scan] scan failed:', msg);
-      emitter.emit('error', { message: msg });
+      // Log full error server-side; send only a generic message to the client.
+      const fullMsg = err instanceof Error ? err.message : String(err);
+      console.error('[deep-scan] scan failed:', fullMsg);
+      emitter.emit('error', { message: 'La investigación falló. Intenta de nuevo.' });
     } finally {
       await emitter.close();
     }
