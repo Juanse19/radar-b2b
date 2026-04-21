@@ -6,6 +6,7 @@ import { AppShellLoader } from '@/components/AppShellLoader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { ScanActivityWidget } from '@/components/radar-v2/ScanActivityWidget';
+import { getCurrentSession } from '@/lib/auth/session';
 
 /* Barlow — títulos y headings (equivalente a Futura MDBT del manual de marca) */
 const displayFont = Barlow({
@@ -41,13 +42,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  // Server-side session lookup so AppShellLoader renders the sidebar on the
+  // first paint — eliminates the post-login "empty dashboard" flash caused by
+  // waiting for a client-side cookie read inside useEffect.
+  const initialSession = await getCurrentSession().catch(() => null);
+
   return (
     <html lang="es" suppressHydrationWarning>
       <body className={`${displayFont.variable} ${uiFont.variable} ${monoUiFont.variable} antialiased`}>
         <Providers>
           <TooltipProvider>
-            <AppShellLoader>{children}</AppShellLoader>
+            <AppShellLoader initialSession={initialSession}>{children}</AppShellLoader>
             <Toaster richColors position="top-right" />
             <ScanActivityWidget />
           </TooltipProvider>

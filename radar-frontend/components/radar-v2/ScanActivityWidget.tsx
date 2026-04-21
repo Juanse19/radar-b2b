@@ -127,6 +127,10 @@ function HistoryItem({ scan }: { scan: ActiveScan }) {
   );
 }
 
+// Stable empty reference for useSyncExternalStore server snapshot — prevents
+// "getServerSnapshot should be cached" infinite loop (new [] !== [] each call).
+const EMPTY_HISTORY: ActiveScan[] = [];
+
 // ── main component ────────────────────────────────────────────────────────────
 
 export function ScanActivityWidget() {
@@ -142,7 +146,7 @@ export function ScanActivityWidget() {
   const history = useSyncExternalStore(
     scanActivityStore.subscribe.bind(scanActivityStore),
     scanActivityStore.getHistory.bind(scanActivityStore),
-    () => [] as ActiveScan[],
+    () => EMPTY_HISTORY,
   );
 
   // Nothing to show

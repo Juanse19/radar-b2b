@@ -15,6 +15,7 @@
 import type { NextRequest } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { scanCompany, getActiveBudget } from '@/lib/radar-v2/scanner';
+import { isCancelled, clearCancellation } from '@/lib/radar-v2/scan-cancellation';
 import {
   createSSEEmitter,
   getReplayEvents,
@@ -144,6 +145,19 @@ export async function GET(req: NextRequest) {
 
       for (let i = 0; i < empresas.length; i++) {
         if (emitter.closed) break;
+        if (isCancelled(sessionId)) {
+          emitter.emit('session_done', {
+            sessionId,
+            total_empresas:    empresas.length,
+            activas_count:     activas,
+            descartadas_count: descartadas,
+            errors_count:      errors,
+            duration_ms:       Date.now() - sessionStart,
+            total_cost_usd:    totalCost,
+            cancelled:         true,
+          });
+          break;
+        }
 
         if (i > 0) {
           await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY_MS));
@@ -252,6 +266,7 @@ export async function GET(req: NextRequest) {
       const msg = err instanceof Error ? err.message : String(err);
       emitter.emit('error', { message: msg });
     } finally {
+      clearCancellation(sessionId);
       await emitter.close();
     }
   })();

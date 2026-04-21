@@ -1,11 +1,12 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { TrendingUp, Download } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { TrendingUp, Download, Filter, RotateCcw } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { ResultadosTable } from './components/ResultadosTable';
 import { InformeEjecucion } from '@/app/radar-v2/components/InformeEjecucion';
 import type { RadarV2Result, RadarV2ResultsFilter } from '@/lib/radar-v2/types';
@@ -31,6 +32,39 @@ const VENTANA_OPTIONS = [
 
 const PAGE_SIZE = 50;
 
+// ── Stat pill ────────────────────────────────────────────────────────────────
+
+interface StatPillProps {
+  label: string;
+  value: number | string;
+  accent?: 'green' | 'muted' | 'default';
+  loading?: boolean;
+}
+
+function StatPill({ label, value, accent = 'default', loading }: StatPillProps) {
+  return (
+    <div className="flex items-center gap-2">
+      {loading ? (
+        <Skeleton className="h-6 w-12 rounded-md" />
+      ) : (
+        <span
+          className={cn(
+            'text-lg font-bold tabular-nums leading-none',
+            accent === 'green'  && 'text-green-600 dark:text-green-400',
+            accent === 'muted'  && 'text-muted-foreground',
+            accent === 'default' && 'text-foreground',
+          )}
+        >
+          {value}
+        </span>
+      )}
+      <span className="text-xs text-muted-foreground">{label}</span>
+    </div>
+  );
+}
+
+// ── Main page ────────────────────────────────────────────────────────────────
+
 export default function ResultadosV2Page() {
   const [results,      setResults]      = useState<RadarV2Result[]>([]);
   const [loading,      setLoading]      = useState(true);
@@ -41,11 +75,20 @@ export default function ResultadosV2Page() {
   const [totalDesc,    setTotalDesc]    = useState(0);
 
   // Filters
-  const [linea,        setLinea]       = useState('ALL');
-  const [radarActivo,  setRadarActivo] = useState<'ALL' | 'Sí' | 'No'>('ALL');
-  const [ventana,      setVentana]     = useState('ALL');
+  const [linea,       setLinea]       = useState('ALL');
+  const [radarActivo, setRadarActivo] = useState<'ALL' | 'Sí' | 'No'>('ALL');
+  const [ventana,     setVentana]     = useState('ALL');
 
-  // Informe dialog state
+  // Derived: any filter active?
+  const filtersActive = linea !== 'ALL' || radarActivo !== 'ALL' || ventana !== 'ALL';
+
+  function resetFilters() {
+    setLinea('ALL');
+    setRadarActivo('ALL');
+    setVentana('ALL');
+  }
+
+  // Informe dialog
   const [informeSessionId, setInformeSessionId] = useState('');
   const [showInforme,      setShowInforme]      = useState(false);
 
@@ -53,9 +96,9 @@ export default function ResultadosV2Page() {
     setLoading(true);
     try {
       const filter: RadarV2ResultsFilter = {
-        linea:        linea        !== 'ALL' ? linea        : undefined,
-        radar_activo: radarActivo  !== 'ALL' ? radarActivo  : undefined,
-        ventana:      ventana      !== 'ALL' ? ventana      : undefined,
+        linea:        linea       !== 'ALL' ? linea       : undefined,
+        radar_activo: radarActivo !== 'ALL' ? radarActivo : undefined,
+        ventana:      ventana     !== 'ALL' ? ventana     : undefined,
         limit:        PAGE_SIZE + 1,
         offset:       newOffset,
       };
@@ -81,7 +124,6 @@ export default function ResultadosV2Page() {
       setHasMore(data.results.length > PAGE_SIZE);
       setResults(prev => append ? [...prev, ...page] : page);
       setOffset(newOffset);
-      // Update totals from server-side counts (not current-page counts)
       if (!append) {
         setTotalCount(data.total_count);
         setTotalActivas(data.activas);
@@ -91,12 +133,10 @@ export default function ResultadosV2Page() {
     finally { setLoading(false); }
   }, [linea, radarActivo, ventana]);
 
-  // Refetch when filters change
   useEffect(() => { fetchResults(0, false); }, [fetchResults]);
 
   const loadMore = () => fetchResults(offset + PAGE_SIZE, true);
 
-  // Build CSV export URL with active filters
   const buildExportParams = useCallback(() => {
     const p = new URLSearchParams();
     if (linea       !== 'ALL') p.set('linea',        linea);
@@ -105,114 +145,130 @@ export default function ResultadosV2Page() {
     return p.toString();
   }, [linea, radarActivo, ventana]);
 
-  return (
-    <div className="space-y-5">
-      {/* Header */}
-      <div>
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <TrendingUp size={20} className="text-primary" />
-          Resultados v2
-        </h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Historial de señales detectadas por el Agente 1 RADAR (Claude)
-        </p>
-      </div>
+  const activaPct = totalCount > 0
+    ? Math.round((totalActivas / totalCount) * 100)
+    : 0;
 
-      {/* Sticky export bar */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-3 rounded-xl border border-border bg-card/95 px-4 py-2.5 shadow-sm backdrop-blur-sm">
-        <span className="text-sm font-medium text-muted-foreground">
-          {loading ? (
-            <span className="animate-pulse">Cargando...</span>
-          ) : (
-            <><span className="font-semibold text-foreground">{totalCount}</span> resultado{totalCount !== 1 ? 's' : ''}</>
-          )}
-        </span>
+  return (
+    <div className="flex flex-col gap-5">
+
+      {/* ── Page header ────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            <TrendingUp size={20} className="text-primary" />
+            Resultados
+          </h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Señales de inversión detectadas por el Agente RADAR
+          </p>
+        </div>
         <a
           href={`/api/radar-v2/export/csv?${buildExportParams()}`}
           download
-          className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-border bg-background px-3 py-1.5 text-xs font-medium transition-colors hover:bg-muted"
+          aria-label="Exportar resultados a CSV"
+          className={cn(
+            'inline-flex min-h-[44px] shrink-0 items-center gap-2 rounded-lg border border-border',
+            'bg-background px-4 py-2 text-sm font-medium transition-colors',
+            'hover:bg-muted focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary',
+          )}
         >
-          <Download size={13} />
+          <Download size={15} />
           Exportar CSV
         </a>
       </div>
 
-      {/* KPI summary row */}
-      {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
-          <Skeleton className="h-16 rounded-xl" />
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          <div className="rounded-xl border border-border bg-card px-4 py-3">
-            <p className="text-xs text-muted-foreground">Total resultados</p>
-            <p className="mt-0.5 text-2xl font-bold leading-none">{totalCount}</p>
-          </div>
-          <div className="rounded-xl border border-green-500/20 bg-green-500/5 px-4 py-3">
-            <p className="text-xs text-green-700 dark:text-green-400">Activas</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold leading-none text-green-700 dark:text-green-400">{totalActivas}</p>
-              <Badge variant="secondary" className="bg-green-500/15 text-green-700 text-xs">
-                con señal
-              </Badge>
+      {/* ── Stat strip ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-5 py-3.5">
+        <StatPill label="resultados" value={totalCount} loading={loading} />
+        <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
+        <StatPill label="con señal activa" value={totalActivas} accent="green" loading={loading} />
+        <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
+        <StatPill label="descartadas" value={totalDesc} accent="muted" loading={loading} />
+        {!loading && totalCount > 0 && (
+          <>
+            <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
+            <div className="flex items-center gap-2">
+              {/* Hit-rate progress bar */}
+              <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
+                <div
+                  className="h-full rounded-full bg-green-500 transition-all duration-500 motion-safe:transition-all"
+                  style={{ width: `${activaPct}%` }}
+                />
+              </div>
+              <span className="text-xs tabular-nums text-muted-foreground">{activaPct}% hit rate</span>
             </div>
-          </div>
-          <div className="rounded-xl border border-border bg-muted/20 px-4 py-3">
-            <p className="text-xs text-muted-foreground">Descartadas</p>
-            <div className="mt-0.5 flex items-center gap-2">
-              <p className="text-2xl font-bold leading-none text-muted-foreground">{totalDesc}</p>
-              <Badge variant="secondary" className="text-muted-foreground text-xs">
-                sin señal
-              </Badge>
-            </div>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </div>
 
-      {/* Filters — grouped in single card */}
-      <Card>
-        <CardHeader className="pb-2 pt-4">
-          <CardTitle className="text-sm font-medium text-muted-foreground">Filtros</CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-wrap gap-3 pb-4">
-          <Select value={linea} onValueChange={v => { setLinea(v ?? 'ALL'); }}>
-            <SelectTrigger className="h-8 w-full sm:w-44 text-xs">
-              <SelectValue placeholder="Línea..." />
-            </SelectTrigger>
-            <SelectContent>
-              {LINEA_OPTIONS.map(o => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
+      <div className="flex flex-wrap items-center gap-2">
+        <Filter size={14} className="shrink-0 text-muted-foreground" aria-hidden />
 
-          <Select value={radarActivo} onValueChange={v => setRadarActivo(v as 'ALL' | 'Sí' | 'No')}>
-            <SelectTrigger className="h-8 w-full sm:w-36 text-xs">
-              <SelectValue placeholder="Radar activo..." />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL"  className="text-xs">Todos</SelectItem>
-              <SelectItem value="Sí"   className="text-xs">Con señal</SelectItem>
-              <SelectItem value="No"   className="text-xs">Descartados</SelectItem>
-            </SelectContent>
-          </Select>
+        <Select value={linea} onValueChange={v => setLinea(v ?? 'ALL')}>
+          <SelectTrigger
+            className="h-9 w-full sm:w-48 text-xs"
+            aria-label="Filtrar por línea de negocio"
+          >
+            <SelectValue placeholder="Línea..." />
+          </SelectTrigger>
+          <SelectContent>
+            {LINEA_OPTIONS.map(o => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-          <Select value={ventana} onValueChange={v => setVentana(v ?? 'ALL')}>
-            <SelectTrigger className="h-8 w-full sm:w-44 text-xs">
-              <SelectValue placeholder="Ventana de compra..." />
-            </SelectTrigger>
-            <SelectContent>
-              {VENTANA_OPTIONS.map(o => (
-                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </CardContent>
-      </Card>
+        <Select value={radarActivo} onValueChange={v => setRadarActivo(v as 'ALL' | 'Sí' | 'No')}>
+          <SelectTrigger
+            className="h-9 w-full sm:w-40 text-xs"
+            aria-label="Filtrar por estado radar"
+          >
+            <SelectValue placeholder="Estado..." />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="ALL" className="text-xs">Todos los estados</SelectItem>
+            <SelectItem value="Sí"  className="text-xs">Con señal activa</SelectItem>
+            <SelectItem value="No"  className="text-xs">Descartados</SelectItem>
+          </SelectContent>
+        </Select>
 
-      {/* Table */}
+        <Select value={ventana} onValueChange={v => setVentana(v ?? 'ALL')}>
+          <SelectTrigger
+            className="h-9 w-full sm:w-48 text-xs"
+            aria-label="Filtrar por ventana de compra"
+          >
+            <SelectValue placeholder="Ventana de compra..." />
+          </SelectTrigger>
+          <SelectContent>
+            {VENTANA_OPTIONS.map(o => (
+              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        {filtersActive && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            onClick={resetFilters}
+            aria-label="Limpiar filtros"
+          >
+            <RotateCcw size={12} />
+            Limpiar
+          </Button>
+        )}
+
+        {filtersActive && !loading && (
+          <Badge variant="secondary" className="ml-auto h-6 px-2 text-[11px]">
+            {totalCount} resultado{totalCount !== 1 ? 's' : ''}
+          </Badge>
+        )}
+      </div>
+
+      {/* ── Table ──────────────────────────────────────────────────────────── */}
       <ResultadosTable
         results={results}
         loading={loading}

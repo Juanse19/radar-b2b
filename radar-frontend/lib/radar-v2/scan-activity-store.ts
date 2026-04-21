@@ -24,7 +24,7 @@ export interface ActiveScan {
   provider:    string;
   events:      ScanEvent[];
   startedAt:   number;
-  status:      'running' | 'done' | 'error';
+  status:      'running' | 'done' | 'error' | 'stopped';
   totalCost:   number;
   activas:     number;
   descartadas: number;
@@ -98,6 +98,14 @@ class ScanActivityStore {
       this.activeScan.totalCost += d.cost_usd ?? 0;
     }
 
+    this.notify();
+  }
+
+  cancelActive(): void {
+    if (!this.activeScan) return;
+    this.activeScan = { ...this.activeScan, status: 'stopped' };
+    this.history.unshift({ ...this.activeScan, events: [...this.activeScan.events] });
+    if (this.history.length > 10) this.history.pop();
     this.notify();
   }
 

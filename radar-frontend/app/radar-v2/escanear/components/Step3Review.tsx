@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Rocket, Loader2, AlertCircle } from 'lucide-react';
+import { Rocket, Loader2, AlertCircle, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardState } from '@/lib/radar-v2/wizard-state';
 import type { RadarV2Company } from '@/lib/radar-v2/types';
@@ -291,14 +291,24 @@ export function Step3Review({ state, onChange }: Props) {
                   onClick={() => p.implemented && onChange({ provider: p.name })}
                   disabled={!p.implemented}
                   className={cn(
-                    'relative rounded-lg border p-3 text-left text-xs transition-all duration-200',
+                    'relative rounded-lg border-2 p-3 text-left text-xs transition-all duration-200',
                     isActive && p.implemented
-                      ? 'border-primary bg-primary/10 ring-2 ring-primary shadow-sm'
-                      : 'border-border hover:border-primary/50',
+                      ? 'border-primary bg-primary/25 ring-2 ring-primary/60 shadow-lg shadow-primary/20'
+                      : 'border-border hover:border-primary/60 hover:bg-muted/40',
                     p.implemented ? '' : 'cursor-not-allowed opacity-60',
                   )}
                 >
-                  <p className="font-semibold capitalize">{p.name}</p>
+                  {isActive && p.implemented && (
+                    <span
+                      aria-hidden
+                      className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    >
+                      <Check size={10} strokeWidth={3} />
+                    </span>
+                  )}
+                  <p className={cn('font-semibold capitalize', isActive && p.implemented && 'text-primary')}>
+                    {p.name}
+                  </p>
                   <p className="mt-0.5 leading-tight text-muted-foreground">{p.model}</p>
                   {isActive && p.implemented && costPerCompany !== null ? (
                     <Badge

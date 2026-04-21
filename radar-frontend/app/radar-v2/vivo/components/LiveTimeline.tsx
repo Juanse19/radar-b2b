@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef, useState, useMemo } from 'react';
+import { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Loader2, ChevronDown } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Loader2, ChevronDown, Square, History, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EventCard } from './EventCard';
 import type {
@@ -14,7 +15,7 @@ import type {
   CompanyDonePayload,
 } from '@/lib/radar-v2/stream-events';
 import { scanActivityStore } from '@/lib/radar-v2/scan-activity-store';
-import type { ScanEventType } from '@/lib/radar-v2/scan-activity-store';
+import type { ScanEventType, ActiveScan } from '@/lib/radar-v2/scan-activity-store';
 
 interface CompanyGroup {
   name:     string;
@@ -34,19 +35,102 @@ interface Props {
   provider?: string;
 }
 
-type Phase = 'connecting' | 'live' | 'done' | 'error';
+type Phase = 'connecting' | 'live' | 'done' | 'error' | 'stopped';
+
+// ─── History panel ────────────────────────────────────────────────────────────
+
+function formatDuration(ms: number): string {
+  const s = Math.round(ms / 1000);
+  if (s < 60) return `${s}s`;
+  return `${Math.floor(s / 60)}m ${s % 60}s`;
+}
+
+function HistoryPanel({ history }: { history: ActiveScan[] }) {
+  const [open, setOpen] = useState(false);
+
+  if (history.length === 0) return null;
+
+  return (
+    <div className="border-t border-border">
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="flex w-full items-center justify-between px-4 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          <History size={12} />
+          Historial de escaneos ({history.length})
+        </span>
+        <ChevronDown size={12} className={cn('transition-transform', open && 'rotate-180')} />
+      </button>
+
+      {open && (
+        <div className="max-h-56 overflow-y-auto divide-y divide-border">
+          {history.map((scan) => {
+            const duration = scan.events.find(e => e.type === 'session_done')
+              ? (scan.totalCost > 0 ? scan.totalCost : null)
+              : null;
+            const elapsed = Date.now() - scan.startedAt;
+            const statusLabel =
+              scan.status === 'done'    ? '✅' :
+              scan.status === 'stopped' ? '⏹' :
+              scan.status === 'error'   ? '❌' : '🟡';
+
+            return (
+              <div key={scan.sessionId} className="flex items-center justify-between px-4 py-2 text-xs">
+                <span className="flex items-center gap-1.5">
+                  <span>{statusLabel}</span>
+                  <span className="font-medium truncate max-w-[140px]">
+                    {scan.line} · {scan.empresas.length} emp.
+                  </span>
+                </span>
+                <span className="flex items-center gap-2 text-muted-foreground shrink-0">
+                  <Clock size={10} />
+                  {formatDuration(elapsed)}
+                  {scan.totalCost > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px]">
+                      ${scan.totalCost.toFixed(4)}
+                    </Badge>
+                  )}
+                  {duration === null && scan.activas > 0 && (
+                    <Badge variant="secondary" className="h-4 px-1 text-[10px] text-emerald-600">
+                      {scan.activas} ✨
+                    </Badge>
+                  )}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main component ───────────────────────────────────────────────────────────
 
 export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
-  const [events, setEvents]         = useState<StreamEvent[]>([]);
-  const [phase,  setPhase]          = useState<Phase>('connecting');
-  const [summary, setSummary]       = useState<SessionDonePayload | null>(null);
-  const [errorMsg, setErrorMsg]     = useState<string | null>(null);
-  const [now, setNow]               = useState<number>(() => Date.now());
-  const [autoScroll, setAutoScroll] = useState(true);
+  const [events, setEvents]           = useState<StreamEvent[]>([]);
+  const [phase,  setPhase]            = useState<Phase>('connecting');
+  const [summary, setSummary]         = useState<SessionDonePayload | null>(null);
+  const [errorMsg, setErrorMsg]       = useState<string | null>(null);
+  const [now, setNow]                 = useState<number>(() => Date.now());
+  const [autoScroll, setAutoScroll]   = useState(true);
   const [expandedSet, setExpandedSet] = useState<Set<string>>(() => new Set());
+  const [stopping, setStopping]       = useState(false);
+  const [history, setHistory]         = useState<ActiveScan[]>(() => scanActivityStore.getHistory());
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const bottomRef = useRef<HTMLDivElement | null>(null);
+  const esRef     = useRef<EventSource | null>(null);
+
+  // Subscribe to history updates from the store
+  useEffect(() => {
+    const unsub = scanActivityStore.subscribe(() => {
+      setHistory([...scanActivityStore.getHistory()]);
+    });
+    return unsub;
+  }, []);
 
   const groups = useMemo<CompanyGroup[]>(() => {
     const map = new Map<string, CompanyGroup>();
@@ -82,8 +166,6 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
   }, [events]);
 
   // Auto-expand the last empresa when a NEW group is added.
-  // Intentionally depends only on groups.length so the effect fires only
-  // when the count grows, not on every event update inside a group.
   useEffect(() => {
     if (groups.length === 0) return;
     const last = groups[groups.length - 1].name;
@@ -110,6 +192,23 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     return () => window.clearInterval(id);
   }, []);
 
+  // Stop handler — calls cancel API then closes EventSource
+  const handleStop = useCallback(async () => {
+    if (stopping || phase !== 'live') return;
+    setStopping(true);
+    try {
+      await fetch('/api/radar-v2/cancel', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ sessionId }),
+      });
+    } catch { /* best-effort */ }
+    esRef.current?.close();
+    scanActivityStore.cancelActive();
+    setPhase('stopped');
+    setStopping(false);
+  }, [stopping, phase, sessionId]);
+
   // Open EventSource. Deps are strings only so the effect doesn't loop on
   // parent re-renders that hand us new array identities.
   const empresasJson = JSON.stringify(empresas);
@@ -133,6 +232,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     );
 
     const es = new EventSource(`/api/radar-v2/stream?${params.toString()}`);
+    esRef.current = es;
 
     const handlers: Partial<Record<StreamEventType, (ev: MessageEvent) => void>> = {
       session_done: (ev) => {
@@ -152,7 +252,6 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     };
 
     // Map full StreamEventType → ScanEventType understood by the activity store.
-    // Only the subset the store cares about is forwarded; the rest are dropped.
     const STORE_EVENT_TYPES = new Set<StreamEventType>([
       'scan_started', 'company_done', 'company_error', 'session_done', 'error',
     ]);
@@ -161,24 +260,26 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
       if (phase === 'connecting') setPhase('live');
       let data: unknown;
       try { data = JSON.parse(ev.data); } catch { data = ev.data; }
-      const now = Date.now();
+      const nowTs = Date.now();
       const rec: StreamEvent = {
         id:   Number.parseInt(ev.lastEventId || '0', 10) || 0,
         type,
         data,
-        ts:   now,
+        ts:   nowTs,
       };
       setEvents(prev => {
         const next = [...prev, rec];
         if (next.length > EVENT_LIMIT) next.splice(0, next.length - EVENT_LIMIT);
         return next;
       });
+      // Also switch to 'live' if still connecting.
+      setPhase(prev => prev === 'connecting' ? 'live' : prev);
       // Forward eligible events to the global activity store.
       if (STORE_EVENT_TYPES.has(type)) {
         scanActivityStore.addEvent({
           type: type as ScanEventType,
           data: (typeof data === 'object' && data !== null ? data : { raw: data }) as Record<string, unknown>,
-          ts:   now,
+          ts:   nowTs,
         });
       }
     };
@@ -201,7 +302,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
 
     es.onerror = () => {
       if (es.readyState === EventSource.CLOSED) {
-        setPhase(prev => (prev === 'done' ? 'done' : 'error'));
+        setPhase(prev => (prev === 'done' || prev === 'stopped') ? prev : 'error');
       }
     };
 
@@ -243,19 +344,42 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
 
   return (
     <Card className="flex flex-col overflow-hidden">
+      {/* Header */}
       <div className="flex items-center justify-between border-b border-border px-4 py-2.5">
         <div className="flex items-center gap-2">
           {phase === 'live' && <Loader2 size={14} className="animate-spin text-primary" />}
           <span className="text-sm font-medium">
-            {phase === 'live'  && `Escaneando ${empresas.length} empresa${empresas.length === 1 ? '' : 's'}`}
-            {phase === 'done'  && 'Escaneo finalizado'}
-            {phase === 'error' && 'Error de conexión'}
+            {phase === 'live'    && `Escaneando ${empresas.length} empresa${empresas.length === 1 ? '' : 's'}`}
+            {phase === 'done'    && 'Escaneo finalizado'}
+            {phase === 'stopped' && 'Escaneo detenido'}
+            {phase === 'error'   && 'Error de conexión'}
             {phase === 'connecting' && 'Conectando…'}
           </span>
+          {phase === 'stopped' && (
+            <Badge variant="secondary" className="h-5 px-1.5 text-[10px]">Cancelado</Badge>
+          )}
         </div>
-        <span className="text-xs text-muted-foreground">{line}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-xs text-muted-foreground">{line}</span>
+          {phase === 'live' && (
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-7 gap-1.5 border-destructive/40 text-destructive hover:bg-destructive/10 hover:border-destructive"
+              onClick={handleStop}
+              disabled={stopping}
+            >
+              {stopping
+                ? <Loader2 size={12} className="animate-spin" />
+                : <Square size={12} />
+              }
+              Detener
+            </Button>
+          )}
+        </div>
       </div>
 
+      {/* Event feed */}
       <div
         ref={scrollRef}
         onScroll={handleScroll}
@@ -316,6 +440,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
         <div ref={bottomRef} />
       </div>
 
+      {/* Scroll-to-bottom nudge */}
       {!autoScroll && phase === 'live' && (
         <button
           type="button"
@@ -329,7 +454,8 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
         </button>
       )}
 
-      {(phase === 'done' || phase === 'error') && (
+      {/* Footer — done / stopped / error */}
+      {(phase === 'done' || phase === 'error' || phase === 'stopped') && (
         <div className="flex items-center justify-between border-t border-border px-4 py-3">
           <div className="text-xs text-muted-foreground">
             {summary && (
@@ -339,6 +465,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
                 {' · '}${summary.total_cost_usd.toFixed(4)}
               </>
             )}
+            {phase === 'stopped' && !summary && 'Detenido manualmente'}
             {errorMsg && <span className="text-destructive">{errorMsg}</span>}
           </div>
           <Link href="/radar-v2/resultados">
@@ -346,6 +473,9 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
           </Link>
         </div>
       )}
+
+      {/* History panel */}
+      <HistoryPanel history={history} />
     </Card>
   );
 }

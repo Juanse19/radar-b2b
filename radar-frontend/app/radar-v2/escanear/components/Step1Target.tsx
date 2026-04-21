@@ -2,7 +2,7 @@
 
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import { Zap, Target, LayoutGrid } from 'lucide-react';
+import { Zap, Target, LayoutGrid, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { WizardState } from '@/lib/radar-v2/wizard-state';
 
@@ -89,17 +89,27 @@ export function Step1Target({ state, onChange }: Props) {
                 onClick={() => toggleLine(l.value)}
                 aria-pressed={selected}
                 className={cn(
-                  'rounded-lg border px-3 py-2.5 text-left text-sm transition-all duration-200',
+                  'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
                   selected
-                    ? 'border-primary bg-primary/15 font-semibold ring-1 ring-primary/50 shadow-sm'
-                    : 'border-border bg-muted/30 hover:border-primary/50',
+                    ? 'border-primary bg-primary/25 font-semibold ring-2 ring-primary/60 shadow-lg shadow-primary/20'
+                    : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
                 )}
               >
-                <span className="block font-medium leading-tight">{l.label}</span>
+                {selected && (
+                  <span
+                    aria-hidden
+                    className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  >
+                    <Check size={10} strokeWidth={3} />
+                  </span>
+                )}
+                <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
+                  {l.label}
+                </span>
                 <span
                   className={cn(
                     'block text-[11px] leading-tight',
-                    selected ? 'text-primary/70' : 'text-muted-foreground',
+                    selected ? 'text-primary/80' : 'text-muted-foreground',
                   )}
                 >
                   {l.sub}
@@ -137,14 +147,22 @@ export function Step1Target({ state, onChange }: Props) {
               }
             }}
             className={cn(
-              'cursor-pointer p-4 text-center transition-all',
+              'relative cursor-pointer border-2 p-4 text-center transition-all',
               state.mode === 'auto'
-                ? 'border-primary bg-primary/15 shadow-md ring-2 ring-primary/40'
-                : 'hover:border-primary/50 hover:bg-muted/30',
+                ? 'border-primary bg-primary/25 shadow-lg shadow-primary/20 ring-2 ring-primary/60'
+                : 'border-border hover:border-primary/60 hover:bg-muted/40',
             )}
           >
+            {state.mode === 'auto' && (
+              <span
+                aria-hidden
+                className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              >
+                <Check size={12} strokeWidth={3} />
+              </span>
+            )}
             <Zap size={24} className="mx-auto mb-1 text-primary" />
-            <p className="text-sm font-semibold">Automático</p>
+            <p className={cn('text-sm font-semibold', state.mode === 'auto' && 'text-primary')}>Automático</p>
             <p className="text-xs text-muted-foreground">Seleccionar N empresas</p>
           </Card>
 
@@ -160,14 +178,25 @@ export function Step1Target({ state, onChange }: Props) {
               }
             }}
             className={cn(
-              'cursor-pointer p-4 text-center transition-all',
+              'relative cursor-pointer border-2 p-4 text-center transition-all',
               state.mode === 'manual'
-                ? 'border-primary bg-primary/15 shadow-md ring-2 ring-primary/40'
-                : 'hover:border-primary/50 hover:bg-muted/30',
+                ? 'border-primary bg-primary/25 shadow-lg shadow-primary/20 ring-2 ring-primary/60'
+                : 'border-border hover:border-primary/60 hover:bg-muted/40',
             )}
           >
-            <Target size={24} className="mx-auto mb-1 text-foreground" />
-            <p className="text-sm font-semibold">Manual</p>
+            {state.mode === 'manual' && (
+              <span
+                aria-hidden
+                className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+              >
+                <Check size={12} strokeWidth={3} />
+              </span>
+            )}
+            <Target
+              size={24}
+              className={cn('mx-auto mb-1', state.mode === 'manual' ? 'text-primary' : 'text-foreground')}
+            />
+            <p className={cn('text-sm font-semibold', state.mode === 'manual' && 'text-primary')}>Manual</p>
             <p className="text-xs text-muted-foreground">Elegir empresas</p>
           </Card>
         </div>
