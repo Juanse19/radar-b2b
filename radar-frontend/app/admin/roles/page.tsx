@@ -71,6 +71,8 @@ const ACTION_LABELS: Record<Action, string> = {
   'empresas.create':     'Crear empresa',
   'empresas.edit':       'Editar empresa',
   'contactos.export':    'Exportar contactos',
+  'radar.scan':          'Radar v2 — Escanear empresa',
+  'radar.prompt.view':   'Radar v2 — Ver/editar prompt',
   'admin.manage_users':  'Gestionar usuarios',
   'admin.manage_config': 'Configuración del sistema',
   'admin.view_logs':     'Ver logs de auditoría',
