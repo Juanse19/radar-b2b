@@ -5,10 +5,8 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  experimental: {
-    turbopack: {
-      root: __dirname,
-    },
+  turbopack: {
+    root: __dirname,
   },
   async redirects() {
     return [
