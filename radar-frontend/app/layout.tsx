@@ -33,7 +33,7 @@ const monoUiFont = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Matec Radar B2B',
+  title: 'Matec Radar Comercial B2B',
   description: 'Sistema de Inteligencia Comercial LATAM',
   icons: {
     icon: '/favicon.ico',

@@ -92,10 +92,29 @@ export function Navigation({ session }: { session: SessionUser | null }) {
         collapsed ? 'w-[72px]' : 'w-[240px] lg:w-[260px]',
       )}
     >
-      {/* ── Branding (always visible) ───────────────────────────── */}
+      {/* ── Branding ────────────────────────────────────────────── */}
       <div className="shrink-0 px-3 pt-4 pb-2">
-        <div className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-white/6 p-3">
-          {!collapsed && (
+        {collapsed ? (
+          /* Collapsed: isotipo centrado + botón expandir debajo */
+          <div className="flex flex-col items-center gap-2 rounded-xl border border-white/10 bg-white/6 py-3 px-2">
+            <Image
+              src="/matec-isotipo.png"
+              alt="Matec"
+              width={28}
+              height={28}
+              className="object-contain"
+            />
+            <button
+              aria-label="Expandir menú"
+              onClick={() => setCollapsed(false)}
+              className="rounded-lg border border-white/15 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white"
+            >
+              <ChevronRight size={14} />
+            </button>
+          </div>
+        ) : (
+          /* Expanded: logo + subtitle + botón colapsar */
+          <div className="flex items-start justify-between gap-2 rounded-xl border border-white/10 bg-white/6 p-3">
             <div className="min-w-0">
               <Image
                 src="/matec-logo.png"
@@ -108,31 +127,15 @@ export function Navigation({ session }: { session: SessionUser | null }) {
                 Inteligencia Comercial LATAM
               </p>
             </div>
-          )}
-
-          {collapsed && (
-            <div className="mx-auto flex items-center justify-center">
-              <Image
-                src="/matec-isotipo.png"
-                alt="Matec"
-                width={32}
-                height={32}
-                className="object-contain"
-              />
-            </div>
-          )}
-
-          <button
-            aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            onClick={() => setCollapsed((v) => !v)}
-            className={cn(
-              'rounded-lg border border-white/15 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white shrink-0',
-              collapsed && 'mx-auto',
-            )}
-          >
-            {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
-          </button>
-        </div>
+            <button
+              aria-label="Colapsar menú"
+              onClick={() => setCollapsed(true)}
+              className="rounded-lg border border-white/15 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white shrink-0"
+            >
+              <ChevronLeft size={15} />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* ── Nav items (flex-1, scrollable if needed) ──────────── */}

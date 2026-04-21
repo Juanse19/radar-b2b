@@ -47,7 +47,7 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
 
       {/* Project name */}
       <span className="text-sidebar-primary font-medium text-sm">
-        Radar B2B
+        Radar Comercial B2B
       </span>
 
       {/* Spacer */}
