@@ -9,12 +9,16 @@
  *
  * Estrategia anti-flash:
  *  1. initialSession (from server) = primer render sin flash (camino feliz).
- *  2. useIsomorphicLayoutEffect (síncrono antes del primer paint) lee la companion
- *     cookie cuando initialSession es null — elimina el salto visual post-login.
+ *  2. useIsomorphicLayoutEffect keyed on pathname — se dispara sincrónicamente
+ *     ANTES del primer paint en CADA navegación (incluido redirect post-login).
+ *     Resuelve el bug donde el effect con [] no volvía a correr cuando el
+ *     AppShellLoader ya estaba montado en /login y Next.js hacía client-side
+ *     navigation al dashboard sin remontar el root layout.
  *  3. useEffect (async fallback) llama /api/session-pub si la cookie no existe.
  */
 
 import { useEffect, useLayoutEffect, useState } from 'react';
+import { usePathname } from 'next/navigation';
 import { AppShell } from '@/components/AppShell';
 import type { SessionUser } from '@/lib/auth/types';
 
@@ -49,25 +53,40 @@ export function AppShellLoader({
   initialSession?: SessionUser | null;
 }) {
   const [session, setSession] = useState<SessionUser | null>(initialSession);
+  const pathname = usePathname();
 
-  // ── Paso 2: lectura síncrona ANTES del primer paint ──────────────────────
-  // Corre después de la hidratación pero ANTES de que el navegador pinte.
-  // Elimina el flash de "dashboard sin sidebar" cuando el server component
-  // no resolvió la sesión (race condition en redirect post-login).
+  // ── Paso 2: sincronización por pathname ───────────────────────────────────
+  // Corre sincrónicamente ANTES del primer paint en cada navegación.
+  // Usar pathname como dep resuelve el caso principal del bug:
+  //   /login (session=null) → Server Action login → redirect '/' (client-nav)
+  // El root layout ya estaba montado; useState ignora el nuevo initialSession
+  // prop del server re-render; sin pathname dep el effect no vuelve a correr.
+  // Con pathname dep: al cambiar la ruta se re-lee la cookie → sidebar aparece
+  // antes del paint, sin flash visible.
   useIsomorphicLayoutEffect(() => {
-    if (session) return;
     const fromCookie = readSessionFromCookie();
-    if (fromCookie) setSession(fromCookie);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    if (fromCookie) {
+      setSession(fromCookie);
+    } else if (initialSession) {
+      // Server proporcionó session pero cookie aún no está disponible en el
+      // cliente (SSR first-paint). Usar initialSession como fallback.
+      setSession(initialSession);
+    } else {
+      // Logout: cookie borrada → limpiar session del estado para ocultar sidebar.
+      setSession(null);
+    }
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Paso 3: fallback async si la cookie tampoco existe ────────────────────
+  // ── Paso 3: fallback async si cookie aún no existe ────────────────────────
+  // Cubre sesiones antiguas sin companion cookie y condiciones de timing
+  // donde la cookie no llegó antes del layout effect (poco frecuente).
   useEffect(() => {
     if (session) return;
     fetch('/api/session-pub')
       .then(r => (r.ok ? r.json() : null))
       .then((s: SessionUser | null) => { if (s) setSession(s); })
       .catch(() => {});
-  }, [session]);
+  }, [pathname, session]); // Re-chequear en cada navegación también
 
   return <AppShell session={session}>{children}</AppShell>;
 }
