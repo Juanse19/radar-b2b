@@ -3,7 +3,7 @@ import type { NextRequest } from 'next/server';
 import { canAccess } from '@/lib/auth/permissions';
 import type { UserRole } from '@/lib/auth/types';
 
-const SESSION_COOKIE = 'matec_session';
+const SESSION_COOKIE = 'matec_session_pub'; // plain-JSON companion; matec_session is iron-session encrypted
 
 // Public routes that don't require authentication
 const PUBLIC_PATHS = ['/login', '/sin-acceso', '/api/', '/_next/', '/favicon'];

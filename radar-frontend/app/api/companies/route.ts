@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getEmpresasByLinea, getEmpresasCount, crearEmpresa } from '@/lib/db';
-import { getCurrentSession } from '@/lib/auth/session';
 
 /**
  * GET /api/companies?linea=BHS&limit=50
@@ -10,9 +9,6 @@ import { getCurrentSession } from '@/lib/auth/session';
  *   → { BHS: 130, Cartón: 150, Intralogística: 220 }
  */
 export async function GET(req: NextRequest) {
-  const session = await getCurrentSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-
   const { searchParams } = new URL(req.url);
   const count  = searchParams.get('count');
   const linea  = searchParams.get('linea') ?? 'ALL';
@@ -22,51 +18,17 @@ export async function GET(req: NextRequest) {
   try {
     if (count === 'true') {
       const raw = await getEmpresasCount();
-      // getEmpresasCount() devuelve claves por código de sub_linea (ej: 'aeropuertos', 'carton_corrugado').
-      // El frontend espera claves por nombre de línea (ej: 'BHS', 'Cartón').
-      // Este mapa convierte de código → nombre que el frontend conoce.
-      const CODIGO_TO_LINEA: Record<string, string> = {
-        aeropuertos:          'BHS',
-        cargo_uld:            'BHS',          // merge Cargo ULD en BHS
-        carton_corrugado:     'Cartón',
-        intralogistica:       'Intralogística',
-        final_linea:          'Final de Línea',
-        ensambladoras_motos:  'Motos',
-        solumat:              'SOLUMAT',
-        // Legacy sin acento
-        Intralogistica:       'Intralogística',
-        'Final de Linea':     'Final de Línea',
-        'Final de Línea':     'Final de Línea',
-        BHS:                  'BHS',
-        Cartón:               'Cartón',
-        Motos:                'Motos',
-        SOLUMAT:              'SOLUMAT',
-      };
+      // Merge legacy "Intralogistica" (without accent) into canonical "Intralogística"
       const counts: Record<string, number> = {};
       for (const [key, val] of Object.entries(raw)) {
-        const canonical = CODIGO_TO_LINEA[key] ?? key;
+        const canonical = key === 'Intralogistica' ? 'Intralogística' : key;
         counts[canonical] = (counts[canonical] ?? 0) + val;
       }
       return NextResponse.json(counts);
     }
 
     const empresas = await getEmpresasByLinea(linea, limit, offset);
-    // Map DB row → Empresa interface (nombre, dominio, linea, pais as full name)
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const mapped = empresas.map((e: any) => ({
-      id:      e.id,
-      nombre:  e.company_name  ?? e.nombre ?? '',
-      dominio: e.company_domain ?? e.dominio ?? null,
-      pais:    e.pais_nombre   ?? e.pais    ?? null,
-      linea:   e.linea_negocio ?? e.linea   ?? null,
-      tier:    e.tier          ?? e.tier_actual ?? null,
-      status:  e.status        ?? 'pending',
-      // keep raw fields too for compatibility
-      company_name:   e.company_name,
-      company_domain: e.company_domain,
-      linea_negocio:  e.linea_negocio,
-    }));
-    return NextResponse.json(mapped);
+    return NextResponse.json(empresas);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     // Log completo en servidor para debugging (visible en terminal del dev server)
@@ -77,10 +39,6 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const session = await getCurrentSession();
-  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  if (!['ADMIN', 'COMERCIAL'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
-
   try {
     const body = await req.json();
     const { company_name, company_domain, company_url, pais, ciudad, linea_negocio, tier } = body;

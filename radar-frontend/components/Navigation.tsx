@@ -1,50 +1,87 @@
 'use client';
-import Link from 'next/link';
+
 import Image from 'next/image';
-import { usePathname } from 'next/navigation';
-import {
-  LayoutDashboard,
-  Radar,
-  Calendar,
-  Table2,
-  Users,
-  ChevronLeft,
-  ChevronRight,
-  Shield,
-  ClipboardList,
-  CheckCircle2,
-} from 'lucide-react';
-import { cn } from '@/lib/utils';
 import { useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import type { SessionUser } from '@/lib/auth/types';
 import { SidebarUserSection } from '@/components/AppShell';
+import { navTree, type NavNode } from '@/components/nav/nav-config';
+import { NavItem } from '@/components/nav/NavItem';
+import { NavGroup } from '@/components/nav/NavGroup';
 
-const navItems = [
-  { href: '/',                  label: 'Dashboard',         icon: LayoutDashboard },
-  { href: '/scan',              label: 'Escanear',          icon: Radar },
-  { href: '/agente-resultados', label: 'Resultados Agente', icon: ClipboardList },
-  { href: '/calificacion',      label: 'Calificación',      icon: CheckCircle2 },
-  { href: '/results',           label: 'Resultados',        icon: Table2 },
-  { href: '/contactos',         label: 'Contactos',         icon: Users },
-  { href: '/schedule',          label: 'Cronograma',        icon: Calendar },
-];
+/**
+ * Flatten all leaf hrefs reachable under `node` — used by groups to decide
+ * whether to auto-expand when any descendant matches the current pathname.
+ */
+function collectLeafHrefs(node: NavNode): string[] {
+  if (!node.children || node.children.length === 0) {
+    return node.href ? [node.href] : [];
+  }
+  return node.children.flatMap(collectLeafHrefs);
+}
 
-const adminNavItem = { href: '/admin', label: 'Administración', icon: Shield };
+/**
+ * Recursive render helper.
+ *  - Node with children → NavGroup + nested NavItems
+ *  - Leaf node → NavItem
+ *
+ * `iconOnly` propagates through so the collapsed sidebar state hides labels.
+ * `indent` marks subitems so they visually hang off their parent group.
+ */
+function renderNavNode(
+  node: NavNode,
+  opts: { iconOnly: boolean; indent?: boolean },
+): React.ReactNode {
+  const { iconOnly, indent } = opts;
+
+  if (node.children && node.children.length > 0) {
+    const childHrefs = collectLeafHrefs(node);
+
+    return (
+      <NavGroup
+        key={node.label}
+        label={node.label}
+        icon={node.icon}
+        badge={node.badge}
+        childHrefs={childHrefs}
+        iconOnly={iconOnly}
+      >
+        {node.children.map((child) =>
+          renderNavNode(child, { iconOnly, indent: true }),
+        )}
+      </NavGroup>
+    );
+  }
+
+  // Leaf
+  if (!node.href) return null;
+  return (
+    <NavItem
+      key={node.href}
+      href={node.href}
+      label={node.label}
+      icon={node.icon}
+      badge={node.badge}
+      indent={indent}
+      iconOnly={iconOnly}
+    />
+  );
+}
 
 export function Navigation({ session }: { session: SessionUser | null }) {
-  const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
 
-  const visibleItems = [
-    ...navItems,
-    ...(session?.role === 'ADMIN' ? [adminNavItem] : []),
-  ];
+  // Role gate: filter adminOnly nodes when user is not ADMIN. Applied at the
+  // top level so entire groups (e.g. "Administración") disappear for non-admins.
+  const isAdmin = session?.role === 'ADMIN';
+  const visibleTree = navTree.filter((n) => !n.adminOnly || isAdmin);
 
   return (
     <aside
       className={cn(
         'relative flex h-full min-h-screen flex-col justify-between bg-sidebar text-sidebar-foreground transition-all duration-300 shrink-0 border-r border-white/8',
-        collapsed ? 'w-[72px]' : 'w-[240px] lg:w-[260px]'
+        collapsed ? 'w-[72px]' : 'w-[240px] lg:w-[260px]',
       )}
     >
       {/* ── Branding (always visible) ───────────────────────────── */}
@@ -79,10 +116,10 @@ export function Navigation({ session }: { session: SessionUser | null }) {
 
           <button
             aria-label={collapsed ? 'Expandir menú' : 'Colapsar menú'}
-            onClick={() => setCollapsed(v => !v)}
+            onClick={() => setCollapsed((v) => !v)}
             className={cn(
               'rounded-lg border border-white/15 p-1.5 text-white/70 transition hover:bg-white/10 hover:text-white shrink-0',
-              collapsed && 'mx-auto'
+              collapsed && 'mx-auto',
             )}
           >
             {collapsed ? <ChevronRight size={15} /> : <ChevronLeft size={15} />}
@@ -98,31 +135,10 @@ export function Navigation({ session }: { session: SessionUser | null }) {
           </p>
         )}
 
-        <nav className="grid gap-0.5">
-          {visibleItems.map(({ href, label, icon: Icon }) => {
-            const active =
-              href === '/'
-                ? pathname === '/'
-                : pathname.startsWith(href);
-
-            return (
-              <Link
-                key={href}
-                href={href}
-                title={collapsed ? label : undefined}
-                className={cn(
-                  'flex items-center rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-white/14 text-white'
-                    : 'text-white/65 hover:bg-white/8 hover:text-white',
-                  collapsed && 'justify-center px-2'
-                )}
-              >
-                <Icon size={18} className="shrink-0" />
-                {!collapsed && <span className="ml-3 truncate">{label}</span>}
-              </Link>
-            );
-          })}
+        <nav aria-label="Navegación principal" className="grid gap-0.5">
+          {visibleTree.map((node) =>
+            renderNavNode(node, { iconOnly: collapsed }),
+          )}
         </nav>
       </div>
 
@@ -134,8 +150,12 @@ export function Navigation({ session }: { session: SessionUser | null }) {
         <div className="mx-3 mb-2 rounded-xl border border-white/10 bg-white/5 p-3">
           {!collapsed ? (
             <>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Sistema</p>
-              <p className="mt-1 text-xs font-semibold text-white">Matec LATAM</p>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">
+                Sistema
+              </p>
+              <p className="mt-1 text-xs font-semibold text-white">
+                Matec LATAM
+              </p>
               <p className="text-[11px] text-white/55">v2.0 · 3 Agentes IA</p>
             </>
           ) : (

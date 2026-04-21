@@ -1,0 +1,9 @@
+/**
+ * NOTE: This file is intentionally empty.
+ *
+ * Next.js 16 renamed "middleware" to "proxy". The auth logic has been
+ * migrated to proxy.ts which includes role-based access control via
+ * canAccess(). This file is kept to avoid git conflicts but exports nothing.
+ *
+ * See: https://nextjs.org/docs/messages/middleware-to-proxy
+ */

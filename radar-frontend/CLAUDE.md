@@ -228,3 +228,24 @@ El proyecto tiene skills instalados en `.claude/skills/`:
 | `senior-security` | Auditoría de seguridad |
 
 **Para activar una skill:** leer `SKILL.md` del directorio correspondiente antes de trabajar en esa área.
+
+| Skill | Usar cuando |
+|-------|-------------|
+| `uiuxpro` | Cualquier cambio visual — layout, color, tipografía, animación |
+| `verification-before-completion` | Antes de declarar cualquier tarea terminada |
+| `systematic-debugging` | Antes de proponer un fix a un bug |
+| `dispatching-parallel-agents` | Cuando hay ≥2 tareas independientes |
+
+---
+
+## Reglas de eficiencia (token-efficient)
+
+- Pensar antes de actuar. Leer archivos existentes antes de escribir código.
+- Output conciso; razonamiento detallado internamente.
+- Preferir ediciones dirigidas sobre reescribir archivos completos.
+- No releer archivos ya leídos a menos que hayan cambiado.
+- Omitir archivos > 100 KB salvo necesidad explícita.
+- Sin openers/closers aduladores. Sin relleno.
+- Soluciones simples y directas. No sobre-ingenierizar.
+- Probar el código antes de declarar terminado.
+- Las instrucciones del usuario siempre anulan este archivo.

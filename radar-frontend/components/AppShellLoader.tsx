@@ -32,38 +32,34 @@ function readSessionFromCookie(): SessionUser | null {
   }
 }
 
-export function AppShellLoader({ children }: { children: React.ReactNode }) {
-  const [session, setSession] = useState<SessionUser | null>(null);
-  const [ready, setReady] = useState(false);
+export function AppShellLoader({
+  children,
+  initialSession = null,
+}: {
+  children: React.ReactNode;
+  initialSession?: SessionUser | null;
+}) {
+  // Seed with the server-resolved session so SSR already renders the sidebar.
+  // Eliminates the post-login "empty dashboard" flash.
+  const [session, setSession] = useState<SessionUser | null>(initialSession);
 
-  // Read cookie once after hydration — this pattern is intentional.
-  // Cookies are a synchronous external store with no native event API,
-  // so useEffect is the correct mechanism for a one-time post-mount read.
-  //
-  // Fallback: if matec_session_pub is absent (sessions created before the
-  // companion-cookie fix), fetch /api/session-pub which sets the pub cookie
-  // and returns the session so the sidebar renders immediately.
+  // Fallback for edge cases where the server couldn't resolve the session
+  // but the non-httpOnly companion cookie is available client-side
+  // (e.g. after /api/dev-login without a full page reload).
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    if (session) return;
     const fromCookie = readSessionFromCookie();
     if (fromCookie) {
       setSession(fromCookie);
-      setReady(true);
-    } else {
-      fetch('/api/session-pub')
-        .then(r => (r.ok ? r.json() : null))
-        .then((s: SessionUser | null) => { setSession(s); setReady(true); })
-        .catch(() => setReady(true));
+      return;
     }
-  }, []);
+    fetch('/api/session-pub')
+      .then(r => (r.ok ? r.json() : null))
+      .then((s: SessionUser | null) => { if (s) setSession(s); })
+      .catch(() => {});
+  }, [session]);
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // Durante SSR y primer frame: renderiza AppShell sin sesión para evitar
-  // flash de layout incorrecto. El proxy garantiza que solo usuarios
-  // autenticados llegan aquí.
-  return (
-    <AppShell session={ready ? session : null}>
-      {children}
-    </AppShell>
-  );
+  return <AppShell session={session}>{children}</AppShell>;
 }
