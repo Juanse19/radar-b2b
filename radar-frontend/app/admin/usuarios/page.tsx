@@ -3,7 +3,7 @@
 // Sprint 3.5 — Phase 4: full rewrite with Dialog modals, pagination, edit and delete.
 
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Pencil, Trash2, Loader2, KeyRound, Search } from 'lucide-react';
+import { Plus, Pencil, Trash2, Loader2, KeyRound, Search, Coins } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -36,6 +36,7 @@ import {
   useUpdateUsuario,
   useDeleteUsuario,
   useChangePassword,
+  useUpdateTokenLimits,
   type AdminUser,
 } from '@/hooks/admin/useUsuarios';
 import { AdminBreadcrumb } from '@/components/admin/AdminBreadcrumb';
@@ -439,21 +440,108 @@ function ChangePasswordDialog({ user, onClose, onSubmit, isPending }: ChangePass
   );
 }
 
+// ── Token Limits Dialog ───────────────────────────────────────────────────────
+
+interface TokenLimitsDialogProps {
+  user: AdminUser | null;
+  onClose: () => void;
+  onSubmit: (daily: number | null, weekly: number | null) => void;
+  isPending: boolean;
+}
+
+function TokenLimitsDialog({ user, onClose, onSubmit, isPending }: TokenLimitsDialogProps) {
+  const [daily, setDaily]   = useState<string>(user?.daily_token_limit != null ? String(user.daily_token_limit) : '');
+  const [weekly, setWeekly] = useState<string>(user?.weekly_token_limit != null ? String(user.weekly_token_limit) : '');
+
+  useEffect(() => {
+    if (user) {
+      setDaily(user.daily_token_limit != null ? String(user.daily_token_limit) : '');
+      setWeekly(user.weekly_token_limit != null ? String(user.weekly_token_limit) : '');
+    }
+  }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  function handleOpenChange(isOpen: boolean) {
+    if (!isOpen) onClose();
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    const d = daily.trim()  === '' ? null : Math.max(0, parseInt(daily, 10));
+    const w = weekly.trim() === '' ? null : Math.max(0, parseInt(weekly, 10));
+    onSubmit(d, w);
+  }
+
+  return (
+    <Dialog open={user !== null} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Límites de tokens</DialogTitle>
+          <DialogDescription>
+            {user ? `Usuario: ${user.nombre}` : ''}
+            {' '}— Dejar vacío para sin límite.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form id="token-limits-form" onSubmit={handleSubmit} className="space-y-3 py-1">
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Límite diario (tokens)</label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="Sin límite"
+              value={daily}
+              onChange={(e) => setDaily(e.target.value)}
+              autoFocus
+            />
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs font-medium text-muted-foreground">Límite semanal (tokens)</label>
+            <Input
+              type="number"
+              min={0}
+              placeholder="Sin límite"
+              value={weekly}
+              onChange={(e) => setWeekly(e.target.value)}
+            />
+          </div>
+        </form>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isPending}>
+            Cancelar
+          </Button>
+          <Button
+            type="submit"
+            form="token-limits-form"
+            disabled={isPending}
+            className="gap-2 bg-primary hover:bg-primary/90 text-primary-foreground"
+          >
+            {isPending && <Loader2 className="size-3.5 animate-spin" />}
+            Guardar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function AdminUsuariosPage() {
   const [page, setPage]               = useState(1);
   const [searchQuery, setSearchQuery] = useState('');
-  const [createOpen, setCreateOpen]   = useState(false);
-  const [editUser, setEditUser]       = useState<AdminUser | null>(null);
-  const [deleteUser, setDeleteUser]   = useState<AdminUser | null>(null);
+  const [createOpen, setCreateOpen]       = useState(false);
+  const [editUser, setEditUser]           = useState<AdminUser | null>(null);
+  const [deleteUser, setDeleteUser]       = useState<AdminUser | null>(null);
   const [changePwdUser, setChangePwdUser] = useState<AdminUser | null>(null);
+  const [tokenUser, setTokenUser]         = useState<AdminUser | null>(null);
 
   const { data, isLoading } = useUsuarios(page);
-  const createMutation = useCreateUsuario();
-  const updateMutation = useUpdateUsuario();
-  const deleteMutation = useDeleteUsuario();
-  const changePwd      = useChangePassword();
+  const createMutation  = useCreateUsuario();
+  const updateMutation  = useUpdateUsuario();
+  const deleteMutation  = useDeleteUsuario();
+  const changePwd       = useChangePassword();
+  const tokenLimitsMut  = useUpdateTokenLimits();
 
   const filteredUsers = useMemo(() => {
     const users = data?.usuarios ?? [];
@@ -466,7 +554,7 @@ export default function AdminUsuariosPage() {
     );
   }, [data?.usuarios, searchQuery]);
 
-  const skeletonColSpan = 7;
+  const skeletonColSpan = 8;
 
   return (
     <div className="space-y-6 max-w-5xl mx-auto">
@@ -516,6 +604,7 @@ export default function AdminUsuariosPage() {
               <TableHead className="px-4">Rol</TableHead>
               <TableHead className="px-4">Estado</TableHead>
               <TableHead className="px-4">Creado</TableHead>
+              <TableHead className="px-4">Tokens/día</TableHead>
               <TableHead className="px-4 text-right">Acciones</TableHead>
             </TableRow>
           </TableHeader>
@@ -556,6 +645,11 @@ export default function AdminUsuariosPage() {
                   <TableCell className="px-4 text-sm text-muted-foreground">
                     {new Date(user.created_at).toLocaleDateString('es-CO')}
                   </TableCell>
+                  <TableCell className="px-4 text-sm text-muted-foreground">
+                    {user.daily_token_limit != null
+                      ? user.daily_token_limit.toLocaleString('es-CO')
+                      : <span className="text-xs text-muted-foreground/50">Sin límite</span>}
+                  </TableCell>
                   {/* Actions — always-visible icon buttons */}
                   <TableCell className="px-4">
                     <div className="flex items-center justify-end gap-1">
@@ -574,6 +668,14 @@ export default function AdminUsuariosPage() {
                         className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                       >
                         <KeyRound className="size-4" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setTokenUser(user)}
+                        title="Límites de tokens"
+                        className="inline-flex items-center justify-center rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+                      >
+                        <Coins className="size-4" />
                       </button>
                       <button
                         type="button"
@@ -669,6 +771,20 @@ export default function AdminUsuariosPage() {
           );
         }}
         isPending={changePwd.isPending}
+      />
+
+      {/* Dialog: Límites de tokens */}
+      <TokenLimitsDialog
+        user={tokenUser}
+        onClose={() => setTokenUser(null)}
+        onSubmit={(daily, weekly) => {
+          if (!tokenUser) return;
+          tokenLimitsMut.mutate(
+            { id: tokenUser.id, daily_token_limit: daily, weekly_token_limit: weekly },
+            { onSuccess: () => setTokenUser(null) },
+          );
+        }}
+        isPending={tokenLimitsMut.isPending}
       />
     </div>
   );

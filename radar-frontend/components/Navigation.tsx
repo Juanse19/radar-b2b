@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { useState } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { SessionUser } from '@/lib/auth/types';
+import type { SessionUser, UserRole } from '@/lib/auth/types';
 import { SidebarUserSection } from '@/components/AppShell';
 import { navTree, type NavNode } from '@/components/nav/nav-config';
 import { NavItem } from '@/components/nav/NavItem';
@@ -28,12 +28,19 @@ function collectLeafHrefs(node: NavNode): string[] {
  *
  * `iconOnly` propagates through so the collapsed sidebar state hides labels.
  * `indent` marks subitems so they visually hang off their parent group.
+ * `userRole` is used to filter nodes that have a `roles` allowlist.
  */
 function renderNavNode(
   node: NavNode,
-  opts: { iconOnly: boolean; indent?: boolean },
+  opts: { iconOnly: boolean; indent?: boolean; userRole: string | null },
 ): React.ReactNode {
-  const { iconOnly, indent } = opts;
+  const { iconOnly, indent, userRole } = opts;
+
+  // Role-based visibility: if the node declares a `roles` allowlist, hide it
+  // for users whose role is not included.
+  if (node.roles && (!userRole || !node.roles.includes(userRole as UserRole))) {
+    return null;
+  }
 
   if (node.children && node.children.length > 0) {
     const childHrefs = collectLeafHrefs(node);
@@ -48,7 +55,7 @@ function renderNavNode(
         iconOnly={iconOnly}
       >
         {node.children.map((child) =>
-          renderNavNode(child, { iconOnly, indent: true }),
+          renderNavNode(child, { iconOnly, indent: true, userRole }),
         )}
       </NavGroup>
     );
@@ -75,6 +82,7 @@ export function Navigation({ session }: { session: SessionUser | null }) {
   // Role gate: filter adminOnly nodes when user is not ADMIN. Applied at the
   // top level so entire groups (e.g. "Administración") disappear for non-admins.
   const isAdmin = session?.role === 'ADMIN';
+  const userRole = session?.role ?? null;
   const visibleTree = navTree.filter((n) => !n.adminOnly || isAdmin);
 
   return (
@@ -137,7 +145,7 @@ export function Navigation({ session }: { session: SessionUser | null }) {
 
         <nav aria-label="Navegación principal" className="grid gap-0.5">
           {visibleTree.map((node) =>
-            renderNavNode(node, { iconOnly: collapsed }),
+            renderNavNode(node, { iconOnly: collapsed, userRole }),
           )}
         </nav>
       </div>

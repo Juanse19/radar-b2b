@@ -17,13 +17,15 @@ import type { UserRole } from './types';
 // More specific prefixes should come first if needed.
 
 export const ROUTE_ACCESS: Record<string, UserRole[]> = {
-  '/admin/empresas': ['ADMIN', 'COMERCIAL'],
-  '/admin':     ['ADMIN'],
-  '/scan':      ['ADMIN', 'COMERCIAL'],
-  '/schedule':  ['ADMIN', 'COMERCIAL'],
-  '/results':   ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
-  '/contactos': ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
-  '/':          ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
+  '/admin/empresas':    ['ADMIN', 'COMERCIAL'],
+  '/admin':             ['ADMIN'],
+  '/scan':              ['ADMIN', 'COMERCIAL'],
+  '/schedule':          ['ADMIN', 'COMERCIAL'],
+  '/results':           ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
+  '/contactos':         ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
+  '/radar-v2/prompt':   ['ADMIN'],                       // solo ADMIN
+  '/radar-v2':          ['ADMIN', 'COMERCIAL'],          // todos los demás submódulos radar-v2
+  '/':                  ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
 };
 
 // ── Fine-grained actions ──────────────────────────────────────────────────────
@@ -39,6 +41,9 @@ export type Action =
   | 'empresas.create'
   | 'empresas.edit'
   | 'contactos.export'
+  // Radar v2
+  | 'radar.scan'
+  | 'radar.prompt.view'
   // Admin
   | 'admin.manage_users'
   | 'admin.manage_config'
@@ -52,6 +57,8 @@ export const ACTION_ROLES: Record<Action, UserRole[]> = {
   'empresas.create':      ['ADMIN', 'COMERCIAL'],
   'empresas.edit':        ['ADMIN', 'COMERCIAL'],
   'contactos.export':     ['ADMIN', 'COMERCIAL'],
+  'radar.scan':           ['ADMIN', 'COMERCIAL'],
+  'radar.prompt.view':    ['ADMIN'],
   'admin.manage_users':   ['ADMIN'],
   'admin.manage_config':  ['ADMIN'],
   'admin.view_logs':      ['ADMIN'],

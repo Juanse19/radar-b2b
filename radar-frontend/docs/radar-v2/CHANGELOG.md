@@ -1,5 +1,21 @@
 # Changelog — Radar v2
 
+## v6.0.0 — 2026-04-21
+
+### Nuevas funcionalidades
+- **En vivo — Stop button**: Botón "Detener" que cancela el escaneo en curso via POST /api/radar-v2/cancel
+- **En vivo — Historial**: Panel colapsable con los últimos 10 escaneos (estado, costo, duración)
+- **Resultados v2 — Rediseño**: Stat strip con hit-rate bar, cards móviles, ScorePill colorizado
+- **Escanear — Feedback visual**: Selección de línea/modo/proveedor con ring, shadow y Check badge
+- **Auth — Sin flash**: Session seed server-side elimina el parpadeo del sidebar post-login
+- **next.config.mjs**: turbopack movido a top-level (Next.js 16)
+
+### Fixes
+- ManualAgentForm: código-based matching para líneas de negocio
+- Batch progress tracker y países selector
+- 18 unit tests adicionales para lineas matching
+- 3 worktrees huérfanos limpiados → RAM de 39 GB a 1.5 GB
+
 ## v4 — Ultra-review & Fix Sprint (2026-04-17)
 
 ### Fixes

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
     const db = getAdminDb();
     const { data, error, count } = await db
       .from('usuarios')
-      .select('id, nombre, email, rol, estado_acceso, created_at, aprobado_en', { count: 'exact' })
+      .select('id, nombre, email, rol, estado_acceso, created_at, aprobado_en, daily_token_limit, weekly_token_limit', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 

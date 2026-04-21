@@ -20,6 +20,7 @@ import {
   Zap,
   type LucideIcon,
 } from 'lucide-react';
+import type { UserRole } from '@/lib/auth/types';
 
 /**
  * Declarative nav tree for the sidebar.
@@ -37,17 +38,19 @@ export interface NavNode {
   href?: string;
   badge?: string;
   adminOnly?: boolean;
+  /** If present, only users whose role is in this array can see the item. */
+  roles?: UserRole[];
   children?: NavNode[];
 }
 
 export const navTree: NavNode[] = [
   { label: 'Dashboard',         href: '/',                   icon: Home },
-  { label: 'Escanear',          href: '/scan',               icon: Radar },
-  { label: 'Resultados Agente', href: '/agente-resultados',  icon: ClipboardList },
-  { label: 'Calificación',      href: '/calificacion',       icon: CheckCircle2 },
-  { label: 'Resultados',        href: '/results',            icon: Table2 },
+  { label: 'Escanear',          href: '/scan',               icon: Radar,        roles: ['ADMIN'] },
+  { label: 'Resultados Agente', href: '/agente-resultados',  icon: ClipboardList, roles: ['ADMIN'] },
+  { label: 'Calificación',      href: '/calificacion',       icon: CheckCircle2, roles: ['ADMIN'] },
+  { label: 'Resultados',        href: '/results',            icon: Table2,       roles: ['ADMIN'] },
   { label: 'Contactos',         href: '/contactos',          icon: Users },
-  { label: 'Cronograma',        href: '/schedule',           icon: Calendar },
+  { label: 'Cronograma',        href: '/schedule',           icon: Calendar,     roles: ['ADMIN'] },
 
   // Radar v2 — nuevo módulo agrupado con submódulos (pedido explícitamente).
   {

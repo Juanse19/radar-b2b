@@ -14,6 +14,8 @@ export interface AdminUser {
   estado_acceso: 'ACTIVO' | 'PENDIENTE' | 'INACTIVO';
   created_at: string;
   aprobado_en?: string | null;
+  daily_token_limit?: number | null;
+  weekly_token_limit?: number | null;
 }
 
 export interface AdminUsersResponse {
@@ -98,6 +100,32 @@ export function useDeleteUsuario() {
     },
     onError: (err: Error) =>
       toast.error(err.message || 'Error al eliminar usuario'),
+  });
+}
+
+export function useUpdateTokenLimits() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      daily_token_limit,
+      weekly_token_limit,
+    }: {
+      id: string;
+      daily_token_limit: number | null;
+      weekly_token_limit: number | null;
+    }) =>
+      fetchJson(`/api/admin/usuarios/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ daily_token_limit, weekly_token_limit }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['admin', 'usuarios'] });
+      toast.success('Límites de tokens actualizados');
+    },
+    onError: (err: Error) =>
+      toast.error(err.message || 'Error al actualizar límites'),
   });
 }
 

@@ -76,6 +76,80 @@ Para validar que el sistema funciona:
 - **FedEx México** (Intralogística) → señal activa
 - **UPS México** (Intralogística) → descartada sin señal reciente
 
+## Uso del módulo Radar v2 — Guía paso a paso
+
+### Paso 1 — Configurar API Key (primera vez)
+
+1. Abre **Administración** → **API Keys** en el sidebar
+2. Haz clic en **Agregar nueva API Key**
+3. Pega tu API Key de Anthropic (Claude)
+4. Selecciona como **predeterminada** si es tu proveedor principal
+5. Guarda los cambios
+
+Los siguientes módulos (Escanear, Resultados, Métricas) usarán esta API Key automáticamente.
+
+### Paso 2 — Escanear empresas
+
+1. Abre **Radar v2** → selecciona **Escanear**
+2. Elige la(s) **línea(s) de negocio**:
+   - BHS (Aeropuertos)
+   - Cartón Corrugado
+   - Intralogística (CEDI/WMS)
+   - Final de Línea
+   - Motos (Ensambladoras)
+   - Solumat (Plásticos)
+3. Selecciona el **modo**:
+   - **Automático**: el sistema elige las N empresas de mayor relevancia (1-20)
+   - **Manual**: tú seleccionas las empresas específicas
+4. El wizard avanza automáticamente cuando línea + modo están configurados
+
+### Paso 3 — Revisar configuración y costo
+
+En el **Paso 3** del wizard:
+- Se muestra un resumen de las empresas a escanear
+- El **costo estimado** aparece al lado (típicamente $0.005–$0.02 USD por empresa)
+- Opcionalmente, ajusta el **presupuesto máximo** con el slider si quieres poner un tope
+- Revisa fuentes y palabras clave (ya están optimizadas por defecto)
+
+Luego haz clic en **🚀 Ejecutar escaneo**.
+
+### Paso 4 — Ver resultados en vivo
+
+La pantalla **/radar-v2/vivo** muestra el escaneo en tiempo real:
+
+- **Indicadores de estado** por empresa:
+  - 🟡 **Escaneando** — búsqueda web en curso
+  - 🟢 **Señal activa** — encontró oportunidad de inversión
+  - ⚪ **Sin señal** — no hay indicios de gasto próximo
+  - 🔴 **Error** — algo falló (red, API, timeout)
+
+- **Expandir detalles**: haz clic en cualquier empresa para ver el log completo con búsquedas realizadas, fuentes leídas y criterios evaluados
+- **Botón "Detener"**: cancela el escaneo si cambias de opinión (útil para large batches)
+- **Panel "Historial"**: colapsable, muestra los últimos 10 escaneos con estado, costo total y duración
+
+### Paso 5 — Revisar y filtrar resultados históricos
+
+Abre **Radar v2** → **Resultados** para ver todas las señales detectadas:
+
+- **Filtros disponibles**:
+  - Por **línea de negocio**
+  - Por **estado** (Activas / Descartadas)
+  - Por **ventana de compra** (0-6 meses, 6-12, 12-18, etc.)
+- **Columnas**:
+  - Empresa, País, Tipo de señal, Ventana, Monto, Criterios (X/6), Fuente verificada
+- **Descargar Excel**: botón en la barra superior para exportar con 4 hojas (Resumen, Señales Activas, Descartadas, Verificación de fuentes)
+
+## Consideraciones de costo
+
+- El **presupuesto mensual** es establecido por Admin (ver **Admin → Tokens**)
+- **Consumo por scan**:
+  - 1 empresa = ~$0.005–$0.02 USD (depende del proveedor de búsqueda)
+  - Un scan de 20 empresas ≈ $0.10–$0.40 USD
+- **Alertas de presupuesto**:
+  - Al 80% aparece una alerta visual
+  - Al 100%, nuevos scans se bloquean hasta que se libere budget
+- Consulta **Admin → Tokens** para un breakdown histórico detallado por línea, sesión y costo
+
 ## Problemas frecuentes
 
 | Problema | Solución |
