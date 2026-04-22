@@ -54,9 +54,8 @@ export const navTree: NavNode[] = [
 
   // Radar v2 — nuevo módulo agrupado con submódulos (pedido explícitamente).
   {
-    label: 'Radar v2',
+    label: 'Comercial',
     icon:  Zap,
-    badge: 'Nuevo',
     children: [
       { label: 'Escanear',    href: '/radar-v2/escanear',   icon: Zap },
       { label: 'En vivo',    href: '/radar-v2/vivo',       icon: Activity },
