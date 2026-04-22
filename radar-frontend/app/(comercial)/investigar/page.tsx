@@ -24,7 +24,7 @@ import {
   TabsTrigger,
   TabsContent,
 } from '@/components/ui/tabs';
-import { ResultCard } from '@/app/comercial/components/ResultCard';
+import { ResultCard } from '@/app/(comercial)/components/ResultCard';
 import { cn } from '@/lib/utils';
 import type { ComercialResult } from '@/lib/comercial/types';
 

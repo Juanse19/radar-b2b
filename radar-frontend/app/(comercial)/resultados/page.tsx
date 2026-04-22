@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { TrendingUp, Download, Filter, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ResultadosTable } from './components/ResultadosTable';
-import { InformeEjecucion } from '@/app/comercial/components/InformeEjecucion';
+import { InformeEjecucion } from '@/app/(comercial)/components/InformeEjecucion';
 import type { ComercialResult, ComercialResultsFilter } from '@/lib/comercial/types';
 
 const LINEA_OPTIONS = [

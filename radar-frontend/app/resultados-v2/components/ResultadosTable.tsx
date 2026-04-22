@@ -4,7 +4,7 @@ import { ExternalLink, FileText } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
-import { FuenteBadge } from '@/app/comercial/components/FuenteBadge';
+import { FuenteBadge } from '@/app/(comercial)/components/FuenteBadge';
 import type { ComercialResult } from '@/lib/comercial/types';
 
 interface Props {

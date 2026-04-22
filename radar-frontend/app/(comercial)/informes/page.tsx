@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Download, FileText, Search, ScanLine } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { InformeEjecucion } from '@/app/comercial/components/InformeEjecucion';
+import { InformeEjecucion } from '@/app/(comercial)/components/InformeEjecucion';
 
 interface Session {
   session_id:     string;

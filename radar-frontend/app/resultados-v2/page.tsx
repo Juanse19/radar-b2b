@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp } from 'lucide-react';
 import { ResultadosTable } from './components/ResultadosTable';
-import { InformeEjecucion } from '@/app/comercial/components/InformeEjecucion';
+import { InformeEjecucion } from '@/app/(comercial)/components/InformeEjecucion';
 import type { ComercialResult, ComercialResultsFilter } from '@/lib/comercial/types';
 
 const LINEA_OPTIONS = [
