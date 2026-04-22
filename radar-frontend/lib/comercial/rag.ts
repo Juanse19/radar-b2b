@@ -10,7 +10,7 @@ import type { Agente1Result } from '@/lib/comercial/schema';
 
 const S                  = SCHEMA;
 const DEFAULT_INDEX      = 'matec-radar';
-const DEFAULT_NAMESPACE  = 'radar_v2';
+const DEFAULT_NAMESPACE  = 'comercial_dev';
 const DEFAULT_MODEL      = 'voyage-3';
 
 // ---------------------------------------------------------------------------
