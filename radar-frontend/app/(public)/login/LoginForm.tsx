@@ -1,11 +1,27 @@
 'use client';
 
-import { useActionState } from 'react';
+import { useActionState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
 import { loginAction } from '@/lib/auth/actions';
 import { Loader2, AlertCircle } from 'lucide-react';
 
 export function LoginForm() {
+  const router = useRouter();
   const [state, action, isPending] = useActionState(loginAction, {});
+
+  // Navigate AFTER the Server Action POST completes — this is the key fix.
+  // When redirect() was called inside the Server Action, Next.js started a
+  // client-side navigation while the browser was still processing the
+  // Set-Cookie response headers. useLayoutEffect fired before cookies were
+  // stored → sidebar never appeared.
+  //
+  // Now: POST completes → browser stores Set-Cookie → state.success=true →
+  // router.push() → useLayoutEffect fires → cookie IS in document.cookie → ✅
+  useEffect(() => {
+    if (state.success && state.redirectTo) {
+      router.push(state.redirectTo);
+    }
+  }, [state.success, state.redirectTo, router]);
 
   return (
     <form action={action} className="space-y-4">
@@ -63,13 +79,13 @@ export function LoginForm() {
       {/* Submit */}
       <button
         type="submit"
-        disabled={isPending}
+        disabled={isPending || !!state.success}
         className="w-full h-11 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-colors disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-sm"
       >
-        {isPending ? (
+        {isPending || state.success ? (
           <>
             <Loader2 size={16} className="animate-spin" />
-            Iniciando sesión...
+            {state.success ? 'Redirigiendo...' : 'Iniciando sesión...'}
           </>
         ) : (
           'Iniciar sesión'

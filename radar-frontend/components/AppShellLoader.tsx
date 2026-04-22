@@ -77,16 +77,26 @@ export function AppShellLoader({
     }
   }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // ── Paso 3: fallback async si cookie aún no existe ────────────────────────
-  // Cubre sesiones antiguas sin companion cookie y condiciones de timing
-  // donde la cookie no llegó antes del layout effect (poco frecuente).
+  // ── Paso 3: fallback async ────────────────────────────────────────────────
+  // SIEMPRE re-intenta leer la cookie aquí. useEffect corre DESPUÉS del paint,
+  // cuando el browser ya procesó los headers Set-Cookie de la respuesta del
+  // Server Action. Esto cubre la race condition donde useLayoutEffect disparó
+  // antes de que el browser almacenara la cookie (el bug principal).
+  // Si la cookie ya está (layoutEffect la encontró), simplemente sobreescribe
+  // con el mismo valor — sin flicker, sin efecto visible.
   useEffect(() => {
+    const fromCookie = readSessionFromCookie();
+    if (fromCookie) {
+      setSession(fromCookie);
+      return;
+    }
     if (session) return;
+    // Último recurso: pedir al servidor (requiere SESSION_SECRET configurado)
     fetch('/api/session-pub')
       .then(r => (r.ok ? r.json() : null))
       .then((s: SessionUser | null) => { if (s) setSession(s); })
       .catch(() => {});
-  }, [pathname, session]); // Re-chequear en cada navegación también
+  }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return <AppShell session={session}>{children}</AppShell>;
 }
