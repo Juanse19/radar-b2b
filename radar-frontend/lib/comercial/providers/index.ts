@@ -11,9 +11,11 @@ import { openaiProvider } from './openai';
 import { geminiProvider } from './gemini';
 
 const registry: Record<string, AIProvider> = {
-  claude: claudeProvider,
-  openai: openaiProvider,
-  gemini: geminiProvider,
+  claude:     claudeProvider,
+  anthropic:  claudeProvider,   // alias from admin API
+  openai:     openaiProvider,
+  gemini:     geminiProvider,
+  google:     geminiProvider,   // alias from admin API (provider stored as 'google')
 };
 
 /** Returns a provider by name (or the default if `name` is null/undefined). */

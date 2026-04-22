@@ -36,7 +36,33 @@ function buildSystemPrompt(): string {
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
 
-METODOLOGÍA: Ejecuta 3-5 búsquedas web con sub-preguntas específicas: expansión física, licitaciones públicas, CAPEX declarado, proyectos nuevos, contratos adjudicados. Lee las fuentes completas antes de concluir.
+METODOLOGÍA — BÚSQUEDAS REQUERIDAS (ejecuta TODAS antes de concluir):
+1. "{empresa}" CAPEX 2026 2027 plan inversión expansión
+2. "{empresa}" licitación contratación pública {país} 2026
+3. "{empresa}" "nueva planta" OR "nueva sede" OR "expansión" {palabras_clave_linea}
+4. "{empresa}" informe anual 2024 2025 inversiones estrategia
+5. "{empresa}" site:secop.gov.co OR site:compraNET OR site:mercadopublico.cl (según país)
+
+PALABRAS CLAVE POR LÍNEA (usa las del sector correspondiente):
+- BHS/Aeropuertos: ampliación terminal aeropuerto CAPEX concesión pista sorter BHS
+- Intralogística: CEDI bodega almacén automatización WMS conveyor ASRS sortación
+- Cartón/Papel: planta corrugadora cartón ondulado CAPEX expansión capacidad producción
+- Final de Línea: palletizador embalaje packaging línea producción alimentos bebidas CAPEX
+- Motos/Ensambladoras: ensambladora motocicleta planta CAPEX expansión línea producción
+- Solumat/Plásticos: planta plástico material industrial molde inyección CAPEX expansión
+
+FUENTES PRIORITARIAS (mayor credibilidad — busca aquí primero):
+- Contratación pública: SECOP II (Colombia), CompraNet (México), SEACE (Perú), ChileCompra, SISCO (Argentina), SIGA (Panamá)
+- Prensa económica: Reuters, Bloomberg, BNAmericas, El Tiempo, Expansión MX, El Economista, Diario Financiero
+- Fuentes oficiales empresa: investor.{empresa}.com, {empresa}.com/inversionistas, reportes anuales, comunicados IR
+- Organismos multilaterales: CAF/IDB proyectos, Banco Mundial PPFD, bancos de desarrollo nacionales
+
+FUENTES A IGNORAR (no usar como soporte de señal de inversión):
+- Wikipedia, Wikimedia, enciclopedias genéricas → DESCARTAR siempre
+- Redes sociales (LinkedIn posts, Twitter/X, Facebook) → DESCARTAR
+- Ofertas de empleo o job postings → DESCARTAR
+- Artículos de marketing o PR corporativo sin cifras verificables → DESCARTAR
+- Noticias sin fecha o anteriores a enero 2025 sin actualización → DESCARTAR
 
 INCLUIR (radar_activo: "Sí"): inversión futura 6-36 meses, proyecto específico identificado, licitación/RFP abierto, CAPEX sin ejecutar, construcción en curso con fases futuras por iniciar.
 DESCARTAR (radar_activo: "No"): obra inaugurada/terminada, noticia pre-2025 sin actualización, nota genérica sin proyecto concreto, evento ya realizado, expansión ya ejecutada.
@@ -118,11 +144,39 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG is optional — scan continues without context */ }
 
+  const lineKeywords: Record<string, string> = {
+    bhs:            'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    aeropuerto:     'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    cargo:          'bodega aerocarga CAPEX expansión logística aérea licitación',
+    cartón:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    carton:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    papel:          'planta corrugadora cartón CAPEX expansión capacidad producción',
+    intralogística: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    intralogistica: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    'final de línea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    'final de linea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    motos:          'ensambladora motocicleta planta CAPEX expansión línea producción',
+    solumat:        'planta plástico material industrial molde inyección CAPEX expansión',
+    plástico:       'planta plástico material industrial molde inyección CAPEX expansión',
+  };
+  const lineKey = line.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const keywords = Object.entries(lineKeywords).find(([k]) =>
+    lineKey.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  )?.[1] ?? 'CAPEX inversión expansión planta nueva 2026 2027';
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}
+Palabras clave de búsqueda: ${keywords}
 
-Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta empresa en LATAM.`;
+TAREA: Busca señales de inversión FUTURA de esta empresa en LATAM para 2026-2028.
+Ejecuta estas búsquedas en orden:
+1. "${company.name}" ${keywords} 2026 2027
+2. "${company.name}" licitación contratación pública ${company.country}
+3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+
+Usa solo fuentes con proyectos confirmados. Ignora Wikipedia, redes sociales y ofertas de empleo.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`

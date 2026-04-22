@@ -36,7 +36,25 @@ function buildSystemPrompt(): string {
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
 
-Tienes acceso a búsqueda web en tiempo real vía Google Search. Ejecuta búsquedas web para encontrar señales de inversión FUTURA de esta empresa en LATAM para 2026-2028.
+Tienes acceso a búsqueda web en tiempo real vía Google Search. Ejecuta las siguientes búsquedas en orden para cada empresa:
+1. "{empresa}" {palabras_clave_linea} CAPEX 2026 2027 expansión
+2. "{empresa}" licitación contratación pública {país} 2026
+3. "{empresa}" "nueva planta" OR "expansión" OR "ampliación" {país}
+4. "{empresa}" informe anual 2024 2025 inversión CAPEX estrategia
+5. "{empresa}" proyecto {país} BID CAF infraestructura 2026 2027
+
+FUENTES PRIORITARIAS (usar primero, mayor peso en evaluación):
+- Portales contratación pública: SECOP II (Colombia), CompraNet (México), ChileCompra, SEACE (Perú), SISCO (Argentina)
+- Prensa económica especializada: Reuters, Bloomberg, BNAmericas, El Tiempo, Expansión MX, El Economista MX, Diario Financiero CL, La República CO
+- Sitios IR de empresa: investor.{empresa}.com, {empresa}.com/inversionistas, reportes anuales, comunicados de prensa oficiales
+- Multilaterales: CAF, BID Invest, Banco Mundial proyectos, BNDES (Brasil), Findeter (Colombia)
+
+FUENTES PROHIBIDAS — NO USAR, NO CITAR bajo ninguna circunstancia:
+- Wikipedia, Wikimedia, enciclopedias online genéricas
+- Redes sociales: LinkedIn posts, Twitter/X, Facebook, Instagram
+- Portales de empleo: LinkedIn Jobs, Indeed, Computrabajo
+- Artículos de marketing o "salud corporativa" sin cifras verificables
+- Noticias sin fecha, pre-2025, o sin fuente identificable
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
 DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
@@ -92,11 +110,39 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG optional */ }
 
+  const lineKeywords: Record<string, string> = {
+    bhs:            'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    aeropuerto:     'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    cargo:          'bodega aerocarga CAPEX expansión logística aérea licitación',
+    cartón:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    carton:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    papel:          'planta corrugadora cartón CAPEX expansión capacidad producción',
+    intralogística: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    intralogistica: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    'final de línea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    'final de linea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    motos:          'ensambladora motocicleta planta CAPEX expansión línea producción',
+    solumat:        'planta plástico material industrial molde inyección CAPEX expansión',
+    plástico:       'planta plástico material industrial molde inyección CAPEX expansión',
+  };
+  const lineKey = line.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const keywords = Object.entries(lineKeywords).find(([k]) =>
+    lineKey.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  )?.[1] ?? 'CAPEX inversión expansión planta nueva 2026 2027';
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}
+Palabras clave del sector: ${keywords}
 
-Analiza si esta empresa tiene señales de inversión futura relevantes para las líneas de negocio de Matec en LATAM para el período 2026-2028. Usa Google Search para encontrar información reciente sobre planes de expansión, CAPEX, licitaciones y proyectos.`;
+TAREA: Busca señales de inversión FUTURA para esta empresa en LATAM 2026-2028 usando Google Search.
+Ejecuta estas búsquedas en orden:
+1. "${company.name}" ${keywords} 2026 2027
+2. "${company.name}" licitación contratación pública ${company.country}
+3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+
+IMPORTANTE: Usa solo fuentes primarias con proyectos documentados (SECOP, Reuters, reportes anuales). NO cites Wikipedia, redes sociales ni portales de empleo.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`

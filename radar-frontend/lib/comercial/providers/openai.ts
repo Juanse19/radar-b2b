@@ -17,10 +17,12 @@ import type {
   SupportedFeature,
 } from './types';
 
-const OPENAI_MODEL       = process.env.OPENAI_MODEL ?? 'gpt-4o';
-// GPT-4o pricing (as of 2026-04): $2.50/1M input, $10.00/1M output
-const PRICE_INPUT_PER_M  = 2.5;
-const PRICE_OUTPUT_PER_M = 10.0;
+// Default to gpt-4o-mini: supports web_search_preview, $0.15/1M in, $0.60/1M out
+// (gpt-4o fallback available via OPENAI_MODEL env var if needed)
+const OPENAI_MODEL       = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+// GPT-4o-mini pricing (as of 2026-04): $0.15/1M input, $0.60/1M output
+const PRICE_INPUT_PER_M  = 0.15;
+const PRICE_OUTPUT_PER_M = 0.60;
 
 // ---------------------------------------------------------------------------
 // Responses API types
@@ -63,7 +65,25 @@ function buildSystemPrompt(): string {
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
 
-Tienes acceso a búsqueda web en tiempo real. Ejecuta 3-5 búsquedas web con sub-preguntas específicas para cada empresa: expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.
+Tienes acceso a búsqueda web en tiempo real. Ejecuta EXACTAMENTE estas 4-5 búsquedas para cada empresa:
+1. "{empresa}" {palabras_clave_linea} CAPEX 2026 2027
+2. "{empresa}" licitación contratación pública {país} 2026
+3. "{empresa}" "nueva planta" OR "expansión" OR "ampliación" {país}
+4. "{empresa}" informe anual 2024 2025 inversiones estrategia crecimiento
+5. "{empresa}" proyecto infraestructura {país} BID CAF Banco Mundial (si aplica)
+
+FUENTES PRIORITARIAS (mayor credibilidad):
+- Contratación pública: SECOP II (Colombia), CompraNet (México), ChileCompra, SEACE (Perú)
+- Prensa económica: Reuters, Bloomberg, BNAmericas, El Tiempo, Expansión, El Economista
+- Fuentes de empresa: investor.{empresa}.com, reportes anuales, comunicados IR
+- Multilaterales: CAF, BID, Banco Mundial (proyectos de infraestructura)
+
+FUENTES PROHIBIDAS (ignorar completamente, no citar):
+- Wikipedia, Wikimedia, enciclopedias → NO USAR
+- LinkedIn posts, Twitter, Facebook, redes sociales → NO USAR
+- Ofertas de empleo / job postings → NO USAR
+- Artículos de marketing sin cifras verificables → NO USAR
+- Noticias sin fecha o anteriores a enero 2025 → NO USAR
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
 DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
@@ -142,11 +162,39 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG optional */ }
 
+  const lineKeywords: Record<string, string> = {
+    bhs:            'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    aeropuerto:     'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    cargo:          'bodega aerocarga CAPEX expansión logística aérea licitación',
+    cartón:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    carton:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    papel:          'planta corrugadora cartón CAPEX expansión capacidad producción',
+    intralogística: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    intralogistica: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    'final de línea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    'final de linea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    motos:          'ensambladora motocicleta planta CAPEX expansión línea producción',
+    solumat:        'planta plástico material industrial molde inyección CAPEX expansión',
+    plástico:       'planta plástico material industrial molde inyección CAPEX expansión',
+  };
+  const lineKey = line.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const keywords = Object.entries(lineKeywords).find(([k]) =>
+    lineKey.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  )?.[1] ?? 'CAPEX inversión expansión planta nueva 2026 2027';
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}
+Palabras clave del sector: ${keywords}
 
-Busca en la web y analiza si esta empresa tiene señales de inversión futura relevantes para las líneas de negocio de Matec en LATAM para el período 2026-2028. Ejecuta búsquedas sobre expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.`;
+TAREA: Busca señales de inversión FUTURA en LATAM 2026-2028 para esta empresa.
+Ejecuta estas búsquedas exactas:
+1. "${company.name}" ${keywords} 2026 2027
+2. "${company.name}" licitación contratación pública ${company.country}
+3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+
+IMPORTANTE: Usa solo fuentes con proyectos documentados. NO cites Wikipedia, redes sociales ni ofertas de empleo.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
