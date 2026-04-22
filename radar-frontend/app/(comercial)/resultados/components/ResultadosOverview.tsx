@@ -134,65 +134,75 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
       <TierStatStrip counts={counts} loading={loading} />
 
       {/* Filter bar */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Filter size={14} className="shrink-0 text-muted-foreground" aria-hidden />
-
-        <div className="relative">
-          <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Buscar empresa…"
-            className="h-9 w-full pl-7 text-xs sm:w-44"
-            aria-label="Buscar empresa"
-          />
+      <div className="flex flex-wrap items-end gap-3">
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+            <Filter size={10} aria-hidden />
+            Buscar
+          </label>
+          <div className="relative">
+            <Search size={11} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" aria-hidden />
+            <Input
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Empresa…"
+              className="h-8 w-44 pl-7 text-xs"
+              aria-label="Buscar empresa"
+            />
+          </div>
         </div>
 
-        <Select value={linea} onValueChange={v => setLinea(v ?? 'ALL')}>
-          <SelectTrigger className="h-9 w-full sm:w-48 text-xs" aria-label="Filtrar por línea">
-            <SelectValue placeholder="Línea…" />
-          </SelectTrigger>
-          <SelectContent>
-            {LINEA_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Línea</label>
+          <Select value={linea} onValueChange={v => setLinea(v ?? 'ALL')}>
+            <SelectTrigger className="h-8 w-48 text-xs" aria-label="Filtrar por línea">
+              <SelectValue placeholder="Todas las líneas" />
+            </SelectTrigger>
+            <SelectContent>
+              {LINEA_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select value={tier} onValueChange={v => setTier(v ?? 'ALL')}>
-          <SelectTrigger className="h-9 w-full sm:w-40 text-xs" aria-label="Filtrar por tier">
-            <SelectValue placeholder="Tier…" />
-          </SelectTrigger>
-          <SelectContent>
-            {TIER_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Tier</label>
+          <Select value={tier} onValueChange={v => setTier(v ?? 'ALL')}>
+            <SelectTrigger className="h-8 w-36 text-xs" aria-label="Filtrar por tier">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              {TIER_OPTIONS.map(o => (
+                <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
 
-        <Select
-          value={radar}
-          onValueChange={v => setRadar(v as 'ALL' | 'Sí' | 'No')}
-        >
-          <SelectTrigger className="h-9 w-full sm:w-40 text-xs" aria-label="Filtrar por estado radar">
-            <SelectValue placeholder="Radar…" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL" className="text-xs">Todos los estados</SelectItem>
-            <SelectItem value="Sí"  className="text-xs">Con señal activa</SelectItem>
-            <SelectItem value="No"  className="text-xs">Sin señal</SelectItem>
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col gap-1">
+          <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Estado</label>
+          <Select value={radar} onValueChange={v => setRadar(v as 'ALL' | 'Sí' | 'No')}>
+            <SelectTrigger className="h-8 w-36 text-xs" aria-label="Filtrar por estado radar">
+              <SelectValue placeholder="Todos" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL" className="text-xs">Todos</SelectItem>
+              <SelectItem value="Sí"  className="text-xs">Con señal</SelectItem>
+              <SelectItem value="No"  className="text-xs">Sin señal</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
 
         {filtersActive && (
           <Button
             variant="ghost"
             size="sm"
-            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
+            className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground self-end"
             onClick={resetFilters}
             aria-label="Limpiar filtros"
           >
-            <RotateCcw size={12} />
+            <RotateCcw size={11} />
             Limpiar
           </Button>
         )}

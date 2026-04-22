@@ -9,75 +9,76 @@ interface TierStatStripProps {
   loading: boolean;
 }
 
-interface StatChipProps {
+interface TierChipProps {
   label:   string;
-  value:   number | string;
-  accent?: 'amber' | 'blue' | 'zinc' | 'red' | 'green' | 'muted' | 'default';
+  value:   number;
+  color:   string;      // Tailwind text color class
+  bg:      string;      // Tailwind bg class
+  border:  string;      // Tailwind border class
   loading: boolean;
 }
 
-function StatChip({ label, value, accent = 'default', loading }: StatChipProps) {
-  const valueClass = cn(
-    'block text-xl font-bold tabular-nums leading-none',
-    accent === 'amber'   && 'text-amber-600 dark:text-amber-400',
-    accent === 'blue'    && 'text-blue-600 dark:text-blue-400',
-    accent === 'zinc'    && 'text-zinc-500 dark:text-zinc-400',
-    accent === 'red'     && 'text-red-600 dark:text-red-400',
-    accent === 'green'   && 'text-green-600 dark:text-green-400',
-    accent === 'muted'   && 'text-muted-foreground',
-    accent === 'default' && 'text-foreground',
-  );
-
+function TierChip({ label, value, color, bg, border, loading }: TierChipProps) {
   return (
-    <div className="flex flex-col items-center gap-0.5 px-3 py-2">
+    <div className={cn('flex flex-col items-center gap-0.5 rounded-lg border px-3 py-2.5 min-w-[64px]', bg, border)}>
       {loading ? (
         <Skeleton className="h-6 w-8 rounded" />
       ) : (
-        <span className={valueClass}>{value}</span>
+        <span className={cn('text-xl font-bold tabular-nums leading-none', color)}>{value}</span>
       )}
-      <span className="text-[10px] text-muted-foreground whitespace-nowrap">{label}</span>
+      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{label}</span>
     </div>
   );
 }
 
-const TIER_CONFIG: Array<{ key: TierLetter | 'null'; label: string; accent: StatChipProps['accent'] }> = [
-  { key: 'A',             label: 'Tier A',   accent: 'amber' },
-  { key: 'B',             label: 'Tier B',   accent: 'blue'  },
-  { key: 'C',             label: 'Tier C',   accent: 'zinc'  },
-  { key: 'D',             label: 'Tier D',   accent: 'red'   },
-  { key: 'sin_calificar', label: 'Sin cal.', accent: 'muted' },
+const TIER_CONFIG: Array<{
+  key:    TierLetter | 'null';
+  label:  string;
+  color:  string;
+  bg:     string;
+  border: string;
+}> = [
+  { key: 'A',             label: 'Tier A',   color: 'text-amber-600 dark:text-amber-400',  bg: 'bg-amber-500/5',  border: 'border-amber-500/20' },
+  { key: 'B',             label: 'Tier B',   color: 'text-blue-600 dark:text-blue-400',    bg: 'bg-blue-500/5',   border: 'border-blue-500/20'  },
+  { key: 'C',             label: 'Tier C',   color: 'text-zinc-500 dark:text-zinc-400',    bg: 'bg-zinc-500/5',   border: 'border-zinc-500/20'  },
+  { key: 'D',             label: 'Tier D',   color: 'text-red-600 dark:text-red-400',      bg: 'bg-red-500/5',    border: 'border-red-500/20'   },
+  { key: 'sin_calificar', label: 'Sin cal.', color: 'text-muted-foreground',               bg: 'bg-muted/20',     border: 'border-border'       },
 ];
 
 export function TierStatStrip({ counts, loading }: TierStatStripProps) {
   return (
-    <div className="flex flex-wrap items-stretch gap-0 rounded-xl border border-border bg-card overflow-hidden">
-      <StatChip
-        label="empresas"
-        value={counts.total}
-        accent="default"
-        loading={loading}
-      />
+    <div className="flex flex-wrap items-stretch gap-2">
+      {/* Total */}
+      <div className="flex flex-col items-center gap-0.5 rounded-lg border border-border bg-card px-4 py-2.5 min-w-[72px]">
+        {loading ? (
+          <Skeleton className="h-6 w-10 rounded" />
+        ) : (
+          <span className="text-xl font-bold tabular-nums leading-none text-foreground">{counts.total}</span>
+        )}
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Empresas</span>
+      </div>
 
-      {TIER_CONFIG.map(({ key, label, accent }) => (
-        <div key={key} className="flex items-stretch">
-          <div className="w-px bg-border/50 self-stretch" aria-hidden />
-          <StatChip
-            label={label}
-            value={counts.por_tier[key] ?? 0}
-            accent={accent}
-            loading={loading}
-          />
-        </div>
-      ))}
-
-      <div className="flex items-stretch">
-        <div className="w-px bg-border/50 self-stretch" aria-hidden />
-        <StatChip
-          label="con señal"
-          value={counts.con_radar}
-          accent="green"
+      {/* Tier chips */}
+      {TIER_CONFIG.map(({ key, label, color, bg, border }) => (
+        <TierChip
+          key={key}
+          label={label}
+          value={counts.por_tier[key] ?? 0}
+          color={color}
+          bg={bg}
+          border={border}
           loading={loading}
         />
+      ))}
+
+      {/* Con señal */}
+      <div className="flex flex-col items-center gap-0.5 rounded-lg border border-green-500/20 bg-green-500/5 px-3 py-2.5 min-w-[72px]">
+        {loading ? (
+          <Skeleton className="h-6 w-8 rounded" />
+        ) : (
+          <span className="text-xl font-bold tabular-nums leading-none text-green-600 dark:text-green-400">{counts.con_radar}</span>
+        )}
+        <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Con señal</span>
       </div>
     </div>
   );
