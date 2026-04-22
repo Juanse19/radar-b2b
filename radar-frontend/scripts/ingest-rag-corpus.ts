@@ -5,7 +5,7 @@
  * Usage:
  *   npx tsx scripts/ingest-rag-corpus.ts
  *
- * - Reads all .md files from lib/radar-v2/rag-corpus/
+ * - Reads all .md files from lib/comercial/rag-corpus/
  * - Chunks to ~500 tokens (2000 chars) with 100-token (400 char) overlap
  * - Embeds each chunk via Voyage AI or OpenAI
  * - Upserts to Pinecone with deterministic id = sha256(chunk_text)
@@ -25,10 +25,10 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true 
 // Config
 // ---------------------------------------------------------------------------
 
-const CORPUS_DIR      = path.resolve(process.cwd(), 'lib/radar-v2/rag-corpus');
+const CORPUS_DIR      = path.resolve(process.cwd(), 'lib/comercial/rag-corpus');
 const CHUNK_CHARS     = 2000;  // ~500 tokens
 const OVERLAP_CHARS   = 400;   // ~100 tokens overlap
-const NAMESPACE       = process.env.PINECONE_NAMESPACE_V2 ?? 'radar_v2';
+const NAMESPACE       = process.env.PINECONE_NAMESPACE_COMERCIAL ?? 'radar_v2';
 const INDEX_NAME      = process.env.PINECONE_INDEX        ?? 'matec-radar';
 const EMBEDDING_MODEL = process.env.EMBEDDING_MODEL       ?? 'voyage-3';
 const PROVIDER        = process.env.EMBEDDING_PROVIDER    ?? 'voyage';

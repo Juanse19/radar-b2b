@@ -1,5 +1,5 @@
 /**
- * Integration test for /api/radar-v2 route.
+ * Integration test for /api/comercial route.
  * Uses MSW (or fetch mock) to avoid calling the real Edge Function.
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
@@ -28,7 +28,7 @@ const MOCK_RESULT = {
   tokens_output:       600,
 };
 
-describe('/api/radar-v2 route contract', () => {
+describe('/api/comercial route contract', () => {
   let originalFetch: typeof global.fetch;
 
   beforeEach(() => {

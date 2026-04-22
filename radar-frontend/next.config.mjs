@@ -12,12 +12,12 @@ const nextConfig = {
     return [
       {
         source: '/resultados-v2',
-        destination: '/radar-v2/resultados',
+        destination: '/resultados',
         permanent: true,
       },
       {
         source: '/resultados-v2/:path*',
-        destination: '/radar-v2/resultados/:path*',
+        destination: '/resultados/:path*',
         permanent: true,
       },
     ];

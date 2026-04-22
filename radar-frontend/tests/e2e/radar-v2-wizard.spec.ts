@@ -5,7 +5,7 @@
  * TC-W-02  Selección de línea es visualmente visible (ring/highlight en el botón)
  * TC-W-03  Auto-advance a Step2 cuando se eligen línea + modo, muestra slider/empresas
  * TC-W-04  Navegar a Step3 (URL-driven) muestra selector de proveedor y botón Ejecutar
- * TC-W-05  Al ejecutar navega a /radar-v2/vivo con sessionId en URL
+ * TC-W-05  Al ejecutar navega a /comercial/vivo con sessionId en URL
  * TC-W-06  /vivo muestra eventos SSE (scan_started al menos)
  * TC-W-07  Si OpenAI falla con 429 → evento provider_fallback aparece en timeline
  * TC-W-08  "Escaneo finalizado" aparece al terminar
@@ -17,7 +17,7 @@
  * Rather than clicking through the UI for every step (which races with Next.js's
  * async URL propagation), tests that need a specific step navigate there directly:
  *
- *   /radar-v2/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude
+ *   /comercial/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude
  *
  * TC-W-01/02 still click the UI to verify interactive feedback.
  * TC-W-03 verifies the auto-advance effect by navigating to ?line=BHS&mode=auto
@@ -43,7 +43,7 @@ async function devLogin(page: Page) {
  * The wizard's useEffect auto-advances to step=2 ~400 ms after both are set.
  */
 async function goToStep2(page: Page, mode: 'auto' | 'manual' = 'auto') {
-  await page.goto(`/radar-v2/escanear?line=BHS&mode=${mode}`);
+  await page.goto(`/escanear?line=BHS&mode=${mode}`);
   await page.waitForLoadState('networkidle');
   // Wait for the auto-advance to update the URL (up to 5 s)
   await page.waitForURL(/[?&]step=2/, { timeout: 5_000 }).catch(() => null);
@@ -55,7 +55,7 @@ async function goToStep2(page: Page, mode: 'auto' | 'manual' = 'auto') {
  */
 async function goToStep3(page: Page, provider = 'claude') {
   await page.goto(
-    `/radar-v2/escanear?step=3&line=BHS&mode=auto&count=1&provider=${provider}`,
+    `/escanear?step=3&line=BHS&mode=auto&count=1&provider=${provider}`,
   );
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(300);
@@ -74,7 +74,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
   // TC-W-01 Step1 carga
   // ──────────────────────────────────────────────────────────────────────────
   test('TC-W-01 · Step 1 carga y muestra opciones de línea y modo', async ({ page }) => {
-    await page.goto('/radar-v2/escanear');
+    await page.goto('/escanear');
     await page.waitForLoadState('networkidle');
 
     // Debe mostrar al menos una de las líneas de negocio
@@ -106,7 +106,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
   // TC-W-02 Selección visual del chip de línea
   // ──────────────────────────────────────────────────────────────────────────
   test('TC-W-02 · Seleccionar una línea cambia su estilo (ring/border)', async ({ page }) => {
-    await page.goto('/radar-v2/escanear');
+    await page.goto('/escanear');
     await page.waitForLoadState('networkidle');
 
     const lineas = ['BHS', 'Intralogística', 'Cartón'];
@@ -202,7 +202,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
   // ──────────────────────────────────────────────────────────────────────────
   // TC-W-05 Ejecutar → navega a /vivo
   // ──────────────────────────────────────────────────────────────────────────
-  test('TC-W-05 · Ejecutar navega a /radar-v2/vivo con sessionId', async ({ page }) => {
+  test('TC-W-05 · Ejecutar navega a /comercial/vivo con sessionId', async ({ page }) => {
     test.setTimeout(40_000);
 
     await goToStep3(page, 'claude');
@@ -211,13 +211,13 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     await ejecutarBtn.waitFor({ state: 'visible', timeout: 5_000 });
     await ejecutarBtn.click();
 
-    // handleFire() calls /api/radar-v2/auto-select then router.push → /vivo
-    await page.waitForURL(/\/radar-v2\/vivo/, { timeout: 15_000 }).catch(() => null);
+    // handleFire() calls /api/comercial/auto-select then router.push → /vivo
+    await page.waitForURL(/\/comercial\/vivo/, { timeout: 15_000 }).catch(() => null);
 
     await page.screenshot({ path: 'test-results/TC-W-05-vivo-navigation.png' });
 
     const currentUrl = page.url();
-    expect(currentUrl).toContain('/radar-v2/vivo');
+    expect(currentUrl).toContain('/vivo');
     expect(currentUrl).toContain('sessionId');
   });
 
@@ -233,7 +233,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     await ejecutarBtn.waitFor({ state: 'visible', timeout: 5_000 });
     await ejecutarBtn.click();
 
-    await page.waitForURL(/\/radar-v2\/vivo/, { timeout: 15_000 }).catch(() => null);
+    await page.waitForURL(/\/comercial\/vivo/, { timeout: 15_000 }).catch(() => null);
 
     // Wait for at least one SSE event text
     const iniciadoTexts = [
@@ -260,7 +260,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     test.setTimeout(90_000); // needs time for the SSE stream to produce an error
 
     const sessionId = crypto.randomUUID();
-    const companiesRes = await page.request.get('/api/radar-v2/companies?linea=BHS&limit=1');
+    const companiesRes = await page.request.get('/api/comercial/companies?linea=BHS&limit=1');
     let empresa = { id: 1, name: 'Test Company', country: 'Colombia' };
     if (companiesRes.ok()) {
       const list = await companiesRes.json() as Array<{ id: number; name: string; country: string }>;
@@ -274,7 +274,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
       empresas: JSON.stringify([empresa]),
     });
 
-    await page.goto(`/radar-v2/vivo?${params.toString()}`);
+    await page.goto(`/vivo?${params.toString()}`);
     await page.waitForLoadState('networkidle');
 
     // Wait for fallback indicator OR 429 / quota error text
@@ -302,7 +302,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     test.setTimeout(90_000);
 
     const sessionId = crypto.randomUUID();
-    const companiesRes = await page.request.get('/api/radar-v2/companies?linea=BHS&limit=1');
+    const companiesRes = await page.request.get('/api/comercial/companies?linea=BHS&limit=1');
     let empresa = { id: 1, name: 'Test Company', country: 'Colombia' };
     if (companiesRes.ok()) {
       const list = await companiesRes.json() as Array<{ id: number; name: string; country: string }>;
@@ -316,7 +316,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
       empresas: JSON.stringify([empresa]),
     });
 
-    await page.goto(`/radar-v2/vivo?${params.toString()}`);
+    await page.goto(`/vivo?${params.toString()}`);
 
     const finalizadoVisible = await page
       .waitForSelector('text=Escaneo finalizado', { timeout: 75_000 })
@@ -334,7 +334,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     test.setTimeout(60_000);
 
     const sessionId = crypto.randomUUID();
-    const companiesRes = await page.request.get('/api/radar-v2/companies?linea=BHS&limit=1');
+    const companiesRes = await page.request.get('/api/comercial/companies?linea=BHS&limit=1');
     let empresa = { id: 1, name: 'Test Company', country: 'Colombia' };
     if (companiesRes.ok()) {
       const list = await companiesRes.json() as Array<{ id: number; name: string; country: string }>;
@@ -348,7 +348,7 @@ test.describe('Radar v2 — Wizard Escanear', () => {
       empresas: JSON.stringify([empresa]),
     });
 
-    await page.goto(`/radar-v2/vivo?${params.toString()}`);
+    await page.goto(`/vivo?${params.toString()}`);
 
     const widgetIndicators = ['Escaneo activo', 'En curso', 'Ver en vivo', 'activo'];
     let widgetFound = false;

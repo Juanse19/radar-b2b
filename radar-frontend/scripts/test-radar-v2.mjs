@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 /**
- * test-radar-v2.mjs — Prueba directa del Agente 1 RADAR contra Claude API.
+ * test-comercial.mjs — Prueba directa del Agente 1 RADAR contra Claude API.
  * No requiere desplegar la Edge Function.
  *
  * Uso:
- *   node scripts/test-radar-v2.mjs
+ *   node scripts/test-comercial.mjs
  */
 
 import { readFileSync } from 'fs';
