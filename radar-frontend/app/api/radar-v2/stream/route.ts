@@ -14,7 +14,7 @@
  */
 import type { NextRequest } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
-import { scanCompany, getActiveBudget } from '@/lib/radar-v2/scanner';
+import { scanCompany, getActiveBudget, type ScanResult } from '@/lib/radar-v2/scanner';
 import { isCancelled, clearCancellation } from '@/lib/radar-v2/scan-cancellation';
 import {
   createSSEEmitter,
@@ -35,10 +35,17 @@ export const runtime = 'nodejs';
 // Scans can take several minutes on a multi-company batch (each + rate-limit delays).
 export const maxDuration = 300;
 
-// ms to wait between companies — 2s is sufficient for all providers.
-// The original 65s was overly conservative for Claude's rate limit and unusable
-// for OpenAI/Gemini. Callers that need a longer delay can pass it as a query param.
-const RATE_LIMIT_DELAY_MS = 2_000;
+// ms to wait between companies.
+// Claude's org limit is 30 000 input tokens/minute. Each scan can consume
+// 15 000–25 000 input tokens, so back-to-back scans without a delay exhaust
+// the budget within the same 60-second window.  10 s is a safe default; the
+// retry logic below handles any residual 429s.
+const INTER_COMPANY_DELAY_MS = 10_000;
+
+// When a 429 rate-limit error is returned, wait this long before retrying.
+// 65 s ensures the 60-second token window has fully reset.
+const RATE_LIMIT_RETRY_WAIT_MS = 65_000;
+const MAX_RATE_LIMIT_RETRIES   = 2;
 
 interface CompanyInput {
   id?:      number;
@@ -160,16 +167,42 @@ export async function GET(req: NextRequest) {
         }
 
         if (i > 0) {
-          await new Promise(r => setTimeout(r, RATE_LIMIT_DELAY_MS));
+          await new Promise(r => setTimeout(r, INTER_COMPANY_DELAY_MS));
         }
 
         const company = empresas[i];
         try {
-          const scan = await scanCompany(company, line, {
-            providerName: provider,
-            sessionId,
-            emit:         emitter,
-          });
+          // Retry up to MAX_RATE_LIMIT_RETRIES times on 429 rate-limit errors.
+          let scan: ScanResult | undefined;
+          let rateLimitAttempts = 0;
+          while (true) {
+            try {
+              scan = await scanCompany(company, line, {
+                providerName: provider,
+                sessionId,
+                emit:         emitter,
+              });
+              break; // success — exit retry loop
+            } catch (retryErr) {
+              const retryMsg = retryErr instanceof Error ? retryErr.message : String(retryErr);
+              const isRateLimit =
+                retryMsg.includes('límite de tasa') ||
+                retryMsg.includes('rate_limit') ||
+                retryMsg.includes('429');
+              if (isRateLimit && rateLimitAttempts < MAX_RATE_LIMIT_RETRIES) {
+                rateLimitAttempts++;
+                emitter.emit('rate_limit_wait', {
+                  empresa:  company.name,
+                  wait_ms:  RATE_LIMIT_RETRY_WAIT_MS,
+                  attempt:  rateLimitAttempts,
+                });
+                await new Promise<void>(r => setTimeout(r, RATE_LIMIT_RETRY_WAIT_MS));
+              } else {
+                throw retryErr; // non-retryable or max retries exceeded
+              }
+            }
+          }
+          if (!scan) throw new Error('scan result missing after retry loop');
           totalCost += scan.cost_usd;
           if (scan.result.radar_activo === 'Sí') activas += 1;
           else                                    descartadas += 1;

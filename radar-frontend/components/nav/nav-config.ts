@@ -62,9 +62,9 @@ export const navTree: NavNode[] = [
       { label: 'Investigar', href: '/radar-v2/investigar', icon: Search },
       { label: 'Resultados', href: '/radar-v2/resultados', icon: TrendingUp },
       { label: 'Métricas',   href: '/radar-v2/metricas',   icon: BarChart3 },
-      { label: 'Cronograma', href: '/radar-v2/cronograma', icon: Calendar },
+      { label: 'Cronograma', href: '/radar-v2/cronograma', icon: Calendar, roles: ['ADMIN'] },
       { label: 'Informes',   href: '/radar-v2/informes',   icon: FileText },
-      { label: 'Prompt',     href: '/radar-v2/prompt',     icon: Code2 },
+      { label: 'Prompt',     href: '/radar-v2/prompt',     icon: Code2,   roles: ['ADMIN'] },
     ],
   },
 
