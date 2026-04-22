@@ -218,13 +218,13 @@ export function Step3Review({ state, onChange }: Props) {
         }
       }
 
-      // Generate a session id client-side and navigate to /vivo immediately.
+      // Generate a session id client-side and navigate to /en-vivo immediately.
       // The SSE stream endpoint (/api/comercial/stream) runs the actual scan —
       // the browser connects and starts receiving events right away.
       const sessionId = crypto.randomUUID();
 
       // Pre-register scan in global activity store so the floating widget
-      // appears immediately and survives navigation to /vivo.
+      // appears immediately and survives navigation to /en-vivo.
       scanActivityStore.startScan(
         sessionId,
         state.line,
@@ -240,7 +240,7 @@ export function Step3Review({ state, onChange }: Props) {
           companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
         ),
       });
-      router.push(`/vivo?${vivoParams.toString()}`);
+      router.push(`/en-vivo?${vivoParams.toString()}`);
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');
       setFiring(false);
