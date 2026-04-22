@@ -161,3 +161,84 @@ export type ComercialSessionExtended = ComercialSession & {
   activas_count:     number;
   descartadas_count: number;
 };
+
+// ─── S1: Rollup por empresa ──────────────────────────────────────────────────
+
+export type TierLetter = 'A' | 'B' | 'C' | 'D' | 'sin_calificar';
+
+export interface EmpresaRollup {
+  empresa_id:          number | null;
+  empresa_evaluada:    string;
+  company_name:        string;
+  pais:                string | null;
+  linea_negocio:       string | null;
+  tier_actual:         TierLetter | null;
+  // Calificación (WF01)
+  calif_score:         number | null;
+  calif_tier:          string | null;
+  calif_at:            string | null;
+  // Radar (WF02 / Radar v2)
+  radar_activo:        'Sí' | 'No';
+  tipo_senal:          string | null;
+  descripcion_resumen: string | null;
+  ventana_compra:      string | null;
+  monto_inversion:     string | null;
+  fuente_nombre:       string | null;
+  fuente_link:         string | null;
+  fuente_verificada:   string | null;
+  radar_at:            string | null;
+  session_id:          string | null;
+  // Contactos (WF03)
+  contactos_total:     number;
+  ultima_prospeccion_at: string | null;
+  // Stats
+  scans_total:         number;
+  rag_vectors:         number;
+}
+
+export interface EmpresaRollupCounts {
+  total:         number;
+  por_tier: Record<TierLetter | 'null', number>;
+  con_radar:     number;
+}
+
+export interface EmpresaRollupFilter {
+  linea?:     string;
+  tier?:      TierLetter;
+  radar?:     'Sí' | 'No';
+  search?:    string;
+  limit?:     number;
+  offset?:    number;
+}
+
+// ─── S2: Timeline + Feedback ─────────────────────────────────────────────────
+
+export type TimelineEventType = 'calificacion' | 'radar' | 'contactos';
+
+export interface TimelineEvent {
+  id:          string;
+  type:        TimelineEventType;
+  empresa_id:  number | null;
+  title:       string;
+  subtitle:    string | null;
+  score:       number | null;
+  tier:        string | null;
+  created_at:  string;
+  meta:        Record<string, unknown>;
+}
+
+export type FeedbackMotivo =
+  | 'fuente_falsa'
+  | 'fecha_equivocada'
+  | 'empresa_irrelevante'
+  | 'senal_real'
+  | 'otro';
+
+export interface FeedbackComercial {
+  id:             string;
+  resultado_id:   string | null;
+  util:           boolean;
+  motivo:         FeedbackMotivo | null;
+  comentario:     string | null;
+  created_at:     string;
+}

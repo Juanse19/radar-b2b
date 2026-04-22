@@ -91,7 +91,7 @@ export function Step1Target({ state, onChange }: Props) {
                 className={cn(
                   'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
                   selected
-                    ? 'border-primary bg-primary/25 font-semibold ring-2 ring-primary/60 shadow-lg shadow-primary/20'
+                    ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
                     : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
                 )}
               >
@@ -149,7 +149,7 @@ export function Step1Target({ state, onChange }: Props) {
             className={cn(
               'relative cursor-pointer border-2 p-4 text-center transition-all',
               state.mode === 'auto'
-                ? 'border-primary bg-primary/25 shadow-lg shadow-primary/20 ring-2 ring-primary/60'
+                ? 'border-primary bg-primary/30 shadow-lg shadow-primary/20 ring-2 ring-primary'
                 : 'border-border hover:border-primary/60 hover:bg-muted/40',
             )}
           >
@@ -180,7 +180,7 @@ export function Step1Target({ state, onChange }: Props) {
             className={cn(
               'relative cursor-pointer border-2 p-4 text-center transition-all',
               state.mode === 'manual'
-                ? 'border-primary bg-primary/25 shadow-lg shadow-primary/20 ring-2 ring-primary/60'
+                ? 'border-primary bg-primary/30 shadow-lg shadow-primary/20 ring-2 ring-primary'
                 : 'border-border hover:border-primary/60 hover:bg-muted/40',
             )}
           >
