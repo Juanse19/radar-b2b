@@ -44,12 +44,12 @@ export interface NavNode {
 }
 
 export const navTree: NavNode[] = [
-  { label: 'Dashboard',         href: '/',                   icon: Home },
+  { label: 'Dashboard',         href: '/',                   icon: Home,         roles: ['ADMIN'] },
   { label: 'Escanear',          href: '/scan',               icon: Radar,        roles: ['ADMIN'] },
   { label: 'Resultados Agente', href: '/agente-resultados',  icon: ClipboardList, roles: ['ADMIN'] },
   { label: 'Calificación',      href: '/calificacion',       icon: CheckCircle2, roles: ['ADMIN'] },
   { label: 'Resultados',        href: '/results',            icon: Table2,       roles: ['ADMIN'] },
-  { label: 'Contactos',         href: '/contactos',          icon: Users },
+  { label: 'Contactos',         href: '/contactos',          icon: Users,        roles: ['ADMIN'] },
   { label: 'Cronograma',        href: '/schedule',           icon: Calendar,     roles: ['ADMIN'] },
 
   // Radar v2 — nuevo módulo agrupado con submódulos (pedido explícitamente).

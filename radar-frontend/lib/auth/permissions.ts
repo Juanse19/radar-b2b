@@ -24,7 +24,7 @@ export const ROUTE_ACCESS: Record<string, UserRole[]> = {
   '/results':           ['ADMIN', 'AUXILIAR'],           // v1 Resultados → solo ADMIN + AUXILIAR
   '/calificacion':      ['ADMIN'],                       // v1 Calificación → solo ADMIN
   '/agente-resultados': ['ADMIN'],                       // v1 Resultados Agente → solo ADMIN
-  '/contactos':         ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
+  '/contactos':         ['ADMIN'],                       // solo ADMIN
   '/radar-v2/prompt':   ['ADMIN'],                       // solo ADMIN
   '/radar-v2':          ['ADMIN', 'COMERCIAL'],          // todos los demás submódulos radar-v2
   '/':                  ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
