@@ -48,9 +48,8 @@ export async function getEmpresaRollup(filter: EmpresaRollupFilter = {}): Promis
       GROUP BY k
     ),
     rag_agg AS (
-      SELECT session_id, COUNT(*)::int AS vectors_indexed
-      FROM ${S}.radar_v2_rag_ingest_log
-      GROUP BY session_id
+      SELECT NULL::text AS session_id, 0::int AS vectors_indexed
+      WHERE FALSE
     )
     SELECT
       lr.empresa_id,
