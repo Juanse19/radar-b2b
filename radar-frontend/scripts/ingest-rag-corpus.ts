@@ -30,7 +30,7 @@ const CHUNK_CHARS     = 2000;  // ~500 tokens
 const OVERLAP_CHARS   = 400;   // ~100 tokens overlap
 const NAMESPACE       = process.env.PINECONE_NAMESPACE_COMERCIAL ?? 'comercial_dev';
 const INDEX_NAME      = process.env.PINECONE_INDEX              ?? 'matec-radar';
-const EMBEDDING_MODEL = process.env.PINECONE_EMBEDDING_MODEL    ?? 'multilingual-e5-large';
+const EMBEDDING_MODEL = process.env.PINECONE_EMBEDDING_MODEL    ?? 'text-embedding-3-small';
 
 // ---------------------------------------------------------------------------
 // Determine chunk tipo from filename
@@ -72,18 +72,21 @@ function chunkText(text: string, chunkSize: number, overlap: number): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// Embed — Pinecone native inference (passage embeddings for corpus)
+// Embed — OpenAI text-embedding-3-small (1536 dims, matches matec-radar index)
 // ---------------------------------------------------------------------------
 
-async function embed(pc: Pinecone, text: string): Promise<number[]> {
-  const result = await pc.inference.embed(
-    EMBEDDING_MODEL,
-    [text],
-    { inputType: 'passage', truncate: 'END' },
-  );
-  const values = result.data[0]?.values;
-  if (!values) throw new Error('Pinecone inference returned no values');
-  return values;
+async function embed(_pc: Pinecone, text: string): Promise<number[]> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not set');
+
+  const res = await fetch('https://api.openai.com/v1/embeddings', {
+    method:  'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ model: EMBEDDING_MODEL, input: text }),
+  });
+  if (!res.ok) throw new Error(`OpenAI embed HTTP ${res.status}: ${await res.text()}`);
+  const data = await res.json() as { data: Array<{ embedding: number[] }> };
+  return data.data[0].embedding;
 }
 
 // ---------------------------------------------------------------------------
@@ -126,6 +129,10 @@ async function main() {
   const pineconeKey = process.env.PINECONE_API_KEY;
   if (!pineconeKey) {
     console.error('❌  PINECONE_API_KEY not set in .env.local');
+    process.exit(1);
+  }
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('❌  OPENAI_API_KEY not set — required for text-embedding-3-small (1536 dims)');
     process.exit(1);
   }
 

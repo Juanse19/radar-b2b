@@ -1,7 +1,7 @@
 /**
  * rag.ts — Pinecone RAG client for Comercial module.
- * Uses Pinecone native inference for embeddings (no external embedding provider).
- * Graceful degradation: missing PINECONE_API_KEY → empty context, scan continues.
+ * Embeddings: OpenAI text-embedding-3-small (1536 dims, matches matec-radar index).
+ * Graceful degradation: missing PINECONE_API_KEY or OPENAI_API_KEY → empty context.
  */
 import 'server-only';
 import { Pinecone } from '@pinecone-database/pinecone';
@@ -11,7 +11,7 @@ import type { Agente1Result } from '@/lib/comercial/schema';
 const S                  = SCHEMA;
 const DEFAULT_INDEX      = 'matec-radar';
 const DEFAULT_NAMESPACE  = 'comercial_dev';
-const DEFAULT_MODEL      = 'multilingual-e5-large';
+const DEFAULT_MODEL      = 'text-embedding-3-small';
 
 // ---------------------------------------------------------------------------
 // Internal metadata shape stored in Pinecone
@@ -67,22 +67,25 @@ function embeddingModel() {
 }
 
 // ---------------------------------------------------------------------------
-// embed — Pinecone native inference (no external embedding provider needed)
+// embed — OpenAI text-embedding-3-small (1536 dims, matches matec-radar index)
+// inputType ignored — OpenAI uses the same model for both query and passage.
 // ---------------------------------------------------------------------------
 
 export async function embed(
   text: string,
-  inputType: 'query' | 'passage' = 'query',
+  _inputType: 'query' | 'passage' = 'query',
 ): Promise<number[]> {
-  const { apiKey } = pineconeConfig();
-  if (!apiKey) throw new Error('PINECONE_API_KEY not set');
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not set');
 
-  const pc     = new Pinecone({ apiKey });
-  const model  = embeddingModel();
-  const result = await pc.inference.embed(model, [text], { inputType, truncate: 'END' });
-  const values = result.data[0]?.values;
-  if (!values) throw new Error('Pinecone inference returned no embedding values');
-  return values;
+  const res = await fetch('https://api.openai.com/v1/embeddings', {
+    method:  'POST',
+    headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
+    body:    JSON.stringify({ model: embeddingModel(), input: text }),
+  });
+  if (!res.ok) throw new Error(`OpenAI embed HTTP ${res.status}`);
+  const data = await res.json() as { data: Array<{ embedding: number[] }> };
+  return data.data[0].embedding;
 }
 
 // ---------------------------------------------------------------------------
@@ -92,8 +95,8 @@ export async function embed(
 export async function retrieveContext(empresa: string, linea: string): Promise<RagContext> {
   const { apiKey, index, namespace } = pineconeConfig();
 
-  if (!apiKey) {
-    console.warn('[RAG] PINECONE_API_KEY not set — returning empty context');
+  if (!apiKey || !process.env.OPENAI_API_KEY) {
+    console.warn('[RAG] PINECONE_API_KEY or OPENAI_API_KEY not set — returning empty context');
     return { similares: [], keywords: [], criterios: [] };
   }
 
