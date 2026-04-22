@@ -10,6 +10,7 @@ const nextConfig = {
   },
   async redirects() {
     return [
+      // Legacy v1 redirects (keep — existing bookmarks)
       {
         source: '/resultados-v2',
         destination: '/resultados',
@@ -18,6 +19,17 @@ const nextConfig = {
       {
         source: '/resultados-v2/:path*',
         destination: '/resultados/:path*',
+        permanent: true,
+      },
+      // S0: radar-v2 → comercial bounded context rename (301)
+      {
+        source: '/radar-v2/vivo',
+        destination: '/en-vivo',
+        permanent: true,
+      },
+      {
+        source: '/radar-v2/:path*',
+        destination: '/:path*',
         permanent: true,
       },
     ];
