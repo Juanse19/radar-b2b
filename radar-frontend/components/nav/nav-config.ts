@@ -52,20 +52,19 @@ export const navTree: NavNode[] = [
   { label: 'Contactos',         href: '/contactos',          icon: Users,        roles: ['ADMIN'] },
   { label: 'Cronograma',        href: '/schedule',           icon: Calendar,     roles: ['ADMIN'] },
 
-  // Radar v2 — nuevo módulo agrupado con submódulos (pedido explícitamente).
+  // Módulo Comercial — inteligencia B2B con sub-módulos por función.
   {
-    label: 'Radar v2',
+    label: 'Comercial',
     icon:  Zap,
-    badge: 'Nuevo',
     children: [
-      { label: 'Escanear',    href: '/escanear',   icon: Zap },
-      { label: 'En vivo',    href: '/vivo',       icon: Activity },
-      { label: 'Investigar', href: '/investigar', icon: Search },
-      { label: 'Resultados', href: '/resultados', icon: TrendingUp },
-      { label: 'Métricas',   href: '/metricas',   icon: BarChart3 },
-      { label: 'Cronograma', href: '/cronograma', icon: Calendar },
-      { label: 'Informes',   href: '/informes',   icon: FileText },
-      { label: 'Prompt',     href: '/prompt',     icon: Code2 },
+      { label: 'Escanear',    href: '/escanear',    icon: Zap },
+      { label: 'En vivo',     href: '/en-vivo',     icon: Activity },
+      { label: 'Investigar',  href: '/investigar',  icon: Search },
+      { label: 'Resultados',  href: '/resultados',  icon: TrendingUp },
+      { label: 'Métricas',    href: '/metricas',    icon: BarChart3 },
+      { label: 'Cronograma',  href: '/cronograma',  icon: Calendar },
+      { label: 'Informes',    href: '/informes',    icon: FileText },
+      { label: 'Prompt',      href: '/prompt',      icon: Code2 },
     ],
   },
 
