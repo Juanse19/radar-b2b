@@ -13,7 +13,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { TierStatStrip } from './TierStatStrip';
-import { EmpresaRollupTable } from './EmpresaRollupTable';
 import { EmpresaRollupCard } from './EmpresaRollupCard';
 import type {
   EmpresaRollup,
@@ -208,40 +207,16 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
         )}
       </div>
 
-      {/* Table — desktop (≥ md) */}
-      <div className="hidden md:block">
-        {!loading && empresas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-16 text-center">
-            <p className="text-sm font-medium text-muted-foreground">Sin empresas</p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              No hay empresas que coincidan con los filtros activos.
-            </p>
-          </div>
-        ) : (
-          <EmpresaRollupTable
-            empresas={empresas}
-            loading={loading}
-            onSelect={onSelectEmpresa}
-          />
-        )}
-      </div>
-
-      {/* Cards — mobile (< md) */}
-      <div className="flex flex-col gap-2 md:hidden">
+      {/* Always card grid */}
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {loading && empresas.length === 0 ? (
-          Array.from({ length: 4 }).map((_, i) => (
-            <div
-              key={i}
-              className="h-28 w-full animate-pulse rounded-xl bg-muted"
-              aria-hidden
-            />
+          Array.from({ length: 6 }).map((_, i) => (
+            <div key={i} className="h-48 w-full animate-pulse rounded-xl bg-muted/60" aria-hidden />
           ))
-        ) : !loading && empresas.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-12 text-center">
+        ) : empresas.length === 0 ? (
+          <div className="col-span-full flex flex-col items-center justify-center py-16 text-center">
             <p className="text-sm font-medium text-muted-foreground">Sin empresas</p>
-            <p className="mt-1 text-xs text-muted-foreground/70">
-              No hay empresas que coincidan con los filtros activos.
-            </p>
+            <p className="mt-1 text-xs text-muted-foreground/70">No hay empresas que coincidan.</p>
           </div>
         ) : (
           empresas.map((empresa, i) => (
@@ -256,18 +231,18 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
 
       {/* Load more */}
       {hasMore && (
-        <div className="flex justify-center pt-1">
+        <div className="flex justify-center pt-2">
           <Button
             variant="outline"
             size="sm"
             onClick={loadMore}
             disabled={loading}
-            className="min-h-[44px] gap-2"
+            className="min-h-[44px] gap-2 px-6"
           >
             {loading ? 'Cargando…' : (
               <>
                 <ChevronDown size={14} />
-                Cargar más empresas
+                Cargar más
               </>
             )}
           </Button>

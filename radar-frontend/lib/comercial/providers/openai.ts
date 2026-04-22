@@ -95,6 +95,29 @@ RESPONDE SOLO con JSON válido sin markdown. Schema exacto:
 }
 
 // ---------------------------------------------------------------------------
+// 429 retry helper — mirrors claudeFetchWithRetry pattern
+// ---------------------------------------------------------------------------
+
+async function openAIFetchWithRetry(
+  url: string,
+  options: RequestInit,
+  emit: SSEEmitter | undefined,
+  empresa: string,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt === maxRetries) return resp;
+
+    const retryAfterSec = Number(resp.headers.get('retry-after') ?? '60');
+    const waitMs = Math.min(retryAfterSec * 1_000, 120_000);
+    emit?.emit('thinking', { empresa, linea: '', text: `Límite de tasa alcanzado. Reintentando en ${Math.round(waitMs / 1000)}s (intento ${attempt + 1}/${maxRetries})…` });
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+  return fetch(url, options);
+}
+
+// ---------------------------------------------------------------------------
 // Internal scan implementation
 // ---------------------------------------------------------------------------
 
@@ -142,14 +165,19 @@ Busca en la web y analiza si esta empresa tiene señales de inversión futura re
     store: false,
   };
 
-  const resp = await fetch('https://api.openai.com/v1/responses', {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type':  'application/json',
+  const resp = await openAIFetchWithRetry(
+    'https://api.openai.com/v1/responses',
+    {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    emit,
+    company.name,
+  );
 
   if (!resp.ok) {
     const errText = await resp.text();
