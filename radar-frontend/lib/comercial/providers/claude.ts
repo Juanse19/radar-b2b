@@ -80,6 +80,25 @@ const RADAR_SYSTEM_PROMPT = buildSystemPrompt();
 // Internal scan implementation — mirrors the previous scanCompanyWithClaude
 // ---------------------------------------------------------------------------
 
+async function claudeFetchWithRetry(
+  url: string,
+  options: RequestInit,
+  emit: SSEEmitter | undefined,
+  empresa: string,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt === maxRetries) return resp;
+
+    const retryAfterSec = Number(resp.headers.get('retry-after') ?? '60');
+    const waitMs = Math.min(retryAfterSec * 1_000, 120_000);
+    emit?.emit('thinking', { empresa, linea: '', text: `Límite de tasa alcanzado. Reintentando en ${Math.round(waitMs / 1000)}s (intento ${attempt + 1}/${maxRetries})…` });
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+  return fetch(url, options);
+}
+
 async function scanImpl(
   params: ScanParams,
   emit?: SSEEmitter,
@@ -142,16 +161,21 @@ Ejecuta 3-5 búsquedas web para encontrar señales de inversión futura de esta 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
   for (let turn = 0; turn < 10; turn++) {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method:  'POST',
-      headers: {
-        'x-api-key':         apiKey,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta':    'web-search-2025-03-05,prompt-caching-2024-07-31',
-        'content-type':      'application/json',
+    const resp = await claudeFetchWithRetry(
+      'https://api.anthropic.com/v1/messages',
+      {
+        method:  'POST',
+        headers: {
+          'x-api-key':         apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-beta':    'web-search-2025-03-05,prompt-caching-2024-07-31',
+          'content-type':      'application/json',
+        },
+        body: JSON.stringify({ ...baseBody, messages }),
       },
-      body: JSON.stringify({ ...baseBody, messages }),
-    });
+      emit,
+      company.name,
+    );
 
     if (!resp.ok) {
       const errText = await resp.text();

@@ -1,6 +1,6 @@
 'use client';
 
-import { ExternalLink, FileText, ChevronDown, Eye, Zap } from 'lucide-react';
+import { ExternalLink, FileText, ChevronDown, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
@@ -10,7 +10,6 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { FuenteBadge } from '@/app/(comercial)/components/FuenteBadge';
 import type { ComercialResult } from '@/lib/comercial/types';
 
 interface Props {
@@ -82,12 +81,12 @@ function TableSkeleton() {
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="border-b border-border/40">
           <td className="px-4 py-3.5"><Skeleton className="h-4 w-32 rounded" /><Skeleton className="mt-1 h-3 w-20 rounded" /></td>
-          <td className="px-4 py-3.5"><Skeleton className="h-5 w-18 rounded-full" /></td>
-          <td className="px-4 py-3.5"><Skeleton className="h-4 w-24 rounded" /></td>
           <td className="px-4 py-3.5"><Skeleton className="h-5 w-12 rounded-full" /></td>
+          <td className="px-4 py-3.5"><Skeleton className="h-4 w-24 rounded" /></td>
+          <td className="px-4 py-3.5"><Skeleton className="h-4 w-full max-w-[180px] rounded" /></td>
           <td className="px-4 py-3.5"><Skeleton className="h-4 w-20 rounded" /></td>
-          <td className="px-4 py-3.5"><Skeleton className="h-4 w-full max-w-[160px] rounded" /></td>
-          <td className="px-4 py-3.5"><Skeleton className="h-7 w-20 rounded-md" /></td>
+          <td className="px-4 py-3.5"><Skeleton className="h-4 w-24 rounded" /></td>
+          <td className="px-4 py-3.5"><Skeleton className="h-3 w-16 rounded" /></td>
         </tr>
       ))}
     </>
@@ -174,17 +173,17 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
         <div className="hidden overflow-hidden rounded-xl border border-border md:block">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col style={{ width: '200px' }} />
-              <col style={{ width: '108px' }} />
-              <col style={{ width: '176px' }} />
-              <col style={{ width: '84px' }} />
-              <col style={{ width: '148px' }} />
+              <col style={{ width: '180px' }} />
+              <col style={{ width: '80px' }} />
+              <col style={{ width: '150px' }} />
               <col />
-              <col style={{ width: '108px' }} />
+              <col style={{ width: '130px' }} />
+              <col style={{ width: '150px' }} />
+              <col style={{ width: '90px' }} />
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/40">
-                {['Empresa', 'Estado', 'Tipo señal', 'Ventana', 'Monto', 'Descripción', 'Acción'].map(h => (
+                {['Empresa', 'Radar', 'Tipo señal', 'Descripción', 'Fuente', 'Informativo', 'Fecha'].map(h => (
                   <th key={h} className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">{h}</th>
                 ))}
               </tr>
@@ -213,33 +212,32 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
         <div className="hidden overflow-hidden rounded-xl border border-border md:block">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col style={{ width: '200px' }} />   {/* Empresa */}
-              <col style={{ width: '108px' }} />   {/* Estado */}
-              <col style={{ width: '176px' }} />   {/* Tipo señal + score */}
-              <col style={{ width: '84px' }} />    {/* Ventana */}
-              <col style={{ width: '148px' }} />   {/* Monto */}
+              <col style={{ width: '180px' }} />   {/* Empresa */}
+              <col style={{ width: '80px' }} />    {/* Radar activo */}
+              <col style={{ width: '150px' }} />   {/* Tipo señal */}
               <col />                              {/* Descripción flexible */}
-              <col style={{ width: '108px' }} />   {/* Acción */}
+              <col style={{ width: '130px' }} />   {/* Fuente de señal */}
+              <col style={{ width: '150px' }} />   {/* Fuente informativo */}
+              <col style={{ width: '90px' }} />    {/* Fecha */}
             </colgroup>
             <thead>
               <tr className="border-b border-border bg-muted/40">
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Empresa</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Estado</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Radar</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tipo señal</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Ventana</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Monto</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Descripción</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Acción</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fuente</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Informativo</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fecha</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/40">
               {results.map((r, i) => {
-                const isActiva       = r.radar_activo === 'Sí';
-                const criteriosCount = Array.isArray(r.criterios_cumplidos) ? r.criterios_cumplidos.length : 0;
-                const descripcion    = r.descripcion_resumen?.trim() ?? '';
-                const monto          = r.monto_inversion && r.monto_inversion !== 'No reportado' ? r.monto_inversion : null;
-                const ventana        = r.ventana_compra ?? null;
-                const clickable      = !!r.session_id && !!onVerInforme;
+                const isActiva  = r.radar_activo === 'Sí';
+                const clickable = !!r.session_id && !!onVerInforme;
+                const fecha     = r.fecha_senal
+                  ? (() => { try { return new Date(r.fecha_senal!).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' }); } catch { return r.fecha_senal; } })()
+                  : null;
 
                 return (
                   <tr
@@ -276,127 +274,84 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       </div>
                     </td>
 
-                    {/* Estado */}
+                    {/* Radar activo */}
                     <td className="px-4 py-3.5">
                       {isActiva ? (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-green-500/12 px-2.5 py-1 text-[11px] font-bold text-green-700 dark:text-green-400">
-                          <Zap size={9} className="shrink-0" aria-hidden />
-                          Activa
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-500/12 px-2.5 py-1 text-[11px] font-bold text-green-700 dark:text-green-400">
+                          <Zap size={9} aria-hidden />Sí
                         </span>
                       ) : (
-                        <span className="inline-flex rounded-full bg-muted/60 px-2.5 py-1 text-[11px] font-semibold text-muted-foreground">
-                          Descartada
+                        <span className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                          No
                         </span>
                       )}
                     </td>
 
-                    {/* Tipo señal + score pill */}
+                    {/* Tipo de señal de inversión */}
                     <td className="overflow-hidden px-4 py-3.5">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        <span className="block truncate text-[12px] text-foreground/85">
-                          {r.tipo_senal ?? '—'}
-                        </span>
-                        {criteriosCount > 0 && (
-                          <span className="shrink-0">
-                            <ScorePill
-                              count={criteriosCount}
-                              criterios={Array.isArray(r.criterios_cumplidos) ? r.criterios_cumplidos : undefined}
-                            />
-                          </span>
-                        )}
-                      </div>
+                      <span className="block truncate text-[12px] text-foreground/85">
+                        {r.tipo_senal ?? '—'}
+                      </span>
                     </td>
 
-                    {/* Ventana */}
-                    <td className="px-4 py-3.5">
-                      {ventana && ventana !== 'Sin señal' ? (
-                        <span className={cn(
-                          'inline-block rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums',
-                          ventanaStyle(ventana),
-                        )}>
-                          {ventanaLabel[ventana] ?? ventana}
-                        </span>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-
-                    {/* Monto — truncated + tooltip */}
+                    {/* Descripción resumen */}
                     <td className="overflow-hidden px-4 py-3.5">
-                      {monto ? (
+                      {r.descripcion_resumen ? (
                         <Tooltip>
                           <TooltipTrigger>
-                            <span className="block truncate text-[12px] font-semibold text-amber-600 dark:text-amber-400 cursor-default">
-                              {monto}
-                            </span>
-                          </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-xs">
-                            <p className="text-xs leading-relaxed whitespace-pre-wrap">{monto}</p>
-                          </TooltipContent>
-                        </Tooltip>
-                      ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                    </td>
-
-                    {/* Descripción — 1 line + tooltip */}
-                    <td className="overflow-hidden px-4 py-3.5">
-                      {descripcion ? (
-                        <Tooltip>
-                          <TooltipTrigger>
-                            <p className="block truncate text-[12px] text-muted-foreground cursor-default">
-                              {descripcion}
+                            <p className="block truncate text-[12px] text-muted-foreground cursor-default leading-relaxed">
+                              {r.descripcion_resumen}
                             </p>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-md">
-                            <p className="text-xs leading-relaxed whitespace-pre-wrap">{descripcion}</p>
+                          <TooltipContent side="top" className="max-w-sm">
+                            <p className="text-xs leading-relaxed whitespace-pre-wrap">{r.descripcion_resumen}</p>
                           </TooltipContent>
                         </Tooltip>
                       ) : (
-                        <span className="text-xs text-muted-foreground">—</span>
+                        <span className="text-xs text-muted-foreground/50">—</span>
                       )}
                     </td>
 
-                    {/* Acción */}
+                    {/* Fuente de la señal — external link */}
+                    <td className="overflow-hidden px-4 py-3.5">
+                      {r.fuente_link && r.fuente_link !== 'No disponible' ? (
+                        <a
+                          href={r.fuente_link}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          onClick={e => e.stopPropagation()}
+                          className="inline-flex items-center gap-1.5 text-[12px] text-primary hover:underline max-w-full min-w-0"
+                          aria-label={`Abrir fuente: ${r.fuente_nombre ?? r.fuente_link}`}
+                        >
+                          <ExternalLink size={10} className="shrink-0" />
+                          <span className="block truncate">{r.fuente_nombre ?? 'Ver fuente'}</span>
+                        </a>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">—</span>
+                      )}
+                    </td>
+
+                    {/* Fuente señal informativo */}
+                    <td className="overflow-hidden px-4 py-3.5">
+                      {r.fuente_nombre ? (
+                        <div className="flex flex-col gap-0.5 min-w-0">
+                          <span className="block truncate text-[12px] text-foreground/70">{r.fuente_nombre}</span>
+                          {r.fuente_verificada && (
+                            <span className="inline-flex w-fit items-center rounded-full bg-blue-500/10 px-2 py-0.5 text-[10px] font-semibold text-blue-700 dark:text-blue-400">
+                              Verificada
+                            </span>
+                          )}
+                        </div>
+                      ) : (
+                        <span className="text-xs text-muted-foreground/50">—</span>
+                      )}
+                    </td>
+
+                    {/* Fecha de la señal */}
                     <td className="px-4 py-3.5">
-                      <div className="flex items-center gap-1">
-                        {r.fuente_link && r.fuente_link !== 'No disponible' && (
-                          <Tooltip>
-                            <TooltipTrigger>
-                              <a
-                                href={r.fuente_link}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                onClick={e => e.stopPropagation()}
-                                aria-label={`Fuente: ${r.fuente_nombre ?? 'Ver fuente'}`}
-                                className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-border text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-primary"
-                              >
-                                <ExternalLink size={11} />
-                              </a>
-                            </TooltipTrigger>
-                            <TooltipContent side="top">
-                              <p className="text-xs">{r.fuente_nombre ?? 'Ver fuente'}</p>
-                            </TooltipContent>
-                          </Tooltip>
-                        )}
-                        {r.fuente_verificada && (
-                          <span className="shrink-0">
-                            <FuenteBadge status={r.fuente_verificada} notas={r.verificacion_notas} />
-                          </span>
-                        )}
-                        {clickable && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={e => { e.stopPropagation(); onVerInforme!(r.session_id!); }}
-                            className="h-7 shrink-0 px-2 text-[11px] font-semibold text-primary hover:bg-primary/10 hover:text-primary"
-                            aria-label={`Ver informe de ${r.empresa_evaluada}`}
-                          >
-                            <Eye size={11} className="mr-1" />
-                            Informe
-                          </Button>
-                        )}
-                      </div>
+                      <span className="text-[12px] tabular-nums text-muted-foreground">
+                        {fecha ?? '—'}
+                      </span>
                     </td>
                   </tr>
                 );

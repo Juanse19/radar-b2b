@@ -38,7 +38,7 @@ export const maxDuration = 300;
 // ms to wait between companies — 2s is sufficient for all providers.
 // The original 65s was overly conservative for Claude's rate limit and unusable
 // for OpenAI/Gemini. Callers that need a longer delay can pass it as a query param.
-const RATE_LIMIT_DELAY_MS = 2_000;
+const RATE_LIMIT_DELAY_MS = 8_000;
 
 interface CompanyInput {
   id?:      number;
