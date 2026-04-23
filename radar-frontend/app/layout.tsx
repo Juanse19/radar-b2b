@@ -5,7 +5,7 @@ import { Providers } from './providers';
 import { AppShellLoader } from '@/components/AppShellLoader';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { ScanActivityWidget } from '@/components/radar-v2/ScanActivityWidget';
+import { ScanActivityWidget } from '@/components/comercial/ScanActivityWidget';
 import { getCurrentSession } from '@/lib/auth/session';
 
 /* Barlow — títulos y headings (equivalente a Futura MDBT del manual de marca) */

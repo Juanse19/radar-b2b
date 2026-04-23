@@ -1,14 +1,14 @@
 /**
  * E2E Smoke Tests — Radar v2 Production Flows
  *
- * TC-SMOKE-01  /radar-v2/escanear carga sin errores
+ * TC-SMOKE-01  /comercial/escanear carga sin errores
  * TC-SMOKE-02  Wizard step 1 permite seleccionar línea BHS
  * TC-SMOKE-03  Wizard step 1 permite seleccionar modo Automático
  * TC-SMOKE-04  El wizard avanza al step 2 con "Continuar" (auto-advance)
  * TC-SMOKE-05  Step 3 muestra estimado de costo o loading state
  * TC-SMOKE-06  El proveedor Claude aparece como opción en step 3
- * TC-SMOKE-07  /radar-v2/resultados carga sin errores 500
- * TC-SMOKE-08  /radar-v2/metricas carga sin errores
+ * TC-SMOKE-07  /comercial/resultados carga sin errores 500
+ * TC-SMOKE-08  /comercial/metricas carga sin errores
  * TC-SMOKE-09  El breadcrumb muestra "Radar v2" en las sub-páginas
  *
  * These tests NEVER launch a real scan — they only verify UI rendering
@@ -18,7 +18,7 @@
 import { test, expect, type Page } from '@playwright/test';
 
 // ---------------------------------------------------------------------------
-// Auth helper — mirrors the pattern used in radar-v2-wizard.spec.ts
+// Auth helper — mirrors the pattern used in comercial-wizard.spec.ts
 // ---------------------------------------------------------------------------
 
 async function devLogin(page: Page) {
@@ -41,9 +41,9 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
 
   // ── TC-SMOKE-01 ────────────────────────────────────────────────────────────
   test(
-    'TC-SMOKE-01 · /radar-v2/escanear carga sin errores',
+    'TC-SMOKE-01 · /comercial/escanear carga sin errores',
     async ({ page }) => {
-      const response = await page.goto('/radar-v2/escanear');
+      const response = await page.goto('/escanear');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       // Must not be a 500 error page
@@ -61,7 +61,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
   test(
     'TC-SMOKE-02 · Wizard step 1 permite seleccionar línea BHS',
     async ({ page }) => {
-      await page.goto('/radar-v2/escanear');
+      await page.goto('/escanear');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       // Find the BHS chip and click it
@@ -96,7 +96,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
   test(
     'TC-SMOKE-03 · Wizard step 1 permite seleccionar modo Automático',
     async ({ page }) => {
-      await page.goto('/radar-v2/escanear');
+      await page.goto('/escanear');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       // Look for any text that represents the Automatic mode option
@@ -143,7 +143,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
     'TC-SMOKE-04 · El wizard avanza al step 2 tras seleccionar línea y modo',
     async ({ page }) => {
       // Navigate with line+mode pre-set so the wizard auto-advances to step=2
-      await page.goto('/radar-v2/escanear?line=BHS&mode=auto');
+      await page.goto('/escanear?line=BHS&mode=auto');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       // The wizard useEffect should push step=2 into the URL within ~1 s
@@ -188,7 +188,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
     'TC-SMOKE-05 · Step 3 muestra estimado de costo o loading state',
     async ({ page }) => {
       await page.goto(
-        '/radar-v2/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude',
+        '/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude',
       );
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
       await page.waitForTimeout(500);
@@ -232,7 +232,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
     'TC-SMOKE-06 · El proveedor Claude aparece como opción en step 3',
     async ({ page }) => {
       await page.goto(
-        '/radar-v2/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude',
+        '/escanear?step=3&line=BHS&mode=auto&count=1&provider=claude',
       );
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
       await page.waitForTimeout(500);
@@ -262,9 +262,9 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
 
   // ── TC-SMOKE-07 ────────────────────────────────────────────────────────────
   test(
-    'TC-SMOKE-07 · /radar-v2/resultados carga sin errores 500',
+    'TC-SMOKE-07 · /comercial/resultados carga sin errores 500',
     async ({ page }) => {
-      const response = await page.goto('/radar-v2/resultados');
+      const response = await page.goto('/resultados');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       // Must not be a server error
@@ -290,9 +290,9 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
 
   // ── TC-SMOKE-08 ────────────────────────────────────────────────────────────
   test(
-    'TC-SMOKE-08 · /radar-v2/metricas carga sin errores',
+    'TC-SMOKE-08 · /comercial/metricas carga sin errores',
     async ({ page }) => {
-      const response = await page.goto('/radar-v2/metricas');
+      const response = await page.goto('/metricas');
       await page.waitForLoadState('networkidle', { timeout: 10_000 });
 
       expect(response?.status() ?? 200).toBeLessThan(500);
@@ -321,12 +321,12 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
     async ({ page }) => {
       // Use domcontentloaded instead of networkidle — the escanear page keeps
       // background fetch/SSE connections open that prevent networkidle from firing.
-      await page.goto('/radar-v2/escanear');
+      await page.goto('/escanear');
       await page.waitForLoadState('domcontentloaded');
 
       // Wait for the React hydration to render the breadcrumb / sidebar nav.
       // "Radar v2" appears in two places:
-      //   1. The breadcrumb nav inside RadarV2Layout  (link text "Radar v2")
+      //   1. The breadcrumb nav inside ComercialLayout  (link text "Radar v2")
       //   2. The sidebar collapsible button            (button text "Radar v2")
       // Either location satisfies the test.
       const radarV2El = page.locator('text=Radar v2').first();
@@ -335,7 +335,7 @@ test.describe('Radar v2 — Smoke Tests (producción)', () => {
         .catch(() => false);
 
       await page.screenshot({
-        path: 'test-results/TC-SMOKE-09-radar-v2-nav.png',
+        path: 'test-results/TC-SMOKE-09-comercial-nav.png',
       });
       expect(
         isVisible,

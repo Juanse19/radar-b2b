@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
-import { ensureAiProviderConfigsTable } from '@/lib/radar-v2/db-migrations';
+import { ensureAiProviderConfigsTable } from '@/lib/comercial/db-migrations';
 
 const S = SCHEMA;
 

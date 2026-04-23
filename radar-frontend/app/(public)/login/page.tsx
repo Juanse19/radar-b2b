@@ -9,7 +9,7 @@ export const metadata = {
 
 export default async function LoginPage() {
   const session = await getCurrentSession();
-  if (session) redirect('/');
+  if (session) redirect('/radar-v2/escanear');
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
