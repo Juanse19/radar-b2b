@@ -51,6 +51,13 @@ PALABRAS CLAVE POR LÍNEA (usa las del sector correspondiente):
 - Motos/Ensambladoras: ensambladora motocicleta planta CAPEX expansión línea producción
 - Solumat/Plásticos: planta plástico material industrial molde inyección CAPEX expansión
 
+🔴 FILTRO NEGATIVO BHS (NO son BHS — ignorar):
+   runway, taxiway, apron, torre de control, ILS, radar ATC,
+   pista de aterrizaje, navegación aérea, señalización de pista.
+🟢 FILTRO POSITIVO BHS (SÍ son BHS):
+   terminal de pasajeros + sistema BHS, carrusel de equipaje,
+   CUTE, CUSS, CBIS, sortation aeroportuario, self bag drop.
+
 FUENTES PRIORITARIAS (mayor credibilidad — busca aquí primero):
 - Contratación pública: SECOP II (Colombia), CompraNet (México), SEACE (Perú), ChileCompra, SISCO (Argentina), SIGA (Panamá)
 - Prensa económica: Reuters, Bloomberg, BNAmericas, El Tiempo, Expansión MX, El Economista, Diario Financiero
@@ -64,8 +71,45 @@ FUENTES A IGNORAR (no usar como soporte de señal de inversión):
 - Artículos de marketing o PR corporativo sin cifras verificables → DESCARTAR
 - Noticias sin fecha o anteriores a octubre 2025 → DESCARTAR. Si la inversión ya está en ejecución desde 2024/2025 sin fases futuras documentadas → DESCARTAR
 
+🔴 DESCARTE INMEDIATO — verbos de pasado completivo (la señal ya se ejecutó):
+   "inauguró", "inaugurado", "abrió sus puertas", "ya está en operación",
+   "entró en funcionamiento", "fue completado", "ya opera",
+   "completó su construcción", "se completó", "en plena operación",
+   "fue inaugurado", "completó la obra", "ya entró en servicio"
+
+🟡 AMBIGUO — requiere análisis adicional:
+   Proyectos con fechas 2025-2027: buscar ACTIVAMENTE si hay fases futuras pendientes.
+   Si hay fase futura verificable (equipo por licitar, obras no completadas) → radar_activo="Sí", tipo_senal="Señal Temprana"
+   Si NO hay fase futura verificable → DESCARTAR
+
+🔍 LA EMPRESA DEBE APARECER EXPLÍCITAMENTE EN LA FUENTE:
+Antes de asignar radar_activo="Sí", verifica:
+¿El titular o cuerpo de la fuente menciona EXPLÍCITAMENTE el nombre de la empresa?
+
+✅ VÁLIDO: "[Empresa] anunció inversión de USD X millones en nueva planta"
+❌ INVÁLIDO → DESCARTE: "Plan de Inversión Nacional 2026" (sin nombrar la empresa)
+❌ INVÁLIDO → DESCARTE: "El sector logístico invertirá $X millones" (sector genérico)
+❌ INVÁLIDO → DESCARTE: Artículo sobre OTRA empresa del mismo sector
+
+Si NINGÚN resultado menciona la empresa explícitamente:
+  radar_activo="No", motivo_descarte="Sin fuentes específicas que mencionen a {empresa}."
+
+📋 CRITERIOS DE VALIDACIÓN (necesitas ≥3 de 6 para activar):
+1. Inversión confirmada o en planificación formal
+2. Expansión física: nueva terminal, planta, CEDI, corrugadora, hub
+3. Proyecto específico con nombre, código o número de referencia
+4. Proceso de contratación activo: licitación, RFP, concurso
+5. Permisos o concesiones gubernamentales obtenidos o en proceso
+6. Financiación confirmada: crédito, bono, CAPEX en reporte financiero
+
+Si total_criterios < 3 → indicar en observaciones que la señal es débil.
+
+📰 PAYWALL: Si titular anuncia inversión pero el cuerpo está bloqueado:
+   - Reportar con datos disponibles del snippet/titular.
+   - Agregar en observaciones: "Fuente con paywall — datos limitados al snippet."
+
 INCLUIR (radar_activo: "Sí"): inversión futura 6-36 meses, proyecto específico identificado, licitación/RFP abierto, CAPEX sin ejecutar, construcción en curso con fases futuras por iniciar.
-DESCARTAR (radar_activo: "No"): obra inaugurada/terminada, noticia pre-octubre 2025, nota genérica sin proyecto concreto, evento ya realizado, expansión ya ejecutada, inversión en ejecución desde 2024/2025 sin fases futuras por iniciar después de julio 2026.
+DESCARTAR (radar_activo: "No"): obra inaugurada/terminada con verbos de pasado completivo arriba listados, noticia pre-octubre 2025, nota genérica sin proyecto concreto, evento ya realizado, expansión ya ejecutada, inversión en ejecución desde 2024/2025 sin fases futuras por iniciar después de julio 2026.
 
 VENTANA DE COMPRA:
 - Q2-Q4 2026 → "0-6 Meses"
@@ -182,10 +226,18 @@ Usa solo fuentes con proyectos confirmados. Ignora Wikipedia, redes sociales y o
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
     : basePrompt;
 
+  // DB override: admin can edit the prompt from the UI; fall back to hardcoded if unavailable
+  let systemPromptText = RADAR_SYSTEM_PROMPT;
+  try {
+    const { getAgentPrompt } = await import('@/lib/db/supabase/agent-prompts');
+    const dbOverride = await getAgentPrompt('claude');
+    if (dbOverride) systemPromptText = dbOverride;
+  } catch { /* DB unavailable — use hardcoded */ }
+
   const baseBody = {
     model:      model,
     max_tokens: 2048,
-    system: [{ type: 'text', text: RADAR_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } }],
+    system: [{ type: 'text', text: systemPromptText, cache_control: { type: 'ephemeral' } }],
     tools:  [{ type: 'web_search_20250305', name: 'web_search' }],
   };
 
