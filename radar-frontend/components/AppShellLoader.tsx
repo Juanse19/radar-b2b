@@ -87,6 +87,7 @@ export function AppShellLoader({
   useEffect(() => {
     const fromCookie = readSessionFromCookie();
     if (fromCookie) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSession(fromCookie);
       return;
     }

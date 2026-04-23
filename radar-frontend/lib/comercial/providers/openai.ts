@@ -181,7 +181,7 @@ async function openAIFetchWithRetry(
     const resp = await fetch(url, options);
     if (resp.status !== 429 || attempt === maxRetries) return resp;
 
-    const retryAfterSec = Number(resp.headers.get('retry-after') ?? '60');
+    const retryAfterSec = Number(resp.headers?.get('retry-after') ?? '60');
     const waitMs = Math.min(retryAfterSec * 1_000, 120_000);
     emit?.emit('thinking', { empresa, linea: '', text: `Límite de tasa alcanzado. Reintentando en ${Math.round(waitMs / 1000)}s (intento ${attempt + 1}/${maxRetries})…` });
     await new Promise(r => setTimeout(r, waitMs));

@@ -225,9 +225,10 @@ describe('openaiProvider — Responses API with web_search_preview', () => {
 
   it('throws when API returns non-OK status', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:     false,
-      status: 429,
-      text:   async () => '{"error":{"message":"You exceeded your current quota"}}',
+      ok:      false,
+      status:  429,
+      headers: { get: () => '0' }, // retry-after=0 so retries don't stall the test
+      text:    async () => '{"error":{"message":"You exceeded your current quota"}}',
     }));
 
     await expect(
