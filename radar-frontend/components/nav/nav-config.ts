@@ -44,44 +44,44 @@ export interface NavNode {
 }
 
 export const navTree: NavNode[] = [
-  { label: 'Dashboard',         href: '/',                   icon: Home,         roles: ['ADMIN'] },
-  { label: 'Escanear',          href: '/scan',               icon: Radar,        roles: ['ADMIN'] },
-  { label: 'Resultados Agente', href: '/agente-resultados',  icon: ClipboardList, roles: ['ADMIN'] },
-  { label: 'Calificación',      href: '/calificacion',       icon: CheckCircle2, roles: ['ADMIN'] },
-  { label: 'Resultados',        href: '/results',            icon: Table2,       roles: ['ADMIN'] },
-  { label: 'Contactos',         href: '/contactos',          icon: Users,        roles: ['ADMIN'] },
-  { label: 'Cronograma',        href: '/schedule',           icon: Calendar,     roles: ['ADMIN'] },
+  { label: 'Dashboard', href: '/', icon: Home, roles: ['ADMIN'] },
+  { label: 'Escanear', href: '/scan', icon: Radar, roles: ['ADMIN'] },
+  { label: 'Resultados Agente', href: '/agente-resultados', icon: ClipboardList, roles: ['ADMIN'] },
+  { label: 'Calificación', href: '/calificacion', icon: CheckCircle2, roles: ['ADMIN'] },
+  { label: 'Resultados', href: '/results', icon: Table2, roles: ['ADMIN'] },
+  { label: 'Contactos', href: '/contactos', icon: Users, roles: ['ADMIN'] },
+  { label: 'Cronograma', href: '/schedule', icon: Calendar, roles: ['ADMIN'] },
 
-  // Radar v2 — nuevo módulo agrupado con submódulos (pedido explícitamente).
+  // Módulo Comercial — inteligencia B2B con sub-módulos por función.
   {
     label: 'Comercial',
-    icon:  Zap,
+    icon: Zap,
     children: [
-      { label: 'Escanear',    href: '/radar-v2/escanear',   icon: Zap },
-      { label: 'En vivo',    href: '/radar-v2/vivo',       icon: Activity },
-      { label: 'Investigar', href: '/radar-v2/investigar', icon: Search },
-      { label: 'Resultados', href: '/radar-v2/resultados', icon: TrendingUp },
-      { label: 'Métricas',   href: '/radar-v2/metricas',   icon: BarChart3 },
-      { label: 'Cronograma', href: '/radar-v2/cronograma', icon: Calendar, roles: ['ADMIN'] },
-      { label: 'Informes',   href: '/radar-v2/informes',   icon: FileText },
-      { label: 'Prompt',     href: '/radar-v2/prompt',     icon: Code2,   roles: ['ADMIN'] },
+      { label: 'Escanear', href: '/escanear', icon: Zap },
+      { label: 'En vivo', href: '/en-vivo', icon: Activity },
+      { label: 'Investigar', href: '/investigar', icon: Search },
+      { label: 'Resultados', href: '/resultados', icon: TrendingUp },
+      { label: 'Métricas', href: '/metricas', icon: BarChart3 },
+      // { label: 'Cronograma',  href: '/cronograma',  icon: Calendar },
+      { label: 'Informes', href: '/informes', icon: FileText },
+      // { label: 'Prompt',      href: '/prompt',      icon: Code2 },
     ],
   },
 
   // Administración — gate por rol ADMIN. Incluye Empresas y Líneas.
   {
     label: 'Administración',
-    icon:  Shield,
+    icon: Shield,
     adminOnly: true,
     children: [
       { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
-      { label: 'Roles',    href: '/admin/roles',    icon: Shield },
-      { label: 'Empresas', href: '/empresas',       icon: Building2 },
-      { label: 'Líneas',   href: '/admin/lineas',   icon: Activity },
-      { label: 'Fuentes',  href: '/admin/fuentes',  icon: FileText },
-      { label: 'Keywords',  href: '/admin/keywords',  icon: Key },
-      { label: 'API Keys',  href: '/admin/api-keys',  icon: Key,   badge: 'Nuevo' },
-      { label: 'Tokens',    href: '/admin/tokens',    icon: Coins },
+      { label: 'Roles', href: '/admin/roles', icon: Shield },
+      { label: 'Empresas', href: '/empresas', icon: Building2 },
+      { label: 'Líneas', href: '/admin/lineas', icon: Activity },
+      { label: 'Fuentes', href: '/admin/fuentes', icon: FileText },
+      { label: 'Keywords', href: '/admin/keywords', icon: Key },
+      { label: 'API Keys', href: '/admin/api-keys', icon: Key, badge: 'Nuevo' },
+      { label: 'Tokens', href: '/admin/tokens', icon: Coins },
     ],
   },
 

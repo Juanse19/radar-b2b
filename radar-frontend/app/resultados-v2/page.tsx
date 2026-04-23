@@ -6,8 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp } from 'lucide-react';
 import { ResultadosTable } from './components/ResultadosTable';
-import { InformeEjecucion } from '@/app/radar-v2/components/InformeEjecucion';
-import type { RadarV2Result, RadarV2ResultsFilter } from '@/lib/radar-v2/types';
+import { InformeEjecucion } from '@/app/(comercial)/components/InformeEjecucion';
+import type { ComercialResult, ComercialResultsFilter } from '@/lib/comercial/types';
 
 const LINEA_OPTIONS = [
   { value: 'ALL',            label: 'Todas las líneas' },
@@ -31,7 +31,7 @@ const VENTANA_OPTIONS = [
 const PAGE_SIZE = 50;
 
 export default function ResultadosV2Page() {
-  const [results,  setResults]  = useState<RadarV2Result[]>([]);
+  const [results,  setResults]  = useState<ComercialResult[]>([]);
   const [loading,  setLoading]  = useState(true);
   const [offset,   setOffset]   = useState(0);
   const [hasMore,  setHasMore]  = useState(false);
@@ -48,7 +48,7 @@ export default function ResultadosV2Page() {
   const fetchResults = useCallback(async (newOffset = 0, append = false) => {
     setLoading(true);
     try {
-      const filter: RadarV2ResultsFilter = {
+      const filter: ComercialResultsFilter = {
         linea:        linea        !== 'ALL' ? linea        : undefined,
         radar_activo: radarActivo  !== 'ALL' ? radarActivo  : undefined,
         ventana:      ventana      !== 'ALL' ? ventana      : undefined,
@@ -63,10 +63,10 @@ export default function ResultadosV2Page() {
       params.set('limit',  String(filter.limit));
       params.set('offset', String(filter.offset));
 
-      const res = await fetch(`/api/radar-v2/results?${params}`);
+      const res = await fetch(`/api/comercial/results?${params}`);
       if (!res.ok) throw new Error('Failed to fetch');
 
-      const data: RadarV2Result[] = await res.json();
+      const data: ComercialResult[] = await res.json();
       const page = data.slice(0, PAGE_SIZE);
 
       setHasMore(data.length > PAGE_SIZE);
