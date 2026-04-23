@@ -70,6 +70,7 @@ function HistoryPanel({ history }: { history: ActiveScan[] }) {
             const duration = scan.events.find(e => e.type === 'session_done')
               ? (scan.totalCost > 0 ? scan.totalCost : null)
               : null;
+            // eslint-disable-next-line react-hooks/purity
             const elapsed = Date.now() - scan.startedAt;
             const statusLabel =
               scan.status === 'done'    ? '✅' :

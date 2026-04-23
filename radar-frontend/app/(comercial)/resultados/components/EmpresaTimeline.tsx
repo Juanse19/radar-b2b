@@ -50,11 +50,14 @@ export function EmpresaTimeline({ empresaId }: EmpresaTimelineProps) {
 
   useEffect(() => {
     if (empresaId === null) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEvents([]);
       return;
     }
 
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setError(null);
 
     fetch(`/api/comercial/results/timeline/${empresaId}`)

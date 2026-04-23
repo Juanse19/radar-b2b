@@ -1,6 +1,7 @@
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
+import { getAgentPrompt } from '@/lib/db/supabase/agent-prompts';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Prompt data extracted from providers — inlined to avoid importing server-only
@@ -164,12 +165,22 @@ export async function GET(req: NextRequest) {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
-  let systemPrompt: string;
+  let hardcodedPrompt: string;
   switch (provider) {
-    case 'openai':  systemPrompt = buildOpenAISystemPrompt(today);  break;
-    case 'gemini':  systemPrompt = buildGeminiSystemPrompt(today);  break;
-    default:        systemPrompt = buildClaudeSystemPrompt(today);  break;
+    case 'openai':  hardcodedPrompt = buildOpenAISystemPrompt(today);  break;
+    case 'gemini':  hardcodedPrompt = buildGeminiSystemPrompt(today);  break;
+    default:        hardcodedPrompt = buildClaudeSystemPrompt(today);  break;
   }
+
+  let systemPrompt = hardcodedPrompt;
+  let isDbOverride = false;
+  try {
+    const dbOverride = await getAgentPrompt(provider);
+    if (dbOverride) {
+      systemPrompt = dbOverride;
+      isDbOverride = true;
+    }
+  } catch { /* DB unavailable — serve hardcoded prompt */ }
 
   const userMessageTemplate = buildUserMessageTemplate(provider);
   const meta = PROVIDER_META[provider];
@@ -185,6 +196,8 @@ export async function GET(req: NextRequest) {
     system_prompt:           systemPrompt,
     user_message_template:   userMessageTemplate,
     today,
+    is_db_override:          isDbOverride,
+    is_admin:                session.role === 'ADMIN',
     // Token estimates — rough char/4 heuristic
     estimated_system_tokens: Math.ceil(systemPrompt.length / 4),
     estimated_user_tokens:   Math.ceil(userMessageTemplate.length / 4),
