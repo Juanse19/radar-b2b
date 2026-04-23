@@ -20,10 +20,16 @@ export async function GET(req: NextRequest) {
     offset: Number(p.get('offset') ?? 0),
   };
 
-  const [rows, counts] = await Promise.all([
-    getEmpresaRollup(filter),
-    getEmpresaRollupCounts({ linea: filter.linea, radar: filter.radar }),
-  ]);
+  try {
+    const [rows, counts] = await Promise.all([
+      getEmpresaRollup(filter),
+      getEmpresaRollupCounts({ linea: filter.linea, radar: filter.radar }),
+    ]);
 
-  return NextResponse.json({ rows, counts, filter });
+    return NextResponse.json({ rows, counts, filter });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[/api/comercial/results/grouped] DB error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

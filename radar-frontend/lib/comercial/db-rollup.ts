@@ -79,7 +79,7 @@ export async function getEmpresaRollup(filter: EmpresaRollupFilter = {}): Promis
     LEFT JOIN ${S}.empresas e
       ON e.id = lr.empresa_id
       OR (lr.empresa_id IS NULL
-          AND e.company_name_norm = LOWER(${S}.f_unaccent(lr.empresa_evaluada)))
+          AND LOWER(COALESCE(e.company_name, '')) = LOWER(lr.empresa_evaluada))
     LEFT JOIN latest_calif lc
       ON lc.empresa_id = e.id
     LEFT JOIN contactos_agg ca
@@ -87,7 +87,7 @@ export async function getEmpresaRollup(filter: EmpresaRollupFilter = {}): Promis
     LEFT JOIN scans_agg sa
       ON sa.k = COALESCE(lr.empresa_id::text, LOWER(lr.empresa_evaluada))
     LEFT JOIN rag_agg ra
-      ON ra.session_id = lr.session_id
+      ON ra.session_id = lr.session_id::text
     ${where}
     ORDER BY
       CASE e.tier_actual
@@ -129,7 +129,7 @@ export async function getEmpresaRollupCounts(filter: Pick<EmpresaRollupFilter, '
     LEFT JOIN ${S}.empresas e
       ON e.id = lr.empresa_id
       OR (lr.empresa_id IS NULL
-          AND e.company_name_norm = LOWER(${S}.f_unaccent(lr.empresa_evaluada)))
+          AND LOWER(COALESCE(e.company_name, '')) = LOWER(lr.empresa_evaluada))
     WHERE 1=1 ${where}
   `;
 
@@ -155,25 +155,27 @@ export async function getEmpresaRollupCounts(filter: Pick<EmpresaRollupFilter, '
 }
 
 export async function getEmpresaTimeline(empresaId: number, limit = 20): Promise<Array<{
-  type: string; title: string; subtitle: string | null; score: number | null; tier: string | null; created_at: string;
+  id: string; type: string; title: string; subtitle: string | null; score: number | null; tier: string | null; created_at: string;
 }>> {
   const sql = `
-    SELECT 'radar' AS type,
-           empresa_evaluada AS title,
-           tipo_senal        AS subtitle,
-           NULL::numeric     AS score,
-           NULL::text        AS tier,
+    SELECT id::text                   AS id,
+           'radar'                    AS type,
+           empresa_evaluada           AS title,
+           tipo_senal                 AS subtitle,
+           NULL::numeric              AS score,
+           NULL::text                 AS tier,
            created_at
     FROM ${S}.radar_v2_results
     WHERE empresa_id = ${pgLit(empresaId)}
 
     UNION ALL
 
-    SELECT 'calificacion'  AS type,
-           e.company_name   AS title,
-           tier_calculado   AS subtitle,
-           score_total      AS score,
-           tier_calculado   AS tier,
+    SELECT c.id::text                 AS id,
+           'calificacion'             AS type,
+           e.company_name             AS title,
+           tier_calculado::text       AS subtitle,
+           score_total                AS score,
+           tier_calculado::text       AS tier,
            c.created_at
     FROM ${S}.calificaciones c
     JOIN ${S}.empresas e ON e.id = c.empresa_id
@@ -181,12 +183,13 @@ export async function getEmpresaTimeline(empresaId: number, limit = 20): Promise
 
     UNION ALL
 
-    SELECT 'contactos' AS type,
-           'Prospectos obtenidos' AS title,
-           NULL AS subtitle,
-           COUNT(*)::numeric AS score,
-           NULL AS tier,
-           MAX(created_at) AS created_at
+    SELECT empresa_id::text || '_contactos' AS id,
+           'contactos'                      AS type,
+           'Prospectos obtenidos'           AS title,
+           NULL::text                       AS subtitle,
+           COUNT(*)::numeric                AS score,
+           NULL::text                       AS tier,
+           MAX(created_at)                  AS created_at
     FROM ${S}.contactos
     WHERE empresa_id = ${pgLit(empresaId)}
     GROUP BY empresa_id

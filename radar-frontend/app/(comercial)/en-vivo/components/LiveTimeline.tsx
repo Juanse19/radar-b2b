@@ -257,7 +257,6 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     ]);
 
     const pushEvent = (ev: MessageEvent, type: StreamEventType) => {
-      if (phase === 'connecting') setPhase('live');
       let data: unknown;
       try { data = JSON.parse(ev.data); } catch { data = ev.data; }
       const nowTs = Date.now();
@@ -468,7 +467,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
             {phase === 'stopped' && !summary && 'Detenido manualmente'}
             {errorMsg && <span className="text-destructive">{errorMsg}</span>}
           </div>
-          <Link href="/resultados">
+          <Link href="/resultados?tab=detalle">
             <Button size="sm">Ver resultados</Button>
           </Link>
         </div>

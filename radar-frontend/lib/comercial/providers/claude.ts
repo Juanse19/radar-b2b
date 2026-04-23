@@ -38,9 +38,9 @@ function buildSystemPrompt(): string {
 
 METODOLOGÍA — BÚSQUEDAS REQUERIDAS (ejecuta TODAS antes de concluir):
 1. "{empresa}" CAPEX 2026 2027 plan inversión expansión
-2. "{empresa}" licitación contratación pública {país} 2026
-3. "{empresa}" "nueva planta" OR "nueva sede" OR "expansión" {palabras_clave_linea}
-4. "{empresa}" informe anual 2024 2025 inversiones estrategia
+2. "{empresa}" licitación contratación pública {país} 2026 2027
+3. "{empresa}" "nueva planta" OR "nueva sede" OR "ampliación" {palabras_clave_linea} 2026
+4. "{empresa}" informe anual 2025 2026 inversiones estrategia plan CAPEX
 5. "{empresa}" site:secop.gov.co OR site:compraNET OR site:mercadopublico.cl (según país)
 
 PALABRAS CLAVE POR LÍNEA (usa las del sector correspondiente):
@@ -62,10 +62,10 @@ FUENTES A IGNORAR (no usar como soporte de señal de inversión):
 - Redes sociales (LinkedIn posts, Twitter/X, Facebook) → DESCARTAR
 - Ofertas de empleo o job postings → DESCARTAR
 - Artículos de marketing o PR corporativo sin cifras verificables → DESCARTAR
-- Noticias sin fecha o anteriores a enero 2025 sin actualización → DESCARTAR
+- Noticias sin fecha o anteriores a octubre 2025 → DESCARTAR. Si la inversión ya está en ejecución desde 2024/2025 sin fases futuras documentadas → DESCARTAR
 
 INCLUIR (radar_activo: "Sí"): inversión futura 6-36 meses, proyecto específico identificado, licitación/RFP abierto, CAPEX sin ejecutar, construcción en curso con fases futuras por iniciar.
-DESCARTAR (radar_activo: "No"): obra inaugurada/terminada, noticia pre-2025 sin actualización, nota genérica sin proyecto concreto, evento ya realizado, expansión ya ejecutada.
+DESCARTAR (radar_activo: "No"): obra inaugurada/terminada, noticia pre-octubre 2025, nota genérica sin proyecto concreto, evento ya realizado, expansión ya ejecutada, inversión en ejecución desde 2024/2025 sin fases futuras por iniciar después de julio 2026.
 
 VENTANA DE COMPRA:
 - Q2-Q4 2026 → "0-6 Meses"
@@ -173,7 +173,7 @@ TAREA: Busca señales de inversión FUTURA de esta empresa en LATAM para 2026-20
 Ejecuta estas búsquedas en orden:
 1. "${company.name}" ${keywords} 2026 2027
 2. "${company.name}" licitación contratación pública ${company.country}
-3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
 4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
 
 Usa solo fuentes con proyectos confirmados. Ignora Wikipedia, redes sociales y ofertas de empleo.`;

@@ -40,7 +40,7 @@ Tienes acceso a búsqueda web en tiempo real vía Google Search. Ejecuta las sig
 1. "{empresa}" {palabras_clave_linea} CAPEX 2026 2027 expansión
 2. "{empresa}" licitación contratación pública {país} 2026
 3. "{empresa}" "nueva planta" OR "expansión" OR "ampliación" {país}
-4. "{empresa}" informe anual 2024 2025 inversión CAPEX estrategia
+4. "{empresa}" informe anual 2025 2026 inversión CAPEX estrategia plan
 5. "{empresa}" proyecto {país} BID CAF infraestructura 2026 2027
 
 FUENTES PRIORITARIAS (usar primero, mayor peso en evaluación):
@@ -54,10 +54,10 @@ FUENTES PROHIBIDAS — NO USAR, NO CITAR bajo ninguna circunstancia:
 - Redes sociales: LinkedIn posts, Twitter/X, Facebook, Instagram
 - Portales de empleo: LinkedIn Jobs, Indeed, Computrabajo
 - Artículos de marketing o "salud corporativa" sin cifras verificables
-- Noticias sin fecha, pre-2025, o sin fuente identificable
+- Noticias sin fecha, anteriores a octubre 2025, o sin fuente identificable. Si la inversión ya está en ejecución desde 2024/2025 sin fases futuras documentadas → DESCARTAR
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
-DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
+DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028. Descartar también si la inversión inició en 2024/2025 sin fases documentadas después de julio 2026.
 
 VENTANA DE COMPRA:
 - Q2-Q4 2026 → "0-6 Meses"
@@ -139,7 +139,7 @@ TAREA: Busca señales de inversión FUTURA para esta empresa en LATAM 2026-2028 
 Ejecuta estas búsquedas en orden:
 1. "${company.name}" ${keywords} 2026 2027
 2. "${company.name}" licitación contratación pública ${company.country}
-3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
 4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
 
 IMPORTANTE: Usa solo fuentes primarias con proyectos documentados (SECOP, Reuters, reportes anuales). NO cites Wikipedia, redes sociales ni portales de empleo.`;

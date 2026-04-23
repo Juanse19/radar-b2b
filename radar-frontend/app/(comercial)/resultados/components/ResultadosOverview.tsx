@@ -68,6 +68,7 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
   const [loading,   setLoading]   = useState(true);
   const [offset,    setOffset]    = useState(0);
   const [hasMore,   setHasMore]   = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   // Persist filters to URL (debounced-ish via useEffect after state settles)
   useEffect(() => {
@@ -93,20 +94,25 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
       params.set('offset', String(newOffset));
 
       const res  = await fetch(`/api/comercial/results/grouped?${params}`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? `HTTP ${res.status}`);
+      }
 
       const data = await res.json() as {
         rows:   EmpresaRollup[];
         counts: EmpresaRollupCounts;
       };
 
+      setFetchError(null);
       const page = data.rows.slice(0, PAGE_SIZE);
       setHasMore(data.rows.length > PAGE_SIZE);
       setEmpresas(prev => append ? [...prev, ...page] : page);
       setOffset(newOffset);
       if (!append) setCounts(data.counts);
-    } catch {
-      // ignore — keep showing stale data
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setFetchError(msg);
     } finally {
       setLoading(false);
     }
@@ -206,6 +212,13 @@ export function ResultadosOverview({ onSelectEmpresa }: ResultadosOverviewProps)
           </Button>
         )}
       </div>
+
+      {/* Error banner */}
+      {fetchError && (
+        <div className="rounded-lg border border-red-500/30 bg-red-500/8 px-4 py-3 text-sm text-red-700 dark:text-red-400">
+          <span className="font-semibold">Error al cargar:</span> {fetchError}
+        </div>
+      )}
 
       {/* Always card grid */}
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">

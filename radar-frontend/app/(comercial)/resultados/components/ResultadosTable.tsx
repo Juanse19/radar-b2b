@@ -212,22 +212,22 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
         <div className="hidden overflow-hidden rounded-xl border border-border md:block">
           <table className="w-full table-fixed text-sm">
             <colgroup>
-              <col style={{ width: '180px' }} />   {/* Empresa */}
-              <col style={{ width: '80px' }} />    {/* Radar activo */}
-              <col style={{ width: '150px' }} />   {/* Tipo señal */}
-              <col />                              {/* Descripción flexible */}
-              <col style={{ width: '130px' }} />   {/* Fuente de señal */}
-              <col style={{ width: '150px' }} />   {/* Fuente informativo */}
-              <col style={{ width: '90px' }} />    {/* Fecha */}
+              <col style={{ width: '20%', minWidth: '180px' }} />  {/* Empresa */}
+              <col style={{ width: '72px' }} />                     {/* Radar activo */}
+              <col style={{ width: '15%', minWidth: '140px' }} />  {/* Tipo señal */}
+              <col />                                               {/* Descripción flexible */}
+              <col style={{ width: '13%', minWidth: '120px' }} />  {/* Fuente de señal */}
+              <col style={{ width: '13%', minWidth: '120px' }} />  {/* Fuente informativo */}
+              <col style={{ width: '84px' }} />                     {/* Fecha */}
             </colgroup>
-            <thead>
-              <tr className="border-b border-border bg-muted/40">
+            <thead className="sticky top-0 z-10">
+              <tr className="border-b border-border bg-muted/60 backdrop-blur-sm">
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Empresa</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Radar</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Tipo señal</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Descripción</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fuente</th>
-                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Informativo</th>
+                <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Info. Fuente</th>
                 <th className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Fecha</th>
               </tr>
             </thead>
@@ -298,12 +298,12 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                     <td className="overflow-hidden px-4 py-3.5">
                       {r.descripcion_resumen ? (
                         <Tooltip>
-                          <TooltipTrigger>
-                            <p className="block truncate text-[12px] text-muted-foreground cursor-default leading-relaxed">
+                          <TooltipTrigger className="w-full text-left">
+                            <p className="line-clamp-2 text-[12px] text-muted-foreground cursor-default leading-relaxed">
                               {r.descripcion_resumen}
                             </p>
                           </TooltipTrigger>
-                          <TooltipContent side="top" className="max-w-sm">
+                          <TooltipContent side="top" className="max-w-md">
                             <p className="text-xs leading-relaxed whitespace-pre-wrap">{r.descripcion_resumen}</p>
                           </TooltipContent>
                         </Tooltip>

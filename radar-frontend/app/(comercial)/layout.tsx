@@ -33,7 +33,7 @@ export default function ComercialLayout({ children }: { children: React.ReactNod
   const isWide = widePages.has(segment);
 
   return (
-    <div className={`mx-auto p-6 ${isWide ? 'max-w-7xl' : 'max-w-4xl'}`}>
+    <div className={`mx-auto px-6 py-5 ${isWide ? 'max-w-screen-2xl' : 'max-w-4xl'}`}>
       <nav
         aria-label="Breadcrumb"
         className="mb-4 flex items-center gap-1.5 text-sm text-muted-foreground"

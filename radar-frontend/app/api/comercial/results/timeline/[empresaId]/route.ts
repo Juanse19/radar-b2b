@@ -15,6 +15,12 @@ export async function GET(
   const id = Number(empresaId);
   if (!Number.isFinite(id)) return NextResponse.json({ error: 'Invalid id' }, { status: 400 });
 
-  const events = await getEmpresaTimeline(id);
-  return NextResponse.json({ events });
+  try {
+    const events = await getEmpresaTimeline(id);
+    return NextResponse.json({ events });
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    console.error('[/api/comercial/results/timeline] DB error:', msg);
+    return NextResponse.json({ error: msg }, { status: 500 });
+  }
 }

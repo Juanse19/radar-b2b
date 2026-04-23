@@ -69,7 +69,7 @@ Tienes acceso a búsqueda web en tiempo real. Ejecuta EXACTAMENTE estas 4-5 bús
 1. "{empresa}" {palabras_clave_linea} CAPEX 2026 2027
 2. "{empresa}" licitación contratación pública {país} 2026
 3. "{empresa}" "nueva planta" OR "expansión" OR "ampliación" {país}
-4. "{empresa}" informe anual 2024 2025 inversiones estrategia crecimiento
+4. "{empresa}" informe anual 2025 2026 inversiones estrategia plan CAPEX
 5. "{empresa}" proyecto infraestructura {país} BID CAF Banco Mundial (si aplica)
 
 FUENTES PRIORITARIAS (mayor credibilidad):
@@ -83,10 +83,10 @@ FUENTES PROHIBIDAS (ignorar completamente, no citar):
 - LinkedIn posts, Twitter, Facebook, redes sociales → NO USAR
 - Ofertas de empleo / job postings → NO USAR
 - Artículos de marketing sin cifras verificables → NO USAR
-- Noticias sin fecha o anteriores a enero 2025 → NO USAR
+- Noticias sin fecha o anteriores a octubre 2025 → NO USAR. Si la inversión ya está ejecutando desde 2024/2025 sin fases futuras por iniciar después de julio 2026 → NO USAR
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
-DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
+DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028. También descartar si la inversión mencionada ya inició ejecución en 2024/2025 sin fases documentadas después de julio 2026.
 
 VENTANA DE COMPRA:
 - Q2-Q4 2026 → "0-6 Meses"
@@ -191,7 +191,7 @@ TAREA: Busca señales de inversión FUTURA en LATAM 2026-2028 para esta empresa.
 Ejecuta estas búsquedas exactas:
 1. "${company.name}" ${keywords} 2026 2027
 2. "${company.name}" licitación contratación pública ${company.country}
-3. "${company.name}" plan expansión CAPEX informe anual 2024 2025
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
 4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
 
 IMPORTANTE: Usa solo fuentes con proyectos documentados. NO cites Wikipedia, redes sociales ni ofertas de empleo.`;
