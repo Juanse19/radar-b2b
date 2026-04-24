@@ -264,12 +264,7 @@ export function Step3Review({ state, onChange }: Props) {
             {state.line ? state.line.split(',').filter(Boolean).join(', ') : '—'}
           </dd>
 
-          <dt className="text-muted-foreground">Tipo</dt>
-          <dd className="col-span-1 font-medium sm:col-span-2">
-            {state.scanMode === 'empresa' ? 'Por Empresa' : state.scanMode === 'senal' ? 'Por Señal' : '—'}
-          </dd>
-
-          <dt className="text-muted-foreground">Selección</dt>
+          <dt className="text-muted-foreground">Modo</dt>
           <dd className="col-span-1 font-medium capitalize sm:col-span-2">
             {state.mode === 'auto' ? 'Automático' : state.mode === 'manual' ? 'Manual' : '—'}
           </dd>
