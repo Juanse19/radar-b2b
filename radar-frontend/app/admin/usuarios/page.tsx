@@ -455,7 +455,9 @@ function TokenLimitsDialog({ user, onClose, onSubmit, isPending }: TokenLimitsDi
 
   useEffect(() => {
     if (user) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDaily(user.daily_token_limit != null ? String(user.daily_token_limit) : '');
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeekly(user.weekly_token_limit != null ? String(user.weekly_token_limit) : '');
     }
   }, [user?.id]); // eslint-disable-line react-hooks/exhaustive-deps
