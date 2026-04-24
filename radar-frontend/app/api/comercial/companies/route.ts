@@ -4,6 +4,18 @@ import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 
 const S = SCHEMA;
 
+// Mock data returned when Supabase is not configured (local dev without DB).
+const MOCK_COMPANIES = [
+  { id: 1, name: 'Empresa Demo 1', country: 'Colombia', tier: 'ORO',       linea: 'BHS' },
+  { id: 2, name: 'Empresa Demo 2', country: 'México',   tier: 'MONITOREO', linea: 'BHS' },
+  { id: 3, name: 'Empresa Demo 3', country: 'Chile',    tier: '',          linea: 'Intralogística' },
+  { id: 4, name: 'Empresa Demo 4', country: 'Colombia', tier: 'ORO',       linea: 'Intralogística' },
+  { id: 5, name: 'Empresa Demo 5', country: 'Perú',     tier: '',          linea: 'Cartón' },
+  { id: 6, name: 'Empresa Demo 6', country: 'Colombia', tier: 'MONITOREO', linea: 'Final de Línea' },
+  { id: 7, name: 'Empresa Demo 7', country: 'México',   tier: '',          linea: 'Motos' },
+  { id: 8, name: 'Empresa Demo 8', country: 'Colombia', tier: 'ORO',       linea: 'SOLUMAT' },
+];
+
 // Maps UI line labels to DB identifiers.
 // 'parent' = filter by lineas_negocio.codigo (matches all sub-lines under that parent).
 // 'sub'    = filter by sub_lineas_negocio.codigo (specific sub-line only).
@@ -20,6 +32,17 @@ export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  // Return mock data when Supabase is not configured (local dev without DB).
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const lineaParam = decodeURIComponent(req.nextUrl.searchParams.get('linea') ?? '');
+    const q          = req.nextUrl.searchParams.get('q')?.toLowerCase();
+    let mock = lineaParam && lineaParam !== 'ALL'
+      ? MOCK_COMPANIES.filter(c => c.linea === lineaParam)
+      : MOCK_COMPANIES;
+    if (q) mock = mock.filter(c => c.name.toLowerCase().includes(q));
+    return NextResponse.json(mock.map(({ linea: _l, ...rest }) => rest));
   }
 
   const { searchParams } = req.nextUrl;

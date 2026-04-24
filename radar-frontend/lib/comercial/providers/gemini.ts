@@ -17,6 +17,11 @@ import type {
   SSEEmitter,
   SupportedFeature,
 } from './types';
+import {
+  CALIFICADOR_SYSTEM_PROMPT,
+  buildCalificadorUserPrompt,
+} from '@/lib/comercial/calificador/prompts';
+import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/calificador/types';
 
 const GEMINI_MODEL       = process.env.GOOGLE_MODEL ?? process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 // Gemini 2.0 Flash pricing (as of 2026-04): $0.075/1M input, $0.30/1M output
@@ -370,6 +375,77 @@ function createGeminiProvider(): AIProvider {
 
     supports(feature: SupportedFeature): boolean {
       return feature === 'web_search' || feature === 'streaming';
+    },
+
+    async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
+      const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
+      if (!apiKey) throw new Error('GOOGLE_API_KEY not set');
+      const model = GEMINI_MODEL;
+
+      emit?.emit('thinking', { empresa: params.empresa, chunk: 'Iniciando calificación con Gemini…' });
+      emit?.emit('profiling_web', { empresa: params.empresa, query: `${params.empresa} ${params.pais} inversión 2026` });
+
+      const userMsg = buildCalificadorUserPrompt(params, params.ragContext);
+      const fullPrompt = `${CALIFICADOR_SYSTEM_PROMPT}\n\n${userMsg}`;
+
+      const body = {
+        contents: [{ role: 'user', parts: [{ text: fullPrompt }] }],
+        generationConfig: {
+          responseMimeType: 'application/json',
+          maxOutputTokens: 2048,
+        },
+        tools: [{ googleSearch: {} }],
+      };
+
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+      const resp = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(`Gemini calificar ${resp.status}: ${err.slice(0, 300)}`);
+      }
+
+      type GeminiResp = {
+        candidates?: Array<{ content?: { parts?: Array<{ text?: string }> } }>;
+        usageMetadata?: { promptTokenCount?: number; candidatesTokenCount?: number };
+      };
+      const data = await resp.json() as GeminiResp;
+      const text   = data.candidates?.[0]?.content?.parts?.[0]?.text ?? '';
+      const tokensIn  = data.usageMetadata?.promptTokenCount     ?? 0;
+      const tokensOut = data.usageMetadata?.candidatesTokenCount ?? 0;
+      const cost = (tokensIn * PRICE_INPUT_PER_M + tokensOut * PRICE_OUTPUT_PER_M) / 1_000_000;
+
+      let rawJson: unknown;
+      try {
+        const cleaned = text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        rawJson = JSON.parse(cleaned);
+      } catch {
+        throw new Error(`Gemini calificar non-JSON for ${params.empresa}`);
+      }
+
+      return {
+        scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        scoreTotal: 0,
+        tier: 'C',
+        razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',
+        perfilWeb: (rawJson as { perfilWeb?: CalificacionOutput['perfilWeb'] }).perfilWeb ?? { summary: '', sources: [] },
+        rawJson,
+        tokensInput: tokensIn,
+        tokensOutput: tokensOut,
+        costUsd: cost,
+        model,
+      };
+    },
+
+    estimateCalificacion(empresas_count: number): CostEstimate {
+      const tokens_in_est  = empresas_count * 2500;
+      const tokens_out_est = empresas_count * 600;
+      const cost_usd_est   = (tokens_in_est * PRICE_INPUT_PER_M + tokens_out_est * PRICE_OUTPUT_PER_M) / 1_000_000;
+      return { tokens_in_est, tokens_out_est, cost_usd_est, cached_percentage: 0 };
     },
   };
 }

@@ -17,18 +17,28 @@ interface Props {
 export function CompanySelector({ line, selected, onChange, maxSelect = 20 }: Props) {
   const [all, setAll]         = useState<ComercialCompany[]>([]);
   const [loading, setLoading] = useState(false);
+  const [error, setError]     = useState<string | null>(null);
   const [search, setSearch]   = useState('');
 
   const fetchCompanies = useCallback(async () => {
     if (!line) return;
     setLoading(true);
+    setError(null);
     try {
       const params = new URLSearchParams({ linea: line, limit: '200' });
       if (search) params.set('q', search);
       const res = await fetch(`/api/comercial/companies?${params}`);
-      if (res.ok) setAll(await res.json());
-    } catch { /* ignore */ }
-    finally { setLoading(false); }
+      if (res.ok) {
+        setAll(await res.json());
+      } else {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        setError(body.error ?? `Error ${res.status}`);
+      }
+    } catch {
+      setError('No se pudo conectar al servidor');
+    } finally {
+      setLoading(false);
+    }
   }, [line, search]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
@@ -68,6 +78,11 @@ export function CompanySelector({ line, selected, onChange, maxSelect = 20 }: Pr
 
       {loading ? (
         <p className="py-6 text-center text-sm text-muted-foreground">Cargando empresas...</p>
+      ) : error ? (
+        <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
+          <p className="font-medium">Error al cargar empresas</p>
+          <p className="text-xs mt-0.5 text-destructive/70">{error}</p>
+        </div>
       ) : all.length === 0 ? (
         <p className="py-6 text-center text-sm text-muted-foreground">
           No hay empresas para {line}

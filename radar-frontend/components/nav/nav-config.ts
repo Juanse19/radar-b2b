@@ -59,10 +59,10 @@ export const navTree: NavNode[] = [
     children: [
       { label: 'Escanear', href: '/escanear', icon: Zap },
       { label: 'En vivo', href: '/en-vivo', icon: Activity },
+      { label: 'Calificador', href: '/calificador', icon: CheckCircle2 },
       { label: 'Investigar', href: '/investigar', icon: Search },
       { label: 'Resultados', href: '/resultados', icon: TrendingUp },
       { label: 'Métricas', href: '/metricas', icon: BarChart3 },
-      // { label: 'Cronograma',  href: '/cronograma',  icon: Calendar },
       { label: 'Informes', href: '/informes', icon: FileText },
       // { label: 'Prompt',      href: '/prompt',      icon: Code2 },
     ],
