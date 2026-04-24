@@ -118,12 +118,12 @@ describe('GET /api/comercial/companies — mock fallback (no Supabase)', () => {
     if (origSupabaseKey) process.env.SUPABASE_SERVICE_ROLE_KEY = origSupabaseKey;
   });
 
-  // ── Auth guard ───────────────────────────────────────────────────────────────
+  // ── Auth guard — mock path skips auth (data not sensitive) ──────────────────
 
-  it('returns 401 when session is null', async () => {
+  it('returns 200 even when session is null (mock path, no auth required)', async () => {
     mockGetCurrentSession.mockResolvedValueOnce(null);
     const { status } = await callGET();
-    expect(status).toBe(401);
+    expect(status).toBe(200);
   });
 
   // ── Basic shape ──────────────────────────────────────────────────────────────

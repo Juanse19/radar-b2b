@@ -209,14 +209,14 @@ describe('GET /api/comercial/lineas-tree — fallback (no Supabase)', () => {
     expect(subValues).toContain('SOLUMAT');
   });
 
-  // ── Auth guard ───────────────────────────────────────────────────────────────
+  // ── Auth guard — endpoint is public (reference data, not sensitive) ──────────
 
-  it('returns 401 when no session', async () => {
+  it('returns 200 even when no session (no auth required)', async () => {
     const { getCurrentSession } = await import('@/lib/auth/session');
     vi.mocked(getCurrentSession).mockResolvedValueOnce(null);
 
     const response = await GET();
     const r = response as unknown as { _status: number };
-    expect(r._status).toBe(401);
+    expect(r._status).toBe(200);
   });
 });
