@@ -11,14 +11,19 @@ const S = SCHEMA;
 // ── Helpers ────────────────────────────────────────────────────────────────
 
 const LEGACY_MAP: Record<string, string> = {
+  // Short/display names from old frontend → sublínea codigo
   aeropuertos: 'aeropuertos',
-  cargo: 'cargo_uld', 'cargo uld': 'cargo_uld',
+  bhs: 'aeropuertos',
+  cargo: 'cargo_uld', 'cargo uld': 'cargo_uld', 'cargo / uld': 'cargo_uld',
   carton: 'carton_corrugado', cartón: 'carton_corrugado',
   'carton y papel': 'carton_corrugado', 'cartón y papel': 'carton_corrugado',
+  // intralogística as parent → resolves to final_linea for backwards compat;
+  // new frontend always passes the explicit sublínea código instead
   intralogística: 'final_linea', intralogistica: 'final_linea',
   'final de linea': 'final_linea', 'final de línea': 'final_linea',
   motos: 'ensambladoras_motos', 'ensambladoras motos': 'ensambladoras_motos',
-  solumat: 'solumat', bhs: 'aeropuertos',
+  solumat: 'solumat',
+  logistica: 'logistica', logística: 'logistica', 'linea logistica': 'logistica',
 };
 
 async function resolveSubLineaId(linea?: string): Promise<number | undefined> {

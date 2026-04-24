@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Plus, Pencil, Trash2,
   ChevronLeft, ChevronRight, Search, Loader2, Eye,
-  Plane, Package, Warehouse, Globe,
+  Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -34,7 +34,12 @@ interface EmpresaRow {
   dominio?: string;
 }
 
-type LineaFiltro = 'ALL' | 'BHS' | 'Cartón' | 'Intralogística';
+interface SubLineaOption {
+  id: number;
+  codigo: string;
+  nombre: string;
+  linea: { id: number; codigo: string; nombre: string; color_hex: string | null };
+}
 
 interface FormValues {
   company_name: string;
@@ -51,69 +56,10 @@ const EMPTY_FORM: FormValues = {
   company_name:   '',
   pais:           '',
   company_domain: '',
-  linea_negocio:  'BHS',
+  linea_negocio:  'aeropuertos',
   tier:           'Tier B',
   ciudad:         '',
 };
-
-// ── Line options — Icon as React.ElementType (NOT JSX) to avoid hydration crash ──
-
-const LINEA_OPTIONS: {
-  value: LineaFiltro;
-  label: string;
-  desc: string;
-  Icon: React.ElementType;
-  color: string;
-  activeBg: string;
-  activeBorder: string;
-  badge: string;
-  dot: string;
-}[] = [
-  {
-    value: 'ALL',
-    label: 'Todas',
-    desc: 'Todas las líneas',
-    Icon: Globe,
-    color: 'text-indigo-600',
-    activeBg: 'bg-indigo-50',
-    activeBorder: 'border-indigo-400',
-    badge: 'bg-indigo-100 text-indigo-700',
-    dot: 'bg-indigo-500',
-  },
-  {
-    value: 'BHS',
-    label: 'BHS',
-    desc: 'Aeropuertos y cargo',
-    Icon: Plane,
-    color: 'text-blue-600',
-    activeBg: 'bg-blue-50',
-    activeBorder: 'border-blue-400',
-    badge: 'bg-blue-100 text-blue-700',
-    dot: 'bg-blue-500',
-  },
-  {
-    value: 'Cartón',
-    label: 'Cartón',
-    desc: 'Corrugadoras, empaque',
-    Icon: Package,
-    color: 'text-amber-600',
-    activeBg: 'bg-amber-50',
-    activeBorder: 'border-amber-400',
-    badge: 'bg-amber-100 text-amber-700',
-    dot: 'bg-amber-500',
-  },
-  {
-    value: 'Intralogística',
-    label: 'Intralogística',
-    desc: 'CEDI, WMS, ASRS',
-    Icon: Warehouse,
-    color: 'text-emerald-600',
-    activeBg: 'bg-emerald-50',
-    activeBorder: 'border-emerald-400',
-    badge: 'bg-emerald-100 text-emerald-700',
-    dot: 'bg-emerald-500',
-  },
-];
 
 // ── Table skeleton ────────────────────────────────────────────────────────────
 
@@ -147,9 +93,10 @@ interface EmpresaModalProps {
   onSubmit: (values: FormValues) => void;
   loading: boolean;
   titulo: string;
+  subLineas: SubLineaOption[];
 }
 
-function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: EmpresaModalProps) {
+function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo, subLineas }: EmpresaModalProps) {
   const [form, setForm] = useState<FormValues>(EMPTY_FORM);
 
   useEffect(() => {
@@ -248,9 +195,11 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="BHS"            className="text-foreground">BHS</SelectItem>
-                  <SelectItem value="Cartón"         className="text-foreground">Cartón</SelectItem>
-                  <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
+                  {subLineas.map(sl => (
+                    <SelectItem key={sl.codigo} value={sl.codigo} className="text-foreground">
+                      {sl.nombre}
+                    </SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -301,12 +250,21 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
 export default function EmpresasPage() {
   const queryClient = useQueryClient();
 
-  const [lineaFiltro, setLineaFiltro] = useState<LineaFiltro>('ALL');
+  const [subLineas, setSubLineas]   = useState<SubLineaOption[]>([]);
+  const [lineaFiltro, setLineaFiltro] = useState<string>('ALL');
   const [page, setPage]               = useState(0);
   const [search, setSearch]           = useState('');
   const [modalOpen, setModalOpen]     = useState(false);
   const [editTarget, setEditTarget]   = useState<EmpresaRow | null>(null);
   const [deleteId, setDeleteId]       = useState<string | null>(null);
+
+  // Fetch sub-líneas from DB on mount (used for filter bar and form)
+  useEffect(() => {
+    fetch('/api/sub-lineas')
+      .then(r => r.json())
+      .then((data: SubLineaOption[]) => setSubLineas(Array.isArray(data) ? data : []))
+      .catch(() => { /* fallback: filter bar still shows ALL */ });
+  }, []);
 
   // ── Conteos por línea ─────────────────────────────────────────────────────
 
@@ -457,11 +415,11 @@ export default function EmpresasPage() {
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
-  function handleLineaChange(linea: LineaFiltro) {
+  const handleLineaChange = useCallback((linea: string) => {
     setLineaFiltro(linea);
     setPage(0);
     setSearch('');
-  }
+  }, []);
 
   function openCreate() {
     setEditTarget(null);
@@ -486,9 +444,11 @@ export default function EmpresasPage() {
     setEditTarget(null);
   }
 
-  const isMutating  = createMutation.isPending || updateMutation.isPending;
-  const totalPages  = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
-  const activeOption = LINEA_OPTIONS.find(o => o.value === lineaFiltro) ?? LINEA_OPTIONS[0]!;
+  const isMutating = createMutation.isPending || updateMutation.isPending;
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+  const activeLabel = lineaFiltro === 'ALL'
+    ? 'todas las líneas'
+    : (subLineas.find(s => s.codigo === lineaFiltro)?.nombre ?? lineaFiltro);
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -518,42 +478,52 @@ export default function EmpresasPage() {
           </Button>
         </div>
 
-        {/* ── Line selector cards ─────────────────────────────────────────── */}
+        {/* ── Sub-línea filter chips ──────────────────────────────────────── */}
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
             Filtrar por línea
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            {LINEA_OPTIONS.map(opt => {
-              const isActive = lineaFiltro === opt.value;
-              const cnt = opt.value === 'ALL'
-                ? Object.values(counts).reduce((a, b) => a + b, 0)
-                : (counts[opt.value] ?? 0);
+          <div className="flex flex-wrap gap-2">
+            {/* "Todas" chip */}
+            <button
+              type="button"
+              onClick={() => handleLineaChange('ALL')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
+                lineaFiltro === 'ALL'
+                  ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                  : 'bg-surface-muted border-border text-muted-foreground hover:border-blue-400 hover:text-foreground'
+              }`}
+            >
+              <Globe size={12} />
+              Todas
+              <span className={`text-xs ${lineaFiltro === 'ALL' ? 'text-blue-200' : 'text-muted-foreground'}`}>
+                {Object.values(counts).reduce((a, b) => a + b, 0)}
+              </span>
+            </button>
+
+            {/* Per sub-línea chips */}
+            {subLineas.map(sl => {
+              const isActive = lineaFiltro === sl.codigo;
+              const cnt = counts[sl.codigo] ?? 0;
               return (
                 <button
-                  key={opt.value}
+                  key={sl.codigo}
                   type="button"
-                  onClick={() => handleLineaChange(opt.value)}
-                  className={`
-                    relative flex flex-col items-center text-center p-4 rounded-2xl border-2 transition-all duration-150
-                    ${isActive
-                      ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                      : 'bg-surface/60 border-border/60 hover:border-border hover:bg-surface-muted/60'}
-                  `}
+                  onClick={() => handleLineaChange(sl.codigo)}
+                  className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-sm font-medium transition-all ${
+                    isActive
+                      ? 'bg-blue-600 border-blue-600 text-white shadow-sm'
+                      : 'bg-surface-muted border-border text-muted-foreground hover:border-blue-400 hover:text-foreground'
+                  }`}
                 >
-                  {isActive && (
-                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
-                  )}
-                  <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
-                    <opt.Icon size={24} />
-                  </div>
-                  <p className={`font-semibold text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
-                    {opt.label}
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
+                  <span
+                    className="w-2 h-2 rounded-full shrink-0"
+                    style={{ backgroundColor: sl.linea.color_hex ?? '#6b7280' }}
+                  />
+                  {sl.nombre}
                   {cnt > 0 && (
-                    <span className={`mt-2 inline-flex items-center px-2 py-0.5 rounded text-xs font-medium ${isActive ? opt.badge : 'bg-surface-muted text-muted-foreground'}`}>
-                      {cnt} empresa{cnt !== 1 ? 's' : ''}
+                    <span className={`text-xs ${isActive ? 'text-blue-200' : 'text-muted-foreground'}`}>
+                      {cnt}
                     </span>
                   )}
                 </button>
@@ -571,7 +541,7 @@ export default function EmpresasPage() {
           <Input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            placeholder={`Buscar en ${activeOption.label}...`}
+            placeholder={`Buscar en ${activeLabel}...`}
             className="bg-surface-muted border-border text-foreground placeholder:text-muted-foreground pl-9"
           />
         </div>
@@ -617,15 +587,8 @@ export default function EmpresasPage() {
                   {/* Nombre con indicador de línea */}
                   <div className="flex items-center gap-2 min-w-0">
                     <span
-                      className={`w-1.5 h-5 rounded-full shrink-0 ${
-                        empresa.linea === 'BHS'
-                          ? 'bg-blue-500'
-                          : empresa.linea === 'Cartón'
-                          ? 'bg-amber-500'
-                          : empresa.linea === 'Intralogística'
-                          ? 'bg-emerald-500'
-                          : 'bg-gray-600'
-                      }`}
+                      className="w-1.5 h-5 rounded-full shrink-0"
+                      style={{ backgroundColor: subLineas.find(s => s.codigo === empresa.linea)?.linea.color_hex ?? '#6b7280' }}
                     />
                     <span
                       className="text-foreground text-sm font-medium truncate"
@@ -724,6 +687,7 @@ export default function EmpresasPage() {
           onSubmit={handleFormSubmit}
           loading={isMutating}
           titulo={editTarget ? 'Editar empresa' : 'Nueva empresa'}
+          subLineas={subLineas}
         />
 
         {/* ── Confirmación de eliminación ──────────────────────────────────── */}

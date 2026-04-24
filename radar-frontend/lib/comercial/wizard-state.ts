@@ -3,12 +3,14 @@
 import { useCallback, useMemo } from 'react';
 import { useRouter, useSearchParams, usePathname } from 'next/navigation';
 
-export type WizardMode = 'auto' | 'manual' | '';
+export type WizardMode    = 'auto' | 'manual' | '';
+export type WizardScanMode = 'empresa' | 'senal' | '';
 
 export interface WizardState {
   step:     1 | 2 | 3;
   mode:     WizardMode;
-  line:     string;          // '' if not selected
+  scanMode: WizardScanMode; // 'empresa' = scan by company, 'senal' = search for investment signals
+  line:     string;         // comma-separated sublínea codigos (e.g. "aeropuertos,cargo_uld")
   presetId: string | null;
   // Step 2 data
   count:    number;          // auto mode (1-20)
@@ -32,9 +34,12 @@ export function useWizardState() {
     const step    = (rawStep >= 1 && rawStep <= 3 ? rawStep : 1) as 1 | 2 | 3;
     const rawMode = sp.get('mode');
     const mode: WizardMode = rawMode === 'auto' || rawMode === 'manual' ? rawMode : '';
+    const rawScanMode = sp.get('scanMode');
+    const scanMode: WizardScanMode = rawScanMode === 'empresa' || rawScanMode === 'senal' ? rawScanMode : '';
     return {
       step,
       mode,
+      scanMode,
       line:        sp.get('line') ?? '',
       presetId:    sp.get('preset'),
       count:       Number(sp.get('count') ?? '5'),
@@ -75,7 +80,7 @@ export function useWizardState() {
   }, [patch, state.step]);
 
   const canNext = useMemo(() => {
-    if (state.step === 1) return !!state.line && !!state.mode;
+    if (state.step === 1) return !!state.line && !!state.mode && !!state.scanMode;
     if (state.step === 2) {
       if (state.mode === 'auto')  return state.count >= 1 && state.count <= 20;
       return state.selectedIds.length >= 1;

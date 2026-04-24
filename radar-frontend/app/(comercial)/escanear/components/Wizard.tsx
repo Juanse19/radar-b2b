@@ -25,12 +25,12 @@ export function Wizard() {
       return;
     }
     if (autoAdvancedRef.current)  return;
-    if (!state.line || !state.mode) return;
+    if (!state.line || !state.mode || !state.scanMode) return;
 
     autoAdvancedRef.current = true;
     const timer = setTimeout(() => patch({ step: 2 }), 400);
     return () => clearTimeout(timer);
-  }, [state.step, state.line, state.mode, patch]);
+  }, [state.step, state.line, state.mode, state.scanMode, patch]);
 
   // Apply preset on mount if present. Guard with ref so we never re-apply
   // after the user has navigated — the URL is the source of truth.

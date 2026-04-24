@@ -51,13 +51,16 @@ BASE_HEADERS = {
 DOCS_DIR = Path(__file__).parent.parent.parent / "docs" / "PROSPECCIÓN"
 
 EXCEL_FILES = [
-    # (file_path, sub_linea_id, version)
-    (DOCS_DIR / "Linea Aeropuertos"     / "BASE DE DATOS AEROPUERTOS FINAL.xlsx",       1, "v2"),
-    (DOCS_DIR / "Linea Carton y Papel"  / "BASE DE DATOS CARTON Y PAPEL.xlsx",           3, "v2"),
-    (DOCS_DIR / "Final de Línea"        / "BASE DE DATOS FINAL DE LINEA.xlsx",           4, "v2"),
-    (DOCS_DIR / "Línea Solumat"         / "BASE DE DATOS SOLUMAT.xlsx",                  6, "v2"),
-    (DOCS_DIR / "Línea Cargo"           / "BASE DE DATOS CARGO LATAM.xlsx",              2, "v1"),
-    (DOCS_DIR / "Ensambladora de Motos" / "BASE DE DATOS ENSAMBLADORAS MOTOS LATAM.xlsx",5, "v1"),
+    # (file_path, sub_linea_id, version, header_row)
+    # header_row: 0-based index of the row containing column names (default 0)
+    (DOCS_DIR / "Linea Aeropuertos"     / "BASE DE DATOS AEROPUERTOS FINAL.xlsx",        1, "v2", 0),
+    (DOCS_DIR / "Linea Carton y Papel"  / "BASE DE DATOS CARTON Y PAPEL.xlsx",            3, "v2", 0),
+    (DOCS_DIR / "Final de Línea"        / "BASE DE DATOS FINAL DE LINEA.xlsx",            4, "v2", 0),
+    (DOCS_DIR / "Línea Solumat"         / "BASE DE DATOS SOLUMAT.xlsx",                   6, "v2", 0),
+    (DOCS_DIR / "Línea Cargo"           / "BASE DE DATOS CARGO LATAM.xlsx",               2, "v1", 0),
+    (DOCS_DIR / "Ensambladora de Motos" / "BASE DE DATOS ENSAMBLADORAS MOTOS LATAM.xlsx", 5, "v1", 0),
+    # Logística: header on row 3 (rows 0-2 are category labels / weights)
+    (DOCS_DIR / "Línea Logistica"       / "BASE DE DATOS LOGÍSTICA 2026.xlsx",            7, "v2", 3),
 ]
 COLOMBIA_CSV  = DOCS_DIR / "Líneas Colombianas" / "empresas_colombia_2026.csv"
 CSV_SUB_LINEA = 4  # final_linea
@@ -295,7 +298,12 @@ def upsert_pivot(empresa_id: int, sub_linea_id: int, es_principal: bool = True) 
 # ---------------------------------------------------------------------------
 # Excel helpers
 # ---------------------------------------------------------------------------
-def load_sheet(path: Path, sheet_name: str = "Base de Datos"):
+def load_sheet(path: Path, sheet_name: str = "Base de Datos", header_row: int = 0):
+    """Load a sheet and return (header, data_rows).
+
+    header_row: 0-based row index containing column names.
+    Some files (e.g. Logística) have category-label rows before the real header.
+    """
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     target = None
     for name in wb.sheetnames:
@@ -304,12 +312,13 @@ def load_sheet(path: Path, sheet_name: str = "Base de Datos"):
             break
     if not target:
         target = wb.sheetnames[0]
-    ws    = wb[target]
-    rows  = list(ws.iter_rows(values_only=True))
+    ws   = wb[target]
+    rows = list(ws.iter_rows(values_only=True))
     if not rows:
         return [], []
-    header = [str(c).strip() if c is not None else f"col_{i}" for i, c in enumerate(rows[0])]
-    return header, rows[1:]
+    header = [str(c).strip() if c is not None else f"col_{i}"
+              for i, c in enumerate(rows[header_row])]
+    return header, rows[header_row + 1:]
 
 
 def find_col(header: list, *candidates) -> int | None:
@@ -445,7 +454,7 @@ all_stats: list[Stats] = []
 # ---------------------------------------------------------------------------
 # Runner for Excel files
 # ---------------------------------------------------------------------------
-def run_excel(path: Path, sub_linea_id: int, version: str):
+def run_excel(path: Path, sub_linea_id: int, version: str, header_row: int = 0):
     label = f"{path.name} -> sub_linea_id={sub_linea_id}"
     st    = Stats(label)
     all_stats.append(st)
@@ -455,8 +464,8 @@ def run_excel(path: Path, sub_linea_id: int, version: str):
         st.skipped += 1
         return
 
-    print(f"\n[{version.upper()}] {path.name} -> sub_linea_id={sub_linea_id}")
-    header, rows = load_sheet(path)
+    print(f"\n[{version.upper()}] {path.name} -> sub_linea_id={sub_linea_id} (header_row={header_row})")
+    header, rows = load_sheet(path, header_row=header_row)
     if not header:
         print("  SKIP: could not read sheet")
         st.skipped += 1
@@ -582,8 +591,8 @@ def main():
         sys.exit(1)
 
     # Run all Excel files
-    for file_path, sub_linea_id, version in EXCEL_FILES:
-        run_excel(file_path, sub_linea_id, version)
+    for file_path, sub_linea_id, version, header_row in EXCEL_FILES:
+        run_excel(file_path, sub_linea_id, version, header_row)
 
     # Run CSV
     run_csv()
