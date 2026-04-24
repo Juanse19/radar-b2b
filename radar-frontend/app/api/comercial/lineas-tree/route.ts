@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { getCurrentSession } from '@/lib/auth/session';
 import { pgQuery, SCHEMA } from '@/lib/db/supabase/pg_client';
 
 export interface SubLineaItem {
@@ -64,11 +63,8 @@ interface LineasTreeRow {
 }
 
 export async function GET() {
-  const session = await getCurrentSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
+  // Líneas tree is reference/config data — not sensitive.
+  // No auth guard; individual sensitive routes (companies, calificar) still require auth.
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return NextResponse.json(FALLBACK_TREE);
   }

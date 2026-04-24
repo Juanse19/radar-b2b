@@ -34,18 +34,21 @@ export function CalStep1Target({ state, onChange }: Props) {
     setLoading(true);
 
     fetch('/api/comercial/lineas-tree')
-      .then(r => r.json())
-      .then((data: ParentLineaItem[]) => {
+      .then(async r => {
+        const data: unknown = await r.json();
         if (cancelled) return;
-        setTree(data);
+        // Guard: API may return an error object on auth failure or DB error.
+        const tree = Array.isArray(data) ? (data as ParentLineaItem[]) : [];
+        setTree(tree);
         // Re-open the parent of the already-selected linea (back-navigation).
-        if (state.linea) {
-          const code = findParentCode(data, state.linea);
+        if (state.linea && tree.length > 0) {
+          const code = findParentCode(tree, state.linea);
           if (code) setExpandedParent(code);
         }
       })
       .catch(() => {
         // Network failure — tree stays empty, loading clears.
+        if (!cancelled) setLoading(false);
       })
       .finally(() => {
         if (!cancelled) setLoading(false);

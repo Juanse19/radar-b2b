@@ -34,16 +34,12 @@ const LINE_FILTER: Record<string, { type: 'parent' | 'sub'; code: string }> = {
 const MOCK_PARENT_MAP: Record<string, string> = {
   'final_linea':         'carton_papel',
   'ensambladoras_motos': 'intralogistica',
-  'solumat':             'intralogistica',
+  'solumat':             'carton_papel',
 };
 
 export async function GET(req: NextRequest) {
-  const session = await getCurrentSession();
-  if (!session) {
-    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-  }
-
   // Return mock data when Supabase is not configured (local dev without DB).
+  // Auth is skipped on this path — mock data is not sensitive.
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const lineaParam = decodeURIComponent(req.nextUrl.searchParams.get('linea') ?? '');
     const q          = req.nextUrl.searchParams.get('q')?.toLowerCase();
@@ -74,6 +70,11 @@ export async function GET(req: NextRequest) {
     }
     if (q) mock = mock.filter(c => c.name.toLowerCase().includes(q));
     return NextResponse.json(mock.map(({ linea: _l, ...rest }) => rest));
+  }
+
+  const session = await getCurrentSession();
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const { searchParams } = req.nextUrl;
