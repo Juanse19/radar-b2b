@@ -1,13 +1,14 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { TrendingUp, Download, Filter, RotateCcw } from 'lucide-react';
+import { TrendingUp, Download, Filter, RotateCcw, Zap, XCircle, BarChart3, Activity } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { ResultadosTable } from './components/ResultadosTable';
+import { ResultadosTabs } from './components/ResultadosTabs';
 import { InformeEjecucion } from '@/app/(comercial)/components/InformeEjecucion';
 import type { ComercialResult, ComercialResultsFilter } from '@/lib/comercial/types';
 
@@ -32,33 +33,57 @@ const VENTANA_OPTIONS = [
 
 const PAGE_SIZE = 50;
 
-// ── Stat pill ────────────────────────────────────────────────────────────────
+// ── Stat card ────────────────────────────────────────────────────────────────
 
-interface StatPillProps {
-  label: string;
-  value: number | string;
+interface StatCardProps {
+  label:   string;
+  value:   number | string;
+  sub?:    string;
   accent?: 'green' | 'muted' | 'default';
+  icon?:   React.ReactNode;
   loading?: boolean;
 }
 
-function StatPill({ label, value, accent = 'default', loading }: StatPillProps) {
+function StatCard({ label, value, sub, accent = 'default', icon, loading }: StatCardProps) {
   return (
-    <div className="flex items-center gap-2">
-      {loading ? (
-        <Skeleton className="h-6 w-12 rounded-md" />
-      ) : (
-        <span
-          className={cn(
-            'text-lg font-bold tabular-nums leading-none',
-            accent === 'green'  && 'text-green-600 dark:text-green-400',
-            accent === 'muted'  && 'text-muted-foreground',
-            accent === 'default' && 'text-foreground',
-          )}
-        >
-          {value}
-        </span>
+    <div
+      className={cn(
+        'flex flex-col gap-1 rounded-xl border px-5 py-4 min-w-[110px]',
+        accent === 'green'   && 'border-green-500/25 bg-gradient-to-br from-green-500/8 to-green-500/3',
+        accent === 'muted'   && 'border-border bg-muted/20',
+        accent === 'default' && 'border-border bg-card',
       )}
-      <span className="text-xs text-muted-foreground">{label}</span>
+    >
+      <div className="flex items-center justify-between gap-2">
+        {loading ? (
+          <Skeleton className="h-8 w-14 rounded" />
+        ) : (
+          <span
+            className={cn(
+              'text-3xl font-bold tabular-nums leading-none tracking-tight',
+              accent === 'green'   && 'text-green-600 dark:text-green-400',
+              accent === 'muted'   && 'text-muted-foreground',
+              accent === 'default' && 'text-foreground',
+            )}
+          >
+            {value}
+          </span>
+        )}
+        {icon && (
+          <div className={cn(
+            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+            accent === 'green'   && 'bg-green-500/15 text-green-600 dark:text-green-400',
+            accent === 'muted'   && 'bg-muted text-muted-foreground',
+            accent === 'default' && 'bg-muted/60 text-muted-foreground',
+          )}>
+            {icon}
+          </div>
+        )}
+      </div>
+      <div>
+        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wide">{label}</p>
+        {sub && <p className="text-[10px] text-muted-foreground/60 mt-0.5">{sub}</p>}
+      </div>
     </div>
   );
 }
@@ -178,107 +203,144 @@ export default function ResultadosV2Page() {
         </a>
       </div>
 
-      {/* ── Stat strip ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2 rounded-xl border border-border bg-card px-5 py-3.5">
-        <StatPill label="resultados" value={totalCount} loading={loading} />
-        <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
-        <StatPill label="con señal activa" value={totalActivas} accent="green" loading={loading} />
-        <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
-        <StatPill label="descartadas" value={totalDesc} accent="muted" loading={loading} />
-        {!loading && totalCount > 0 && (
-          <>
-            <div className="h-5 w-px bg-border hidden sm:block" aria-hidden />
-            <div className="flex items-center gap-2">
-              {/* Hit-rate progress bar */}
-              <div className="h-2 w-24 overflow-hidden rounded-full bg-muted">
-                <div
-                  className="h-full rounded-full bg-green-500 transition-all duration-500 motion-safe:transition-all"
-                  style={{ width: `${activaPct}%` }}
-                />
+      {/* ── Tabs wrapper: Overview + Detalle ───────────────────────────────── */}
+      <Suspense>
+        <ResultadosTabs>
+          {/* ── Stat cards (Detalle tab) ─────────────────────────────────── */}
+          <div className="flex flex-wrap items-stretch gap-3">
+            <StatCard
+              label="Total escaneos"
+              value={totalCount}
+              icon={<BarChart3 size={16} />}
+              loading={loading}
+            />
+            <StatCard
+              label="Con señal activa"
+              value={totalActivas}
+              sub={totalCount > 0 ? `${activaPct}% del total` : undefined}
+              accent="green"
+              icon={<Zap size={16} />}
+              loading={loading}
+            />
+            <StatCard
+              label="Descartadas"
+              value={totalDesc}
+              accent="muted"
+              icon={<XCircle size={16} />}
+              loading={loading}
+            />
+            {!loading && totalCount > 0 && (
+              <div className="flex flex-col justify-center gap-2 rounded-xl border border-border bg-card px-5 py-4 min-w-[140px]">
+                <div className="flex items-center gap-3">
+                  <Activity size={16} className="shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2 mb-1.5">
+                      <span className="text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Hit rate</span>
+                      <span className="text-lg font-bold tabular-nums text-foreground">{activaPct}%</span>
+                    </div>
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
+                      <div
+                        className="h-full rounded-full bg-green-500 transition-all duration-700"
+                        style={{ width: `${activaPct}%` }}
+                      />
+                    </div>
+                  </div>
+                </div>
               </div>
-              <span className="text-xs tabular-nums text-muted-foreground">{activaPct}% hit rate</span>
+            )}
+          </div>
+
+          {/* ── Filter bar (Detalle tab) ──────────────────────────────────── */}
+          <div className="flex flex-wrap items-end gap-3 mt-2">
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground flex items-center gap-1">
+                <Filter size={10} aria-hidden />
+                Línea
+              </label>
+              <Select value={linea} onValueChange={v => setLinea(v ?? 'ALL')}>
+                <SelectTrigger
+                  className="h-8 w-48 text-xs"
+                  aria-label="Filtrar por línea de negocio"
+                >
+                  <SelectValue placeholder="Todas las líneas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {LINEA_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
-          </>
-        )}
-      </div>
 
-      {/* ── Filter bar ─────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap items-center gap-2">
-        <Filter size={14} className="shrink-0 text-muted-foreground" aria-hidden />
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Estado</label>
+              <Select value={radarActivo} onValueChange={v => setRadarActivo(v as 'ALL' | 'Sí' | 'No')}>
+                <SelectTrigger
+                  className="h-8 w-40 text-xs"
+                  aria-label="Filtrar por estado radar"
+                >
+                  <SelectValue placeholder="Todos" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ALL" className="text-xs">Todos los estados</SelectItem>
+                  <SelectItem value="Sí"  className="text-xs">Con señal activa</SelectItem>
+                  <SelectItem value="No"  className="text-xs">Descartados</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
 
-        <Select value={linea} onValueChange={v => setLinea(v ?? 'ALL')}>
-          <SelectTrigger
-            className="h-9 w-full sm:w-48 text-xs"
-            aria-label="Filtrar por línea de negocio"
-          >
-            <SelectValue placeholder="Línea..." />
-          </SelectTrigger>
-          <SelectContent>
-            {LINEA_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            <div className="flex flex-col gap-1">
+              <label className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Ventana</label>
+              <Select value={ventana} onValueChange={v => setVentana(v ?? 'ALL')}>
+                <SelectTrigger
+                  className="h-8 w-44 text-xs"
+                  aria-label="Filtrar por ventana de compra"
+                >
+                  <SelectValue placeholder="Todas las ventanas" />
+                </SelectTrigger>
+                <SelectContent>
+                  {VENTANA_OPTIONS.map(o => (
+                    <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
 
-        <Select value={radarActivo} onValueChange={v => setRadarActivo(v as 'ALL' | 'Sí' | 'No')}>
-          <SelectTrigger
-            className="h-9 w-full sm:w-40 text-xs"
-            aria-label="Filtrar por estado radar"
-          >
-            <SelectValue placeholder="Estado..." />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="ALL" className="text-xs">Todos los estados</SelectItem>
-            <SelectItem value="Sí"  className="text-xs">Con señal activa</SelectItem>
-            <SelectItem value="No"  className="text-xs">Descartados</SelectItem>
-          </SelectContent>
-        </Select>
+            {filtersActive && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 gap-1.5 text-xs text-muted-foreground hover:text-foreground self-end"
+                onClick={resetFilters}
+                aria-label="Limpiar filtros"
+              >
+                <RotateCcw size={11} />
+                Limpiar
+              </Button>
+            )}
 
-        <Select value={ventana} onValueChange={v => setVentana(v ?? 'ALL')}>
-          <SelectTrigger
-            className="h-9 w-full sm:w-48 text-xs"
-            aria-label="Filtrar por ventana de compra"
-          >
-            <SelectValue placeholder="Ventana de compra..." />
-          </SelectTrigger>
-          <SelectContent>
-            {VENTANA_OPTIONS.map(o => (
-              <SelectItem key={o.value} value={o.value} className="text-xs">{o.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+            {filtersActive && !loading && (
+              <Badge variant="secondary" className="ml-auto h-6 self-end px-2 text-[11px]">
+                {totalCount} resultado{totalCount !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </div>
 
-        {filtersActive && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 gap-1.5 text-xs text-muted-foreground hover:text-foreground"
-            onClick={resetFilters}
-            aria-label="Limpiar filtros"
-          >
-            <RotateCcw size={12} />
-            Limpiar
-          </Button>
-        )}
-
-        {filtersActive && !loading && (
-          <Badge variant="secondary" className="ml-auto h-6 px-2 text-[11px]">
-            {totalCount} resultado{totalCount !== 1 ? 's' : ''}
-          </Badge>
-        )}
-      </div>
-
-      {/* ── Table ──────────────────────────────────────────────────────────── */}
-      <ResultadosTable
-        results={results}
-        loading={loading}
-        hasMore={hasMore}
-        onLoadMore={loadMore}
-        onVerInforme={sessionId => {
-          setInformeSessionId(sessionId);
-          setShowInforme(true);
-        }}
-      />
+          {/* ── Table (Detalle tab) ───────────────────────────────────────── */}
+          <div className="mt-4">
+            <ResultadosTable
+              results={results}
+              loading={loading}
+              hasMore={hasMore}
+              onLoadMore={loadMore}
+              onVerInforme={sessionId => {
+                setInformeSessionId(sessionId);
+                setShowInforme(true);
+              }}
+            />
+          </div>
+        </ResultadosTabs>
+      </Suspense>
 
       <InformeEjecucion
         sessionId={informeSessionId}

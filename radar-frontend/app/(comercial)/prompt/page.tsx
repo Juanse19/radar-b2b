@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Code2, Copy, Check, Zap, Globe, Database, DollarSign } from 'lucide-react';
+import { Code2, Copy, Check, Zap, Globe, Database, DollarSign, Pencil, Save, X } from 'lucide-react';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Types
@@ -20,6 +20,8 @@ interface PromptData {
   today:                   string;
   estimated_system_tokens: number;
   estimated_user_tokens:   number;
+  is_admin:                boolean;
+  is_db_override:          boolean;
 }
 
 type Provider = 'claude' | 'openai' | 'gemini';
@@ -210,12 +212,21 @@ export default function PromptViewerPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedPrompt, setEditedPrompt] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [savedOk, setSavedOk] = useState(false);
+
+  const loadPrompt = useCallback((provider: string) => {
     let cancelled = false;
     setLoading(true);
     setError(null);
+    setIsEditing(false);
+    setSaveError(null);
+    setSavedOk(false);
 
-    fetch(`/api/comercial/prompt?provider=${activeProvider}`)
+    fetch(`/api/comercial/prompt?provider=${provider}`)
       .then((r) => r.json())
       .then((json) => {
         if (!cancelled) {
@@ -223,6 +234,7 @@ export default function PromptViewerPage() {
             setError(json.error as string);
           } else {
             setData(json as PromptData);
+            setEditedPrompt((json as PromptData).system_prompt);
           }
           setLoading(false);
         }
@@ -235,7 +247,37 @@ export default function PromptViewerPage() {
       });
 
     return () => { cancelled = true; };
-  }, [activeProvider]);
+  }, []);
+
+  useEffect(() => {
+    return loadPrompt(activeProvider);
+  }, [activeProvider, loadPrompt]);
+
+  const handleSave = useCallback(async () => {
+    if (!data) return;
+    setSaving(true);
+    setSaveError(null);
+    try {
+      const res = await fetch('/api/admin/prompts', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ provider: data.provider, system_prompt: editedPrompt }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        setSaveError((json as { error: string }).error ?? 'Error al guardar');
+      } else {
+        setSavedOk(true);
+        setIsEditing(false);
+        loadPrompt(activeProvider);
+        setTimeout(() => setSavedOk(false), 3000);
+      }
+    } catch (e) {
+      setSaveError((e as Error).message);
+    } finally {
+      setSaving(false);
+    }
+  }, [data, editedPrompt, activeProvider, loadPrompt]);
 
   return (
     <main className="min-h-screen bg-[#0d0f1a]">
@@ -310,12 +352,63 @@ export default function PromptViewerPage() {
                       cacheable
                     </span>
                   )}
+                  {data.is_db_override && (
+                    <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-xs text-emerald-400">
+                      DB override
+                    </span>
+                  )}
                 </div>
-                <CopyButton text={data.system_prompt} />
+                <div className="flex items-center gap-2">
+                  {savedOk && (
+                    <span className="flex items-center gap-1 text-xs text-emerald-400">
+                      <Check size={12} /> Guardado
+                    </span>
+                  )}
+                  {data.is_admin && !isEditing && (
+                    <button
+                      onClick={() => { setIsEditing(true); setSaveError(null); }}
+                      className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10 hover:text-white"
+                    >
+                      <Pencil size={12} /> Editar
+                    </button>
+                  )}
+                  {isEditing && (
+                    <>
+                      <button
+                        onClick={() => { setIsEditing(false); setEditedPrompt(data.system_prompt); setSaveError(null); }}
+                        className="flex items-center gap-1.5 rounded-md border border-white/10 bg-white/5 px-3 py-1.5 text-xs text-slate-300 transition hover:bg-white/10 hover:text-white"
+                      >
+                        <X size={12} /> Cancelar
+                      </button>
+                      <button
+                        onClick={handleSave}
+                        disabled={saving}
+                        className="flex items-center gap-1.5 rounded-md border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 text-xs text-emerald-400 transition hover:bg-emerald-500/20 disabled:opacity-50"
+                      >
+                        <Save size={12} /> {saving ? 'Guardando…' : 'Guardar'}
+                      </button>
+                    </>
+                  )}
+                  {!isEditing && <CopyButton text={data.system_prompt} />}
+                </div>
               </div>
-              <pre className="overflow-auto max-h-[520px] p-5 font-mono text-[13px] leading-relaxed text-slate-300 whitespace-pre-wrap break-words">
-                {data.system_prompt}
-              </pre>
+              {saveError && (
+                <div className="border-b border-red-500/20 bg-red-500/10 px-5 py-2 text-xs text-red-400">
+                  {saveError}
+                </div>
+              )}
+              {isEditing ? (
+                <textarea
+                  value={editedPrompt}
+                  onChange={(e) => setEditedPrompt(e.target.value)}
+                  className="w-full min-h-[520px] resize-y bg-transparent p-5 font-mono text-[13px] leading-relaxed text-slate-300 outline-none"
+                  spellCheck={false}
+                />
+              ) : (
+                <pre className="overflow-auto max-h-[520px] p-5 font-mono text-[13px] leading-relaxed text-slate-300 whitespace-pre-wrap break-words">
+                  {data.system_prompt}
+                </pre>
+              )}
             </div>
 
             {/* User message template */}

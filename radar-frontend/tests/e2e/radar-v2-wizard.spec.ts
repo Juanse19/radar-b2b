@@ -212,12 +212,12 @@ test.describe('Radar v2 — Wizard Escanear', () => {
     await ejecutarBtn.click();
 
     // handleFire() calls /api/comercial/auto-select then router.push → /vivo
-    await page.waitForURL(/\/comercial\/vivo/, { timeout: 15_000 }).catch(() => null);
+    await page.waitForURL(/\/en-vivo/, { timeout: 15_000 }).catch(() => null);
 
     await page.screenshot({ path: 'test-results/TC-W-05-vivo-navigation.png' });
 
     const currentUrl = page.url();
-    expect(currentUrl).toContain('/vivo');
+    expect(currentUrl).toContain('/en-vivo');
     expect(currentUrl).toContain('sessionId');
   });
 

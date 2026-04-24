@@ -1,0 +1,84 @@
+/**
+ * calificador/types.ts — Shared types for Calificador v2.
+ * server-only: referenced by engine, providers, and API route.
+ */
+
+export type Tier = 'A' | 'B' | 'C' | 'D';
+
+export type Dimension =
+  | 'impacto_presupuesto'
+  | 'multiplanta'
+  | 'recurrencia'
+  | 'referente_mercado'
+  | 'anio_objetivo'
+  | 'ticket_estimado'
+  | 'prioridad_comercial';
+
+export interface CalificacionInput {
+  empresa: string;
+  pais: string;
+  /** Nombre de línea (ej. "BHS", "Intralogística") */
+  lineaNombre: string;
+  /** FK a sub_lineas_negocio.id — opcional si no se conoce */
+  subLineaId?: number | null;
+  company_domain?: string;
+  ragContext?: RagContext;
+  sessionId: string;
+}
+
+export interface RagContext {
+  similares: Array<{ empresa: string; tier: string; score: number; linea: string }>;
+  criterios: string[];
+  rawBlock: string;
+}
+
+export interface DimScores {
+  impacto_presupuesto: number;
+  multiplanta: number;
+  recurrencia: number;
+  referente_mercado: number;
+  anio_objetivo: number;
+  ticket_estimado: number;
+  prioridad_comercial: number;
+}
+
+export interface CalificacionOutput {
+  scores: DimScores;
+  scoreTotal: number;
+  tier: Tier;
+  razonamiento: string;
+  perfilWeb: { summary: string; sources: string[] };
+  rawJson: unknown;
+  tokensInput: number;
+  tokensOutput: number;
+  costUsd: number;
+  model: string;
+}
+
+/** Minimal shape persisted to matec_radar.calificaciones */
+export interface CalificacionRow {
+  empresa_id?: number | null;
+  session_id?: string;
+  sub_linea_id?: number | null;
+  linea_negocio?: string;
+  provider?: string;
+  score_impacto: number;
+  score_multiplanta: number;
+  score_recurrencia: number;
+  score_referente: number;
+  score_anio: number;
+  score_ticket: number;
+  score_prioridad: number;
+  score_total: number;
+  tier_calculado: Tier;
+  razonamiento_agente?: string;
+  perfil_web_summary?: string;
+  perfil_web_sources?: unknown;
+  rag_context_used?: unknown;
+  raw_llm_json?: unknown;
+  modelo_llm?: string;
+  tokens_input?: number;
+  tokens_output?: number;
+  costo_usd?: number;
+  is_v2: true;
+}

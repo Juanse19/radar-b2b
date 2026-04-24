@@ -5,9 +5,7 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  turbopack: {
-    root: __dirname,
-  },
+  output: 'standalone',
   async redirects() {
     return [
       // Legacy v1 redirects (keep — existing bookmarks)

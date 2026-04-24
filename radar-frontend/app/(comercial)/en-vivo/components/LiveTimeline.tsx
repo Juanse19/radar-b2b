@@ -70,6 +70,7 @@ function HistoryPanel({ history }: { history: ActiveScan[] }) {
             const duration = scan.events.find(e => e.type === 'session_done')
               ? (scan.totalCost > 0 ? scan.totalCost : null)
               : null;
+            // eslint-disable-next-line react-hooks/purity
             const elapsed = Date.now() - scan.startedAt;
             const statusLabel =
               scan.status === 'done'    ? '✅' :
@@ -257,7 +258,6 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
     ]);
 
     const pushEvent = (ev: MessageEvent, type: StreamEventType) => {
-      if (phase === 'connecting') setPhase('live');
       let data: unknown;
       try { data = JSON.parse(ev.data); } catch { data = ev.data; }
       const nowTs = Date.now();
@@ -468,7 +468,7 @@ export function LiveTimeline({ sessionId, empresas, line, provider }: Props) {
             {phase === 'stopped' && !summary && 'Detenido manualmente'}
             {errorMsg && <span className="text-destructive">{errorMsg}</span>}
           </div>
-          <Link href="/resultados">
+          <Link href="/resultados?tab=detalle">
             <Button size="sm">Ver resultados</Button>
           </Link>
         </div>

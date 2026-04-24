@@ -87,8 +87,14 @@ export function Step3Review({ state, onChange }: Props) {
           setProviders(FALLBACK_PROVIDERS);
           return;
         }
+        // Normalize provider aliases from the DB to the canonical names used by the registry
+        const normalizeProvider = (p: string): string => {
+          if (p === 'anthropic') return 'claude';
+          if (p === 'google')    return 'gemini';
+          return p;
+        };
         const mapped: ProviderOption[] = configs.map((c) => ({
-          name:        c.provider === 'anthropic' ? 'claude' : c.provider,
+          name:        normalizeProvider(c.provider),
           model:       c.label,
           implemented: true,
         }));
@@ -96,7 +102,7 @@ export function Step3Review({ state, onChange }: Props) {
         // If current provider not in list, switch to default
         const defaultCfg = configs.find((c) => c.is_default);
         if (defaultCfg) {
-          const defaultName = defaultCfg.provider === 'anthropic' ? 'claude' : defaultCfg.provider;
+          const defaultName = normalizeProvider(defaultCfg.provider);
           const currentInList = mapped.some((p) => p.name === state.provider);
           if (!currentInList) {
             onChange({ provider: defaultName });
@@ -218,13 +224,13 @@ export function Step3Review({ state, onChange }: Props) {
         }
       }
 
-      // Generate a session id client-side and navigate to /vivo immediately.
+      // Generate a session id client-side and navigate to /en-vivo immediately.
       // The SSE stream endpoint (/api/comercial/stream) runs the actual scan —
       // the browser connects and starts receiving events right away.
       const sessionId = crypto.randomUUID();
 
       // Pre-register scan in global activity store so the floating widget
-      // appears immediately and survives navigation to /vivo.
+      // appears immediately and survives navigation to /en-vivo.
       scanActivityStore.startScan(
         sessionId,
         state.line,
@@ -240,7 +246,7 @@ export function Step3Review({ state, onChange }: Props) {
           companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
         ),
       });
-      router.push(`/vivo?${vivoParams.toString()}`);
+      router.push(`/en-vivo?${vivoParams.toString()}`);
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');
       setFiring(false);

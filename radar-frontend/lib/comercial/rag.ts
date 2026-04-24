@@ -1,7 +1,7 @@
 /**
- * rag.ts — Pinecone + Voyage AI RAG client for Radar v2.
- * Retrieves historical signals and corpus context before each Claude scan.
- * Graceful degradation: missing PINECONE_API_KEY → empty context, scan continues.
+ * rag.ts — Pinecone RAG client for Comercial module.
+ * Embeddings: OpenAI text-embedding-3-small (1536 dims, matches matec-radar index).
+ * Graceful degradation: missing PINECONE_API_KEY or OPENAI_API_KEY → empty context.
  */
 import 'server-only';
 import { Pinecone } from '@pinecone-database/pinecone';
@@ -11,7 +11,7 @@ import type { Agente1Result } from '@/lib/comercial/schema';
 const S                  = SCHEMA;
 const DEFAULT_INDEX      = 'matec-radar';
 const DEFAULT_NAMESPACE  = 'comercial_dev';
-const DEFAULT_MODEL      = 'voyage-3';
+const DEFAULT_MODEL      = 'text-embedding-3-small';
 
 // ---------------------------------------------------------------------------
 // Internal metadata shape stored in Pinecone
@@ -63,40 +63,27 @@ function pineconeConfig() {
 }
 
 function embeddingModel() {
-  return process.env.EMBEDDING_MODEL ?? DEFAULT_MODEL;
+  return process.env.PINECONE_EMBEDDING_MODEL ?? DEFAULT_MODEL;
 }
 
 // ---------------------------------------------------------------------------
-// embed — Voyage AI (default) or OpenAI fallback
+// embed — OpenAI text-embedding-3-small (1536 dims, matches matec-radar index)
+// inputType ignored — OpenAI uses the same model for both query and passage.
 // ---------------------------------------------------------------------------
 
-export async function embed(text: string): Promise<number[]> {
-  const provider = process.env.EMBEDDING_PROVIDER ?? 'voyage';
+export async function embed(
+  text: string,
+  _inputType: 'query' | 'passage' = 'query',
+): Promise<number[]> {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) throw new Error('OPENAI_API_KEY not set');
 
-  if (provider === 'openai') {
-    const key = process.env.OPENAI_API_KEY;
-    if (!key) throw new Error('OPENAI_API_KEY not set');
-
-    const res = await fetch('https://api.openai.com/v1/embeddings', {
-      method:  'POST',
-      headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-      body:    JSON.stringify({ model: 'text-embedding-3-small', input: text }),
-    });
-    if (!res.ok) throw new Error(`OpenAI embed HTTP ${res.status}`);
-    const data = await res.json() as { data: Array<{ embedding: number[] }> };
-    return data.data[0].embedding;
-  }
-
-  // Voyage AI (default)
-  const key = process.env.VOYAGE_API_KEY;
-  if (!key) throw new Error('VOYAGE_API_KEY not set');
-
-  const res = await fetch('https://api.voyageai.com/v1/embeddings', {
+  const res = await fetch('https://api.openai.com/v1/embeddings', {
     method:  'POST',
     headers: { Authorization: `Bearer ${key}`, 'Content-Type': 'application/json' },
-    body:    JSON.stringify({ model: embeddingModel(), input: [text] }),
+    body:    JSON.stringify({ model: embeddingModel(), input: text }),
   });
-  if (!res.ok) throw new Error(`Voyage AI embed HTTP ${res.status}`);
+  if (!res.ok) throw new Error(`OpenAI embed HTTP ${res.status}`);
   const data = await res.json() as { data: Array<{ embedding: number[] }> };
   return data.data[0].embedding;
 }
@@ -108,15 +95,15 @@ export async function embed(text: string): Promise<number[]> {
 export async function retrieveContext(empresa: string, linea: string): Promise<RagContext> {
   const { apiKey, index, namespace } = pineconeConfig();
 
-  if (!apiKey) {
-    console.warn('[RAG] PINECONE_API_KEY not set — returning empty context');
+  if (!apiKey || !process.env.OPENAI_API_KEY) {
+    console.warn('[RAG] PINECONE_API_KEY or OPENAI_API_KEY not set — returning empty context');
     return { similares: [], keywords: [], criterios: [] };
   }
 
   const pc            = new Pinecone({ apiKey });
   const ns            = pc.index(index).namespace(namespace);
   const queryText     = `${empresa} ${linea} inversión CAPEX expansión señal LATAM`;
-  const queryVector   = await embed(queryText);
+  const queryVector   = await embed(queryText, 'query');
 
   const toMatch = (m: { id: string; score?: number; metadata?: Record<string, unknown> }): RagMatch => ({
     id:       m.id,
@@ -159,7 +146,7 @@ export async function upsertSenal(r: Agente1Result, sessionId: string): Promise<
     r.monto_inversion,
   ].filter(Boolean).join(' | ');
 
-  const vector   = await embed(text);
+  const vector   = await embed(text, 'passage');
   const vectorId = crypto.randomUUID();
   const model    = embeddingModel();
   const sid      = sessionId && sessionId.trim() ? sessionId : null;

@@ -16,11 +16,19 @@ import type {
   SSEEmitter,
   SupportedFeature,
 } from './types';
+import {
+  CALIFICADOR_SYSTEM_PROMPT,
+  buildCalificadorUserPrompt,
+} from '@/lib/comercial/calificador/prompts';
+import { CALIFICACION_JSON_SCHEMA } from '@/lib/comercial/calificador/schema';
+import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/calificador/types';
 
-const OPENAI_MODEL       = process.env.OPENAI_MODEL ?? 'gpt-4o';
-// GPT-4o pricing (as of 2026-04): $2.50/1M input, $10.00/1M output
-const PRICE_INPUT_PER_M  = 2.5;
-const PRICE_OUTPUT_PER_M = 10.0;
+// Default to gpt-4o-mini: supports web_search_preview, $0.15/1M in, $0.60/1M out
+// (gpt-4o fallback available via OPENAI_MODEL env var if needed)
+const OPENAI_MODEL       = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
+// GPT-4o-mini pricing (as of 2026-04): $0.15/1M input, $0.60/1M output
+const PRICE_INPUT_PER_M  = 0.15;
+const PRICE_OUTPUT_PER_M = 0.60;
 
 // ---------------------------------------------------------------------------
 // Responses API types
@@ -63,10 +71,80 @@ function buildSystemPrompt(): string {
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
 
-Tienes acceso a búsqueda web en tiempo real. Ejecuta 3-5 búsquedas web con sub-preguntas específicas para cada empresa: expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.
+Tienes acceso a búsqueda web en tiempo real. Ejecuta EXACTAMENTE estas 4-5 búsquedas para cada empresa:
+1. "{empresa}" {palabras_clave_linea} CAPEX 2026 2027
+2. "{empresa}" licitación contratación pública {país} 2026
+3. "{empresa}" "nueva planta" OR "expansión" OR "ampliación" {país}
+4. "{empresa}" informe anual 2025 2026 inversiones estrategia plan CAPEX
+5. "{empresa}" proyecto infraestructura {país} BID CAF Banco Mundial (si aplica)
+
+PALABRAS CLAVE POR LÍNEA:
+- BHS/Aeropuertos: ampliación terminal aeropuerto CAPEX concesión sorter BHS
+- Intralogística: CEDI bodega almacén automatización WMS conveyor ASRS sortación
+- Cartón/Papel: planta corrugadora cartón ondulado CAPEX expansión capacidad producción
+- Final de Línea: palletizador embalaje packaging línea producción alimentos bebidas CAPEX
+- Motos/Ensambladoras: ensambladora motocicleta planta CAPEX expansión línea producción
+- Solumat/Plásticos: planta plástico material industrial molde inyección CAPEX expansión
+
+🔴 FILTRO NEGATIVO BHS (NO son BHS — ignorar):
+   runway, taxiway, apron, torre de control, ILS, radar ATC,
+   pista de aterrizaje, navegación aérea, señalización de pista.
+🟢 FILTRO POSITIVO BHS (SÍ son BHS):
+   terminal de pasajeros + sistema BHS, carrusel de equipaje,
+   CUTE, CUSS, CBIS, sortation aeroportuario, self bag drop.
+
+FUENTES PRIORITARIAS (mayor credibilidad):
+- Contratación pública: SECOP II (Colombia), CompraNet (México), ChileCompra, SEACE (Perú)
+- Prensa económica: Reuters, Bloomberg, BNAmericas, El Tiempo, Expansión, El Economista
+- Fuentes de empresa: investor.{empresa}.com, reportes anuales, comunicados IR
+- Multilaterales: CAF, BID, Banco Mundial (proyectos de infraestructura)
+
+FUENTES PROHIBIDAS (ignorar completamente, no citar):
+- Wikipedia, Wikimedia, enciclopedias → NO USAR
+- LinkedIn posts, Twitter, Facebook, redes sociales → NO USAR
+- Ofertas de empleo / job postings → NO USAR
+- Artículos de marketing sin cifras verificables → NO USAR
+- Noticias sin fecha o anteriores a octubre 2025 → NO USAR. Si la inversión ya está ejecutando desde 2024/2025 sin fases futuras por iniciar después de julio 2026 → NO USAR
+
+🔴 DESCARTE INMEDIATO — verbos de pasado completivo (la señal ya se ejecutó):
+   "inauguró", "inaugurado", "abrió sus puertas", "ya está en operación",
+   "entró en funcionamiento", "fue completado", "ya opera",
+   "completó su construcción", "se completó", "en plena operación",
+   "fue inaugurado", "completó la obra", "ya entró en servicio"
+
+🟡 AMBIGUO — requiere análisis adicional:
+   Proyectos con fechas 2025-2027: buscar ACTIVAMENTE si hay fases futuras pendientes.
+   Si hay fase futura verificable (equipo por licitar, obras no completadas) → radar_activo="Sí", tipo_senal="Señal Temprana"
+   Si NO hay fase futura verificable → DESCARTAR
+
+🔍 LA EMPRESA DEBE APARECER EXPLÍCITAMENTE EN LA FUENTE:
+Antes de asignar radar_activo="Sí", verifica:
+¿El titular o cuerpo de la fuente menciona EXPLÍCITAMENTE el nombre de la empresa?
+
+✅ VÁLIDO: "[Empresa] anunció inversión de USD X millones en nueva planta"
+❌ INVÁLIDO → DESCARTE: "Plan de Inversión Nacional 2026" (sin nombrar la empresa)
+❌ INVÁLIDO → DESCARTE: "El sector logístico invertirá $X millones" (sector genérico)
+❌ INVÁLIDO → DESCARTE: Artículo sobre OTRA empresa del mismo sector
+
+Si NINGÚN resultado menciona la empresa explícitamente:
+  radar_activo="No", motivo_descarte="Sin fuentes específicas que mencionen a {empresa}."
+
+📋 CRITERIOS DE VALIDACIÓN (necesitas ≥3 de 6 para activar):
+1. Inversión confirmada o en planificación formal
+2. Expansión física: nueva terminal, planta, CEDI, corrugadora, hub
+3. Proyecto específico con nombre, código o número de referencia
+4. Proceso de contratación activo: licitación, RFP, concurso
+5. Permisos o concesiones gubernamentales obtenidos o en proceso
+6. Financiación confirmada: crédito, bono, CAPEX en reporte financiero
+
+Si total_criterios < 3 → indicar en observaciones que la señal es débil.
+
+📰 PAYWALL: Si titular anuncia inversión pero el cuerpo está bloqueado:
+   - Reportar con datos disponibles del snippet/titular.
+   - Agregar en observaciones: "Fuente con paywall — datos limitados al snippet."
 
 INCLUIR (radar_activo: "Sí"): planes de expansión documentados en reportes anuales, declaraciones públicas de CAPEX, proyectos en construcción anunciados, licitaciones conocidas, estrategias de crecimiento confirmadas.
-DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028.
+DESCARTAR (radar_activo: "No"): si no hay evidencia concreta de inversión futura en las líneas de Matec para 2026-2028. También descartar si la inversión mencionada ya inició ejecución en 2024/2025 sin fases documentadas después de julio 2026, o si contiene verbos de pasado completivo listados arriba.
 
 VENTANA DE COMPRA:
 - Q2-Q4 2026 → "0-6 Meses"
@@ -95,6 +173,29 @@ RESPONDE SOLO con JSON válido sin markdown. Schema exacto:
 }
 
 // ---------------------------------------------------------------------------
+// 429 retry helper — mirrors claudeFetchWithRetry pattern
+// ---------------------------------------------------------------------------
+
+async function openAIFetchWithRetry(
+  url: string,
+  options: RequestInit,
+  emit: SSEEmitter | undefined,
+  empresa: string,
+  maxRetries = 3,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const resp = await fetch(url, options);
+    if (resp.status !== 429 || attempt === maxRetries) return resp;
+
+    const retryAfterSec = Number(resp.headers?.get('retry-after') ?? '60');
+    const waitMs = Math.min(retryAfterSec * 1_000, 120_000);
+    emit?.emit('thinking', { empresa, linea: '', text: `Límite de tasa alcanzado. Reintentando en ${Math.round(waitMs / 1000)}s (intento ${attempt + 1}/${maxRetries})…` });
+    await new Promise(r => setTimeout(r, waitMs));
+  }
+  return fetch(url, options);
+}
+
+// ---------------------------------------------------------------------------
 // Internal scan implementation
 // ---------------------------------------------------------------------------
 
@@ -119,11 +220,39 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG optional */ }
 
+  const lineKeywords: Record<string, string> = {
+    bhs:            'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    aeropuerto:     'aeropuerto terminal CAPEX sorter BHS concesión licitación',
+    cargo:          'bodega aerocarga CAPEX expansión logística aérea licitación',
+    cartón:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    carton:         'planta corrugadora cartón CAPEX expansión capacidad producción',
+    papel:          'planta corrugadora cartón CAPEX expansión capacidad producción',
+    intralogística: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    intralogistica: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
+    'final de línea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    'final de linea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
+    motos:          'ensambladora motocicleta planta CAPEX expansión línea producción',
+    solumat:        'planta plástico material industrial molde inyección CAPEX expansión',
+    plástico:       'planta plástico material industrial molde inyección CAPEX expansión',
+  };
+  const lineKey = line.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+  const keywords = Object.entries(lineKeywords).find(([k]) =>
+    lineKey.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
+  )?.[1] ?? 'CAPEX inversión expansión planta nueva 2026 2027';
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}
+Palabras clave del sector: ${keywords}
 
-Busca en la web y analiza si esta empresa tiene señales de inversión futura relevantes para las líneas de negocio de Matec en LATAM para el período 2026-2028. Ejecuta búsquedas sobre expansión física planificada, licitaciones públicas activas, CAPEX declarado, proyectos nuevos, concesiones y contratos.`;
+TAREA: Busca señales de inversión FUTURA en LATAM 2026-2028 para esta empresa.
+Ejecuta estas búsquedas exactas:
+1. "${company.name}" ${keywords} 2026 2027
+2. "${company.name}" licitación contratación pública ${company.country}
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+
+IMPORTANTE: Usa solo fuentes con proyectos documentados. NO cites Wikipedia, redes sociales ni ofertas de empleo.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
@@ -131,25 +260,37 @@ Busca en la web y analiza si esta empresa tiene señales de inversión futura re
 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
+  let systemPromptText = buildSystemPrompt();
+  try {
+    const { getAgentPrompt } = await import('@/lib/db/supabase/agent-prompts');
+    const dbOverride = await getAgentPrompt('openai');
+    if (dbOverride) systemPromptText = dbOverride;
+  } catch { /* DB unavailable — use hardcoded */ }
+
   const body = {
     model,
     tools: [{ type: 'web_search_preview' }],
     input: [
-      { role: 'system', content: buildSystemPrompt() },
+      { role: 'system', content: systemPromptText },
       { role: 'user',   content: userMessage },
     ],
     max_output_tokens: 2048,
     store: false,
   };
 
-  const resp = await fetch('https://api.openai.com/v1/responses', {
-    method:  'POST',
-    headers: {
-      'Authorization': `Bearer ${apiKey}`,
-      'Content-Type':  'application/json',
+  const resp = await openAIFetchWithRetry(
+    'https://api.openai.com/v1/responses',
+    {
+      method:  'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type':  'application/json',
+      },
+      body: JSON.stringify(body),
     },
-    body: JSON.stringify(body),
-  });
+    emit,
+    company.name,
+  );
 
   if (!resp.ok) {
     const errText = await resp.text();
@@ -266,6 +407,75 @@ function createOpenAIProvider(): AIProvider {
 
     supports(feature: SupportedFeature): boolean {
       return feature === 'web_search' || feature === 'streaming';
+    },
+
+    async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+      const model = process.env.OPENAI_CALIFICADOR_MODEL ?? 'gpt-4o-mini';
+
+      emit?.emit('thinking', { empresa: params.empresa, chunk: 'Iniciando calificación con OpenAI…' });
+      emit?.emit('profiling_web', { empresa: params.empresa, query: `${params.empresa} ${params.pais} inversión 2026` });
+
+      const userMsg = buildCalificadorUserPrompt(params, params.ragContext);
+
+      const body = {
+        model,
+        max_tokens: 2048,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'calificacion', strict: true, schema: CALIFICACION_JSON_SCHEMA },
+        },
+        messages: [
+          { role: 'system', content: CALIFICADOR_SYSTEM_PROMPT },
+          { role: 'user',   content: userMsg },
+        ],
+      };
+
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(`OpenAI calificar ${resp.status}: ${err.slice(0, 300)}`);
+      }
+
+      type OAIResp = { choices: Array<{ message: { content: string } }>; usage?: { prompt_tokens: number; completion_tokens: number } };
+      const data = await resp.json() as OAIResp;
+      const content = data.choices[0]?.message?.content ?? '';
+      const tokensIn  = data.usage?.prompt_tokens     ?? 0;
+      const tokensOut = data.usage?.completion_tokens ?? 0;
+      const cost = (tokensIn * PRICE_INPUT_PER_M + tokensOut * PRICE_OUTPUT_PER_M) / 1_000_000;
+
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(content);
+      } catch {
+        throw new Error(`OpenAI calificar non-JSON for ${params.empresa}`);
+      }
+
+      return {
+        scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        scoreTotal: 0,
+        tier: 'C',
+        razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',
+        perfilWeb: (rawJson as { perfilWeb?: CalificacionOutput['perfilWeb'] }).perfilWeb ?? { summary: '', sources: [] },
+        rawJson,
+        tokensInput: tokensIn,
+        tokensOutput: tokensOut,
+        costUsd: cost,
+        model,
+      };
+    },
+
+    estimateCalificacion(empresas_count: number): CostEstimate {
+      const tokens_in_est  = empresas_count * 2500;
+      const tokens_out_est = empresas_count * 600;
+      const cost_usd_est   = (tokens_in_est * PRICE_INPUT_PER_M + tokens_out_est * PRICE_OUTPUT_PER_M) / 1_000_000;
+      return { tokens_in_est, tokens_out_est, cost_usd_est, cached_percentage: 0 };
     },
   };
 }

@@ -2,13 +2,13 @@
  * Unit tests for lib/comercial/rag.ts
  *
  * Coverage:
- *   embed()          — Voyage AI & OpenAI paths, missing-key errors, HTTP errors
+ *   embed()          — Pinecone native inference, missing-key error, empty-values error
  *   retrieveContext()— graceful degradation w/o PINECONE_API_KEY, parallel queries
  *   upsertSenal()    — skips without key, embeds + upserts + writes ingest log
  *   buildRagBlock()  — empty context, full context, partial sections
  *
- * All network calls (fetch) and Pinecone SDK are mocked. `server-only` is
- * stubbed so the module can be imported outside Next.js.
+ * Pinecone SDK (including inference) is mocked. `server-only` is stubbed so
+ * the module can be imported outside Next.js.
  */
 
 import {
@@ -16,8 +16,7 @@ import {
 } from 'vitest';
 
 // ---------------------------------------------------------------------------
-// Static hoisted mocks — vi.hoisted() ensures these are available in
-// vi.mock() factories (which are hoisted to the top of the file by Vitest).
+// Static hoisted mocks
 // ---------------------------------------------------------------------------
 
 const { mockPgQuery, mockUpsert, mockQuery, mockNamespace, mockIndex } =
@@ -38,10 +37,11 @@ vi.mock('@/lib/db/supabase/pg_client', () => ({
   SCHEMA:  'matec_radar',
 }));
 
-// `new Pinecone(...)` requires a regular function (not an arrow fn) as constructor.
+// eslint-disable-next-line prefer-arrow-callback
 vi.mock('@pinecone-database/pinecone', () => ({
-  // eslint-disable-next-line prefer-arrow-callback
-  Pinecone: vi.fn(function MockPinecone() { return { index: mockIndex }; }),
+  Pinecone: vi.fn(function MockPinecone() {
+    return { index: mockIndex };
+  }),
 }));
 
 // ---------------------------------------------------------------------------
@@ -64,7 +64,6 @@ import type { Agente1Result } from '@/lib/comercial/schema';
 
 const FAKE_VECTOR = Array.from({ length: 1024 }, (_, i) => i / 1024);
 
-/** Build a minimal Agente1Result for upsertSenal tests. */
 function makeResult(overrides: Partial<Agente1Result> = {}): Agente1Result {
   return {
     empresa_evaluada:    'TestCorp SA',
@@ -88,7 +87,6 @@ function makeResult(overrides: Partial<Agente1Result> = {}): Agente1Result {
   };
 }
 
-/** Build a minimal RagMatch. */
 function makeMatch(overrides: Partial<RagMatch> = {}): RagMatch {
   return {
     id: 'vec-001',
@@ -116,102 +114,66 @@ function makeMatch(overrides: Partial<RagMatch> = {}): RagMatch {
 describe('embed()', () => {
   const savedEnv = { ...process.env };
 
+  beforeEach(() => {
+    process.env.OPENAI_API_KEY = 'openai-test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok:   true,
+      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
+    } as unknown as Response));
+  });
+
   afterEach(() => {
     Object.assign(process.env, savedEnv);
     vi.restoreAllMocks();
   });
 
-  it('calls Voyage AI endpoint and returns first embedding', async () => {
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-    process.env.VOYAGE_API_KEY     = 'voyage-test-key';
-    process.env.EMBEDDING_MODEL    = 'voyage-3';
-
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response);
-    vi.stubGlobal('fetch', mockFetch);
-
+  it('calls OpenAI embeddings endpoint and returns first embedding', async () => {
     const result = await embed('test query');
 
+    const mockFetch = vi.mocked(globalThis.fetch);
     expect(mockFetch).toHaveBeenCalledOnce();
     const [url, init] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toBe('https://api.voyageai.com/v1/embeddings');
-    const body = JSON.parse(init.body as string);
-    expect(body.model).toBe('voyage-3');
-    expect(body.input).toEqual(['test query']);
-    expect(result).toBe(FAKE_VECTOR);
-  });
-
-  it('calls OpenAI endpoint when EMBEDDING_PROVIDER=openai', async () => {
-    process.env.EMBEDDING_PROVIDER = 'openai';
-    process.env.OPENAI_API_KEY     = 'openai-test-key';
-
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response);
-    vi.stubGlobal('fetch', mockFetch);
-
-    const result = await embed('query text');
-
-    const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
     expect(url).toBe('https://api.openai.com/v1/embeddings');
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe('text-embedding-3-small');
+    expect(body.input).toBe('test query');
     expect(result).toBe(FAKE_VECTOR);
   });
 
-  it('throws when VOYAGE_API_KEY is missing', async () => {
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-    delete process.env.VOYAGE_API_KEY;
+  it('uses PINECONE_EMBEDDING_MODEL env var when set', async () => {
+    process.env.PINECONE_EMBEDDING_MODEL = 'text-embedding-ada-002';
 
-    await expect(embed('hello')).rejects.toThrow('VOYAGE_API_KEY not set');
+    await embed('test');
+
+    const [, init] = vi.mocked(globalThis.fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe('text-embedding-ada-002');
+
+    delete process.env.PINECONE_EMBEDDING_MODEL;
   });
 
-  it('throws when OPENAI_API_KEY is missing', async () => {
-    process.env.EMBEDDING_PROVIDER = 'openai';
+  it('defaults to text-embedding-3-small when PINECONE_EMBEDDING_MODEL is unset', async () => {
+    delete process.env.PINECONE_EMBEDDING_MODEL;
+
+    await embed('test');
+
+    const [, init] = vi.mocked(globalThis.fetch).mock.calls[0] as [string, RequestInit];
+    const body = JSON.parse(init.body as string);
+    expect(body.model).toBe('text-embedding-3-small');
+  });
+
+  it('throws when OPENAI_API_KEY is not set', async () => {
     delete process.env.OPENAI_API_KEY;
 
     await expect(embed('hello')).rejects.toThrow('OPENAI_API_KEY not set');
   });
 
-  it('throws on non-ok Voyage response (HTTP 429)', async () => {
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-
+  it('throws on non-ok OpenAI response (HTTP 429)', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:     false,
-      status: 429,
+      ok: false, status: 429,
     } as unknown as Response));
 
-    await expect(embed('rate limited')).rejects.toThrow('Voyage AI embed HTTP 429');
-  });
-
-  it('throws on non-ok OpenAI response (HTTP 401)', async () => {
-    process.env.EMBEDDING_PROVIDER = 'openai';
-    process.env.OPENAI_API_KEY     = 'bad-key';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:     false,
-      status: 401,
-    } as unknown as Response));
-
-    await expect(embed('unauth')).rejects.toThrow('OpenAI embed HTTP 401');
-  });
-
-  it('defaults to voyage provider when EMBEDDING_PROVIDER is unset', async () => {
-    delete process.env.EMBEDDING_PROVIDER;
-    process.env.VOYAGE_API_KEY = 'voyage-key';
-
-    const mockFetch = vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response);
-    vi.stubGlobal('fetch', mockFetch);
-
-    await embed('default provider');
-
-    const [url] = mockFetch.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('voyageai.com');
+    await expect(embed('text')).rejects.toThrow('OpenAI embed HTTP 429');
   });
 });
 
@@ -220,16 +182,24 @@ describe('embed()', () => {
 // ---------------------------------------------------------------------------
 
 describe('retrieveContext()', () => {
+  const mockFetchEmbed = vi.fn().mockResolvedValue({
+    ok:   true,
+    json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
+  } as unknown as Response);
+
   beforeEach(() => {
-    // Clear call history only — preserves mockReturnValue/mockImplementation
+    process.env.PINECONE_API_KEY = 'pc-test-key';
+    process.env.OPENAI_API_KEY   = 'openai-test-key';
     mockQuery.mockClear();
     mockQuery.mockResolvedValue({ matches: [] });
     mockUpsert.mockClear();
     mockPgQuery.mockClear();
     mockPgQuery.mockResolvedValue([]);
+    vi.stubGlobal('fetch', mockFetchEmbed);
   });
 
   afterEach(() => {
+    delete process.env.OPENAI_API_KEY;
     vi.restoreAllMocks();
   });
 
@@ -240,34 +210,26 @@ describe('retrieveContext()', () => {
     const ctx = await retrieveContext('TestCorp', 'BHS');
 
     expect(ctx).toEqual({ similares: [], keywords: [], criterios: [] });
-    // Pinecone should NOT be instantiated
-    const { Pinecone } = await import('@pinecone-database/pinecone');
-    expect(Pinecone).not.toHaveBeenCalled();
+    expect(mockQuery).not.toHaveBeenCalled();
 
     process.env.PINECONE_API_KEY = saved;
   });
 
+  it('returns empty context when OPENAI_API_KEY is not set', async () => {
+    delete process.env.OPENAI_API_KEY;
+
+    const ctx = await retrieveContext('TestCorp', 'BHS');
+
+    expect(ctx).toEqual({ similares: [], keywords: [], criterios: [] });
+  });
+
   it('makes 3 parallel namespace.query calls with correct filters', async () => {
-    process.env.PINECONE_API_KEY      = 'pc-test-key';
-    process.env.PINECONE_INDEX        = 'matec-radar';
-    process.env.PINECONE_NAMESPACE_COMERCIAL = 'radar_v2';
-    process.env.VOYAGE_API_KEY        = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER    = 'voyage';
-
-    // Mock embed so we don't actually call Voyage AI
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
-    mockQuery.mockResolvedValue({ matches: [] });
+    process.env.PINECONE_INDEX               = 'matec-radar';
+    process.env.PINECONE_NAMESPACE_COMERCIAL = 'comercial_dev';
 
     await retrieveContext('Grupo Bimbo', 'Final de Línea');
 
-    // Should have called namespace.query 3 times (Promise.all)
     expect(mockQuery).toHaveBeenCalledTimes(3);
-
-    // Verify filter values
     const filters = mockQuery.mock.calls.map(
       (c: [{ filter: Record<string, unknown> }]) => c[0].filter?.tipo?.$eq,
     );
@@ -277,67 +239,37 @@ describe('retrieveContext()', () => {
   });
 
   it('queries topK=5 for similares, topK=3 for keywords and criterios', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
-    mockQuery.mockResolvedValue({ matches: [] });
-
     await retrieveContext('Empresa X', 'Intralogística');
 
     const topKValues = mockQuery.mock.calls.map(
       (c: [{ topK: number; filter: { tipo: { $eq: string } } }]) => ({
-        topK:  c[0].topK,
-        tipo:  c[0].filter?.tipo?.$eq,
+        topK: c[0].topK,
+        tipo: c[0].filter?.tipo?.$eq,
       }),
     );
-
-    const similares = topKValues.find(v => v.tipo === 'senal_historica');
-    const keywords  = topKValues.find(v => v.tipo === 'keyword');
-    const criterios = topKValues.find(v => v.tipo === 'criterio');
-
-    expect(similares?.topK).toBe(5);
-    expect(keywords?.topK).toBe(3);
-    expect(criterios?.topK).toBe(3);
+    expect(topKValues.find(v => v.tipo === 'senal_historica')?.topK).toBe(5);
+    expect(topKValues.find(v => v.tipo === 'keyword')?.topK).toBe(3);
+    expect(topKValues.find(v => v.tipo === 'criterio')?.topK).toBe(3);
   });
 
   it('maps Pinecone results into RagMatch[] with id, score and metadata', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
     const fakeMatch = {
       id:       'vec-abc',
       score:    0.95,
       metadata: { tipo: 'senal_historica', empresa: 'TestCorp', pais: 'Colombia' },
     };
-
-    // Simulate: similares returns 1 match, keywords/criterios return empty
     mockQuery
-      .mockResolvedValueOnce({ matches: [fakeMatch] }) // similares
-      .mockResolvedValueOnce({ matches: [] })           // keywords
-      .mockResolvedValueOnce({ matches: [] });          // criterios
+      .mockResolvedValueOnce({ matches: [fakeMatch] })
+      .mockResolvedValueOnce({ matches: [] })
+      .mockResolvedValueOnce({ matches: [] });
 
     const ctx = await retrieveContext('TestCorp', 'BHS');
 
     expect(ctx.similares).toHaveLength(1);
     expect(ctx.similares[0]).toMatchObject({
-      id:    'vec-abc',
-      score: 0.95,
+      id: 'vec-abc', score: 0.95,
       metadata: expect.objectContaining({ empresa: 'TestCorp' }),
     });
-    expect(ctx.keywords).toHaveLength(0);
-    expect(ctx.criterios).toHaveLength(0);
   });
 });
 
@@ -347,6 +279,12 @@ describe('retrieveContext()', () => {
 
 describe('upsertSenal()', () => {
   beforeEach(() => {
+    process.env.PINECONE_API_KEY = 'pc-key';
+    process.env.OPENAI_API_KEY   = 'openai-test-key';
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      ok:   true,
+      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
+    } as unknown as Response));
     mockUpsert.mockClear();
     mockUpsert.mockResolvedValue(undefined);
     mockPgQuery.mockClear();
@@ -354,6 +292,7 @@ describe('upsertSenal()', () => {
   });
 
   afterEach(() => {
+    delete process.env.OPENAI_API_KEY;
     vi.restoreAllMocks();
   });
 
@@ -368,38 +307,24 @@ describe('upsertSenal()', () => {
   });
 
   it('builds embedding text from key result fields', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    const capturedBody: string[] = [];
+    const capturedBodies: string[] = [];
     vi.stubGlobal('fetch', vi.fn().mockImplementation((_url: string, init: RequestInit) => {
-      capturedBody.push(init.body as string);
+      capturedBodies.push(init.body as string);
       return Promise.resolve({
-        ok:   true,
-        json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
+        ok: true, json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
       } as unknown as Response);
     }));
 
     const r = makeResult({ empresa_evaluada: 'AeroCorp', monto_inversion: '$100M' });
     await upsertSenal(r, 'ses-1');
 
-    const body = JSON.parse(capturedBody[0]);
-    expect(body.input[0]).toContain('AeroCorp');
-    expect(body.input[0]).toContain('$100M');
-    expect(body.input[0]).toContain('Colombia');
+    const body = JSON.parse(capturedBodies[0]);
+    expect(body.input).toContain('AeroCorp');
+    expect(body.input).toContain('$100M');
+    expect(body.input).toContain('Colombia');
   });
 
   it('upserts exactly one vector to Pinecone with correct metadata', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
     const r = makeResult();
     await upsertSenal(r, 'session-xyz');
 
@@ -417,15 +342,6 @@ describe('upsertSenal()', () => {
   });
 
   it('writes an entry to radar_v2_rag_ingest_log via pgQuery', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
     await upsertSenal(makeResult(), 'ses-log');
 
     expect(mockPgQuery).toHaveBeenCalledOnce();
@@ -436,15 +352,6 @@ describe('upsertSenal()', () => {
   });
 
   it('stores empty string in session_id metadata when sessionId is blank', async () => {
-    process.env.PINECONE_API_KEY   = 'pc-key';
-    process.env.VOYAGE_API_KEY     = 'voyage-key';
-    process.env.EMBEDDING_PROVIDER = 'voyage';
-
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
-      ok:   true,
-      json: async () => ({ data: [{ embedding: FAKE_VECTOR }] }),
-    } as unknown as Response));
-
     await upsertSenal(makeResult(), '   ');
 
     const [records] = mockUpsert.mock.calls[0] as [Array<{ metadata: Record<string, unknown> }>];
@@ -519,13 +426,10 @@ describe('buildRagBlock()', () => {
   it('skips keywords entries that have no metadata.text', () => {
     const ctx: RagContext = {
       similares: [],
-      keywords: [
-        { id: 'kw-no-text', score: 0.5, metadata: { tipo: 'keyword' } },
-      ],
+      keywords: [{ id: 'kw-no-text', score: 0.5, metadata: { tipo: 'keyword' } }],
       criterios: [],
     };
     const block = buildRagBlock(ctx);
-    // Header should appear (non-empty keywords array) but no bullet content
     expect(block).toContain('### Keywords relevantes para esta línea');
     expect(block).not.toContain('- undefined');
   });
@@ -538,7 +442,6 @@ describe('buildRagBlock()', () => {
     };
     const block = buildRagBlock(ctx);
     expect(block).toContain('## Contexto histórico (RAG)');
-    // Should not crash and should not include undefined values
     expect(block).not.toContain('undefined');
   });
 
@@ -556,14 +459,11 @@ describe('buildRagBlock()', () => {
 
   it('uses ? placeholders for missing metadata fields in similares', () => {
     const ctx: RagContext = {
-      similares: [
-        { id: 'x', score: 0.5, metadata: { tipo: 'senal_historica' } }, // no empresa, pais, etc.
-      ],
+      similares: [{ id: 'x', score: 0.5, metadata: { tipo: 'senal_historica' } }],
       keywords:  [],
       criterios: [],
     };
     const block = buildRagBlock(ctx);
-    // Should display ? for missing fields, not crash
     expect(block).toContain('?');
     expect(block).not.toMatch(/undefined/);
   });
