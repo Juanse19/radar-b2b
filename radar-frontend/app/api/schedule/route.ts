@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import type { ScheduleConfig } from '@/lib/types';
+import { getCurrentSession } from '@/lib/auth/session';
 
 const SCHEDULE_FILE = join(process.cwd(), '.tmp', 'schedule_config.json');
 const LEGACY_FILE   = join(process.cwd(), 'schedule.json');
@@ -45,10 +46,16 @@ function writeSchedule(config: ScheduleConfig): void {
 }
 
 export async function GET() {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   return NextResponse.json(readSchedule());
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json() as Partial<ScheduleConfig>;
     const current = readSchedule();

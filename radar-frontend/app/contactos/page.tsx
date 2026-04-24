@@ -13,14 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/EmptyState';
 import {
-  Users, ChevronLeft, ChevronRight, Send, Loader2,
+  Users, Send, Loader2,
   Plane, Package, Warehouse, Minus, Plus,
   CheckCircle, AlertCircle, Database, Search, ClipboardList,
 } from 'lucide-react';
 import type { Contacto, LineaNegocio, ProspeccionLog, Empresa } from '@/lib/types';
+import { fetchJson } from '@/lib/fetcher';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 
 // ── Líneas disponibles ────────────────────────────────────────────────────────
 
@@ -39,34 +42,34 @@ const LINEA_OPTIONS: {
     shortLabel: 'BHS',
     desc: 'Aeropuertos y cargo',
     Icon: Plane,
-    color: 'text-blue-400',
-    activeBg: 'bg-blue-950/60',
-    activeBorder: 'border-blue-500',
-    dotColor: 'bg-blue-400',
+    color: 'text-blue-600',
+    activeBg: 'bg-blue-50',
+    activeBorder: 'border-blue-400',
+    dotColor: 'bg-blue-500',
   },
   {
     value: 'Cartón',
     shortLabel: 'Cartón',
     desc: 'Corrugadoras, empaque',
     Icon: Package,
-    color: 'text-amber-400',
-    activeBg: 'bg-amber-950/60',
-    activeBorder: 'border-amber-500',
-    dotColor: 'bg-amber-400',
+    color: 'text-amber-600',
+    activeBg: 'bg-amber-50',
+    activeBorder: 'border-amber-400',
+    dotColor: 'bg-amber-500',
   },
   {
     value: 'Intralogística',
     shortLabel: 'Intralogística',
     desc: 'CEDI, WMS, ASRS',
     Icon: Warehouse,
-    color: 'text-emerald-400',
-    activeBg: 'bg-emerald-950/60',
-    activeBorder: 'border-emerald-500',
-    dotColor: 'bg-emerald-400',
+    color: 'text-emerald-600',
+    activeBg: 'bg-emerald-50',
+    activeBorder: 'border-emerald-400',
+    dotColor: 'bg-emerald-500',
   },
 ];
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 const AVAILABLE_TOKENS = 2540;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -107,11 +110,17 @@ export default function ContactosPage() {
 
   // ── Dialog / execution state ──────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [executionRunning, setExecutionRunning] = useState(false);
-  const [logIds, setLogIds] = useState<number[]>([]);
+  const [logIds, setLogIds] = useState<number[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [processingEmpresas, setProcessingEmpresas] = useState<string[]>([]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Conexión con el tracker global — sabemos si OTRO origen del mismo agente
+  // (otra tab del navegador, otro usuario) ya tiene una prospección corriendo,
+  // y la invalidación tras disparar hace que el tray flotante se actualice.
+  const { anyRunningOfAgent, invalidate: invalidateInflight } = useInflightExecutions();
+  const hasInflightProspector = anyRunningOfAgent('prospector');
 
   // ── Tabla state ───────────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState('');
@@ -119,16 +128,17 @@ export default function ContactosPage() {
   const [lineaFiltro, setLineaFiltro] = useState('ALL');
   const [statusFiltro, setStatusFiltro] = useState('ALL');
   const [pagina, setPagina] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   // ── Company Selector Query ────────────────────────────────────────────────
   const { data: companiesData = [] } = useQuery<Empresa[]>({
     queryKey: ['companiesSelector', lineaSeleccionada],
-    queryFn: () =>
-      fetch(`/api/companies?linea=${lineaSeleccionada}&limit=500`)
-        .then(r => r.json())
-        .then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/companies?linea=${lineaSeleccionada}&limit=500`);
+      return Array.isArray(data) ? (data as Empresa[]) : [];
+    },
     enabled: modo === 'manual',
     staleTime: 5 * 60 * 1000,
   });
@@ -162,28 +172,31 @@ export default function ContactosPage() {
 
   const { data: rawContactos = [], isLoading } = useQuery<Contacto[]>({
     queryKey: ['contactos', lineaFiltro, statusFiltro, busqueda],
-    queryFn: () =>
-      fetch(`/api/contacts?${queryParams}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/contacts?${queryParams}`);
+      return Array.isArray(data) ? (data as Contacto[]) : [];
+    },
   });
 
   const { data: countData } = useQuery<{ total: number }>({
     queryKey: ['contactos', 'count'],
-    queryFn: () => fetch('/api/contacts?count=true').then(r => r.json()),
+    queryFn: () => fetchJson<{ total: number }>('/api/contacts?count=true'),
     staleTime: 2 * 60 * 1000,
   });
 
   // ── Prospection Logs Query ────────────────────────────────────────────────
   const { data: prospeccionLogs = [], isLoading: logsLoading } = useQuery<ProspeccionLog[]>({
     queryKey: ['prospeccionLogs', lineaFiltro],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams({ limit: '100' });
       if (lineaFiltro !== 'ALL') params.set('linea', lineaFiltro);
-      return fetch(`/api/prospect/logs?${params}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []);
+      const data = await fetchJson<unknown>(`/api/prospect/logs?${params}`);
+      return Array.isArray(data) ? (data as ProspeccionLog[]) : [];
     },
     refetchInterval: (query) => {
       const data = query.state.data;
       if (Array.isArray(data) && data.some((l: ProspeccionLog) => l.estado === 'running')) {
-        return 10_000;
+        return 15_000; // 10s → 15s, menos presión en main thread
       }
       return false;
     },
@@ -218,10 +231,10 @@ export default function ContactosPage() {
     return rawContactos.filter(c => (c.empresaNombre ?? '').toLowerCase().includes(q));
   }, [rawContactos, busquedaEmpresa]);
 
-  const totalPaginas = Math.ceil(contactosFiltrados.length / POR_PAGINA);
+  const totalPaginas = Math.ceil(contactosFiltrados.length / pageSize);
   const paginados = useMemo(
-    () => contactosFiltrados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
-    [contactosFiltrados, pagina],
+    () => contactosFiltrados.slice(pagina * pageSize, (pagina + 1) * pageSize),
+    [contactosFiltrados, pagina, pageSize],
   );
 
   const columns = useMemo(() => createContactsColumns(), []);
@@ -326,39 +339,50 @@ export default function ContactosPage() {
       toast.error('Selecciona al menos una empresa para prospectar');
       return;
     }
+    if (hasInflightProspector) {
+      toast.error('Ya hay una prospección corriendo. Espera a que termine.');
+      return;
+    }
     setProspectando(true);
     setProspectError(null);
     setProspectSuccess(false);
     try {
-      const res = await fetch('/api/prospect', {
+      // Usamos `/api/agent` (en lugar del legacy `/api/prospect`) para que el
+      // tracker global capture la ejecución con agent_type=prospector y un
+      // pipeline_id correlacionable.
+      const empresasManualPayload = modo === 'manual'
+        ? companiesData
+            .filter(e => selectedEmpresaIds.has(e.id))
+            .map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais, linea: e.linea }))
+        : [];
+
+      const data = await fetchJson<{ execution_id: string; pipeline_id: string }>('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          linea: lineaSeleccionada,
-          empresas: modo === 'manual' ? empresasManualList : [],
+          agent:    'prospector',
+          linea:    lineaSeleccionada,
+          empresas: empresasManualPayload,
           batchSize,
-          contactosPorEmpresa,
+          options: { contactosPorEmpresa, tier: 'ORO' },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error lanzando prospección');
 
-      const execId: string = data.executionId ?? '';
-      const capturedLogIds: number[] = Array.isArray(data.logIds) ? data.logIds : [];
-      const empresasEnviadas: string[] = Array.isArray(data.empresasEnviadas)
-        ? data.empresasEnviadas
-        : modo === 'manual'
+      const execId = data.execution_id;
+      const empresasEnviadas: string[] = modo === 'manual'
         ? empresasManualList
         : [];
 
       setExecutionId(execId);
-      setLogIds(capturedLogIds);
+      setLogIds([]);
       setProcessingEmpresas(empresasEnviadas);
       setExecutionRunning(true);
       setDialogOpen(true);
       setProspectSuccess(true);
 
-      startPolling(execId, capturedLogIds);
+      // Hacer que el tray flotante recoja la nueva ejecución de inmediato.
+      invalidateInflight();
+      startPolling(execId, []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
       setProspectError(msg);
@@ -390,18 +414,17 @@ export default function ContactosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-800 rounded-lg border border-gray-700">
-              <Users size={20} className="text-gray-400" />
+            <div className="p-2 bg-surface-muted rounded-lg border border-border">
+              <Users size={20} className="text-muted-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Contactos Apollo</h1>
-              <p className="text-gray-500 text-sm">
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Contactos Apollo</h1>
+              <p className="text-muted-foreground text-sm">
                 {countData
                   ? `${countData.total} totales · ${sincronizadoCount} en HubSpot · ${pendienteCount} pendientes`
                   : 'Prospección de contactos por línea de negocio'}
@@ -430,7 +453,7 @@ export default function ContactosPage() {
 
             {/* Selector de línea */}
             <div>
-              <p className="text-xs text-gray-500 uppercase tracking-widest mb-3 font-semibold">
+              <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
                 Línea de negocio
               </p>
               <div className="grid grid-cols-3 gap-3">
@@ -444,19 +467,19 @@ export default function ContactosPage() {
                         relative flex flex-col items-center text-center p-4 rounded-2xl border-2 transition-all
                         ${isActive
                           ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                          : 'bg-gray-900/60 border-gray-700/60 hover:border-gray-600 hover:bg-gray-800/60'}
+                          : 'bg-surface/60 border-border/60 hover:border-border hover:bg-surface-muted/60'}
                       `}
                     >
                       {isActive && (
                         <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.8)]" />
                       )}
-                      <div className={`mb-2 ${isActive ? opt.color : 'text-gray-500'}`}>
+                      <div className={`mb-2 ${isActive ? opt.color : 'text-muted-foreground'}`}>
                         <opt.Icon size={24} />
                       </div>
-                      <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-gray-400'}`}>
+                      <p className={`font-semibold text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {opt.shortLabel}
                       </p>
-                      <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-tight">{opt.desc}</p>
                     </button>
                   );
                 })}
@@ -464,7 +487,7 @@ export default function ContactosPage() {
             </div>
 
             {/* Toggle de modo */}
-            <div className="flex gap-1 p-1 bg-gray-900 rounded-xl border border-gray-800 w-fit">
+            <div className="flex gap-1 p-1 bg-surface rounded-xl border border-border w-fit">
               {[
                 { id: 'lote', label: 'Lote automático', Icon: Database as React.ElementType },
                 { id: 'manual', label: 'Selección de empresa', Icon: Search as React.ElementType },
@@ -475,7 +498,7 @@ export default function ContactosPage() {
                   className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${
                     modo === tab.id
                       ? 'bg-blue-600 text-white shadow-sm'
-                      : 'text-gray-400 hover:text-gray-200 hover:bg-gray-800'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-surface-muted'
                   }`}
                 >
                   <tab.Icon size={13} />
@@ -486,35 +509,35 @@ export default function ContactosPage() {
 
             {/* Modo lote */}
             {modo === 'lote' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+                  <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                     <Database size={12} /> Lote automático — {activeOption.shortLabel}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="pt-0 space-y-4">
-                  <p className="text-sm text-gray-400">
-                    Toma las <span className="text-white font-medium">{batchSize} empresas</span> con mayor
+                  <p className="text-sm text-muted-foreground">
+                    Toma las <span className="text-foreground font-medium">{batchSize} empresas</span> con mayor
                     prioridad en línea <span className={`font-medium ${activeOption.color}`}>{activeOption.shortLabel}</span> y
                     extrae contactos vía Apollo.
                   </p>
                   <div>
-                    <p className="text-xs text-gray-500 mb-2">Empresas a prospectar</p>
+                    <p className="text-xs text-muted-foreground mb-2">Empresas a prospectar</p>
                     <div className="flex items-center gap-3">
                       <button
                         onClick={() => setBatchSize(p => Math.max(1, p - 1))}
-                        className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                       >
                         <Minus size={14} />
                       </button>
-                      <span className="text-2xl font-mono font-bold text-white w-10 text-center">{batchSize}</span>
+                      <span className="text-2xl font-mono font-bold text-foreground w-10 text-center">{batchSize}</span>
                       <button
                         onClick={() => setBatchSize(p => Math.min(50, p + 1))}
-                        className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                        className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                       >
                         <Plus size={14} />
                       </button>
-                      <span className="text-xs text-gray-600">máx. 50</span>
+                      <span className="text-xs text-muted-foreground">máx. 50</span>
                     </div>
                   </div>
                 </CardContent>
@@ -523,9 +546,9 @@ export default function ContactosPage() {
 
             {/* Modo manual — Company Picker */}
             {modo === 'manual' && (
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+                  <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                     <Search size={12} /> Selección de empresas — {activeOption.shortLabel}
                   </CardTitle>
                 </CardHeader>
@@ -533,42 +556,42 @@ export default function ContactosPage() {
                   {/* Search + actions row */}
                   <div className="flex items-center gap-2">
                     <div className="relative flex-1">
-                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
+                      <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                       <Input
                         placeholder="Filtrar empresas..."
                         value={empresaSearch}
                         onChange={e => setEmpresaSearch(e.target.value)}
-                        className="bg-gray-800 border-gray-700 text-white text-sm pl-8 h-8"
+                        className="bg-surface-muted border-border text-foreground text-sm pl-8 h-8"
                       />
                     </div>
                     <button
                       onClick={selectAll}
-                      className="text-xs text-blue-400 hover:text-blue-300 whitespace-nowrap px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                      className="text-xs text-blue-600 hover:text-blue-700 whitespace-nowrap px-2 py-1 rounded hover:bg-blue-50 transition-colors"
                     >
                       Seleccionar todas
                     </button>
                     <button
                       onClick={clearAll}
-                      className="text-xs text-gray-500 hover:text-gray-300 px-2 py-1 rounded hover:bg-gray-800 transition-colors"
+                      className="text-xs text-muted-foreground hover:text-muted-foreground px-2 py-1 rounded hover:bg-surface-muted transition-colors"
                     >
                       Limpiar
                     </button>
                   </div>
 
                   {/* Selected count */}
-                  <p className="text-xs text-gray-500">
+                  <p className="text-xs text-muted-foreground">
                     {selectedEmpresaIds.size > 0
-                      ? <span className="text-blue-400 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
+                      ? <span className="text-blue-600 font-medium">{selectedEmpresaIds.size} empresa{selectedEmpresaIds.size !== 1 ? 's' : ''} seleccionada{selectedEmpresaIds.size !== 1 ? 's' : ''}</span>
                       : 'Ninguna empresa seleccionada'}
                   </p>
 
                   {/* Scrollable list */}
                   <div
-                    className="overflow-y-auto rounded-lg border border-gray-700 bg-gray-800/50 divide-y divide-gray-700/50"
+                    className="overflow-y-auto rounded-lg border border-border bg-surface-muted/50 divide-y divide-border"
                     style={{ maxHeight: '280px' }}
                   >
                     {filteredCompanies.length === 0 ? (
-                      <div className="px-4 py-8 text-center text-xs text-gray-500">
+                      <div className="px-4 py-8 text-center text-xs text-muted-foreground">
                         {companiesData.length === 0
                           ? 'Cargando empresas...'
                           : 'No hay empresas que coincidan con la búsqueda'}
@@ -581,14 +604,14 @@ export default function ContactosPage() {
                           <label
                             key={empresa.id}
                             className={`flex items-center gap-3 px-3 py-2.5 cursor-pointer transition-colors ${
-                              isChecked ? 'bg-blue-950/30' : 'hover:bg-gray-700/40'
+                              isChecked ? 'bg-blue-50' : 'hover:bg-surface-muted/40'
                             }`}
                           >
                             <input
                               type="checkbox"
                               checked={isChecked}
                               onChange={() => toggleEmpresa(empresa.id)}
-                              className="w-4 h-4 rounded border-gray-600 bg-gray-700 text-blue-500 focus:ring-blue-500 focus:ring-offset-gray-900 shrink-0"
+                              className="w-4 h-4 rounded border-border bg-surface-muted text-blue-500 focus:ring-blue-500 focus:ring-offset-white shrink-0"
                             />
                             {lineaOpt && (
                               <span
@@ -596,8 +619,8 @@ export default function ContactosPage() {
                                 title={empresa.linea}
                               />
                             )}
-                            <span className="text-sm text-gray-200 truncate flex-1">{empresa.nombre}</span>
-                            <span className="text-xs text-gray-500 shrink-0">{empresa.pais}</span>
+                            <span className="text-sm text-foreground truncate flex-1">{empresa.nombre}</span>
+                            <span className="text-xs text-muted-foreground shrink-0">{empresa.pais}</span>
                           </label>
                         );
                       })
@@ -614,58 +637,58 @@ export default function ContactosPage() {
             {/* Línea activa */}
             <div className={`p-4 rounded-2xl border-2 ${activeOption.activeBg} ${activeOption.activeBorder}`}>
               <div className={`${activeOption.color} mb-2`}><activeOption.Icon size={24} /></div>
-              <p className="text-white font-semibold">{activeOption.shortLabel}</p>
-              <p className="text-xs text-gray-400 mt-0.5">{activeOption.desc}</p>
+              <p className="text-foreground font-semibold">{activeOption.shortLabel}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{activeOption.desc}</p>
             </div>
 
             {/* Contactos por empresa */}
-            <Card className="bg-gray-900 border-gray-800">
+            <Card>
               <CardContent className="p-4 space-y-3">
                 <div>
-                  <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold mb-3">
+                  <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold mb-3">
                     Contactos por empresa
                   </p>
                   <div className="flex items-center gap-3">
                     <button
                       onClick={() => setContactosPorEmpresa(p => Math.max(1, p - 1))}
-                      className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                     >
                       <Minus size={14} />
                     </button>
-                    <span className="text-2xl font-mono font-bold text-white w-8 text-center">
+                    <span className="text-2xl font-mono font-bold text-foreground w-8 text-center">
                       {contactosPorEmpresa}
                     </span>
                     <button
                       onClick={() => setContactosPorEmpresa(p => Math.min(5, p + 1))}
-                      className="w-8 h-8 rounded-lg bg-gray-800 border border-gray-700 text-gray-300 hover:bg-gray-700 flex items-center justify-center transition-colors"
+                      className="w-8 h-8 rounded-lg bg-surface-muted border border-border text-muted-foreground hover:bg-surface-muted flex items-center justify-center transition-colors"
                     >
                       <Plus size={14} />
                     </button>
-                    <span className="text-xs text-gray-600">máx. 5</span>
+                    <span className="text-xs text-muted-foreground">máx. 5</span>
                   </div>
                 </div>
 
                 {/* Token estimate */}
-                <div className="pt-2 border-t border-gray-800">
+                <div className="pt-2 border-t border-border">
                   <div className="flex items-center justify-between mb-1.5">
-                    <p className="text-xs text-gray-500 uppercase tracking-widest font-semibold">
+                    <p className="text-xs text-muted-foreground uppercase tracking-widest font-semibold">
                       Tokens Apollo
                     </p>
-                    <p className={`text-sm font-mono font-bold ${tokenOk ? 'text-green-400' : 'text-red-400'}`}>
+                    <p className={`text-sm font-mono font-bold ${tokenOk ? 'text-green-600' : 'text-red-600'}`}>
                       {tokenEstimate.toLocaleString()} / {AVAILABLE_TOKENS.toLocaleString()}
                     </p>
                   </div>
-                  <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                  <div className="h-1.5 bg-surface-muted rounded-full overflow-hidden">
                     <div
                       className={`h-full rounded-full transition-all ${tokenOk ? 'bg-green-500' : 'bg-red-500'}`}
                       style={{ width: `${tokenPct}%` }}
                     />
                   </div>
-                  <p className="text-xs text-gray-600 mt-1.5">
+                  <p className="text-xs text-muted-foreground mt-1.5">
                     {empresasCount} empresa{empresasCount !== 1 ? 's' : ''} × {contactosPorEmpresa} contacto{contactosPorEmpresa !== 1 ? 's' : ''}
                   </p>
                   {!tokenOk && (
-                    <p className="text-xs text-red-400 mt-1">
+                    <p className="text-xs text-red-600 mt-1">
                       Supera los tokens disponibles. Reduce el lote o contactos.
                     </p>
                   )}
@@ -673,28 +696,42 @@ export default function ContactosPage() {
               </CardContent>
             </Card>
 
-            {/* Botón trigger */}
+            {/* Botón trigger — deshabilitado si hay otra prospección viva globalmente */}
             <Button
               onClick={lanzarProspeccion}
-              disabled={prospectando || dialogOpen || empresasCount === 0 || !tokenOk}
+              disabled={
+                prospectando
+                || dialogOpen
+                || empresasCount === 0
+                || !tokenOk
+                || hasInflightProspector
+              }
               className="w-full h-12 bg-blue-700 hover:bg-blue-600 gap-2 text-base font-semibold shadow-lg shadow-blue-900/30 disabled:opacity-50"
+              data-testid="prospect-fire"
             >
               {prospectando ? (
                 <><Loader2 size={18} className="animate-spin" /> Iniciando...</>
+              ) : hasInflightProspector ? (
+                <><Loader2 size={18} className="animate-spin" /> Prospección en curso…</>
               ) : (
                 <><Search size={18} /> Prospectar contactos</>
               )}
             </Button>
+            {hasInflightProspector && (
+              <p className="text-xs text-amber-400 -mt-1">
+                Ya hay un prospector corriendo. Mira el indicador flotante abajo a la derecha.
+              </p>
+            )}
 
             {/* Estado */}
             {prospectSuccess && !prospectando && !dialogOpen && (
-              <div className="flex items-center gap-2 text-green-400 text-sm bg-green-950/30 border border-green-900/50 rounded-lg px-3 py-2.5">
+              <div className="flex items-center gap-2 text-green-700 text-sm bg-green-50 border border-green-200 rounded-lg px-3 py-2.5">
                 <CheckCircle size={15} />
                 Prospección iniciada — revisa la tabla en unos minutos
               </div>
             )}
             {prospectError && (
-              <div className="flex items-start gap-2 text-red-400 text-sm bg-red-950/30 border border-red-900/50 rounded-lg px-3 py-2.5">
+              <div className="flex items-start gap-2 text-red-700 text-sm bg-red-50 border border-red-200 rounded-lg px-3 py-2.5">
                 <AlertCircle size={15} className="mt-0.5 shrink-0" />
                 {prospectError}
               </div>
@@ -715,27 +752,27 @@ export default function ContactosPage() {
             }
           }}
         >
-          <DialogContent showCloseButton={false} className="bg-gray-900 border-gray-700 text-white max-w-sm">
+          <DialogContent showCloseButton={false} className="text-foreground max-w-sm">
             <DialogHeader>
-              <DialogTitle className="text-white text-base">Prospección en curso</DialogTitle>
+              <DialogTitle className="text-foreground text-base">Prospección en curso</DialogTitle>
             </DialogHeader>
             <div className="flex flex-col items-center gap-4 py-4">
-              <Loader2 size={40} className="animate-spin text-blue-400" />
-              <p className="text-sm text-gray-300 font-medium">Ejecutando WF03 Prospector...</p>
+              <Loader2 size={40} className="animate-spin text-blue-600" />
+              <p className="text-sm text-muted-foreground font-medium">Ejecutando WF03 Prospector...</p>
 
               {/* empresa list */}
               {processingEmpresas.length > 0 && (
-                <div className="w-full bg-gray-800 rounded-lg px-4 py-3 space-y-1 text-xs text-gray-400">
+                <div className="w-full bg-surface-muted rounded-lg px-4 py-3 space-y-1 text-xs text-muted-foreground">
                   {processingEmpresas.slice(0, 5).map((name, i) => (
                     <p key={i} className="truncate">· {name}</p>
                   ))}
                   {processingEmpresas.length > 5 && (
-                    <p className="text-gray-500">y {processingEmpresas.length - 5} más...</p>
+                    <p className="text-muted-foreground">y {processingEmpresas.length - 5} más...</p>
                   )}
                 </div>
               )}
 
-              <p className="text-xs text-gray-500">Polling cada 3 segundos...</p>
+              <p className="text-xs text-muted-foreground">Polling cada 3 segundos...</p>
 
               <Button
                 variant="outline"
@@ -748,7 +785,7 @@ export default function ContactosPage() {
                     stopPolling();
                   }
                 }}
-                className="border-gray-600 text-gray-300 hover:bg-gray-800 disabled:opacity-40 mt-2"
+                className="border-border text-muted-foreground hover:bg-surface-muted disabled:opacity-40 mt-2"
               >
                 Cancelar
               </Button>
@@ -757,13 +794,13 @@ export default function ContactosPage() {
         </Dialog>
 
         {/* ── Bottom section: Tabs ───────────────────────────────────────── */}
-        <div className="border-t border-gray-800 pt-6">
+        <div className="border-t border-border pt-6">
           <Tabs defaultValue="contactos">
-            <TabsList className="bg-gray-900 border border-gray-800 mb-5 h-9">
-              <TabsTrigger value="contactos" className="text-gray-400 data-active:text-white text-sm px-5">
+            <TabsList className="bg-surface border border-border mb-5 h-9">
+              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Contactos
               </TabsTrigger>
-              <TabsTrigger value="logs" className="text-gray-400 data-active:text-white text-sm px-5">
+              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Log de Prospección
               </TabsTrigger>
             </TabsList>
@@ -772,8 +809,8 @@ export default function ContactosPage() {
             <TabsContent value="contactos">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Contactos prospectados</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <h2 className="text-lg font-semibold text-foreground">Contactos prospectados</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     {contactosFiltrados.length} contacto{contactosFiltrados.length !== 1 ? 's' : ''} · {sincronizadoCount} en HubSpot
                   </p>
                 </div>
@@ -784,38 +821,38 @@ export default function ContactosPage() {
                     placeholder="Buscar nombre, cargo..."
                     value={busqueda}
                     onChange={e => { setBusqueda(e.target.value); setPagina(0); setRowSelection({}); }}
-                    className="bg-gray-800 border-gray-700 text-white w-44"
+                    className="bg-surface-muted border-border text-foreground w-44"
                   />
                   <Input
                     placeholder="Buscar empresa..."
                     value={busquedaEmpresa}
                     onChange={e => { setBusquedaEmpresa(e.target.value); setPagina(0); setRowSelection({}); }}
-                    className="bg-gray-800 border-gray-700 text-white w-40"
+                    className="bg-surface-muted border-border text-foreground w-40"
                   />
                   <Select value={lineaFiltro} onValueChange={v => { setLineaFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                    <SelectTrigger className="bg-surface-muted border-border text-foreground w-40">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
-                      <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
-                      <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
-                      <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
-                      <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                    <SelectContent className="bg-surface-muted border-border">
+                      <SelectItem value="ALL" className="text-foreground">Todas las líneas</SelectItem>
+                      <SelectItem value="BHS" className="text-foreground">BHS</SelectItem>
+                      <SelectItem value="Cartón" className="text-foreground">Cartón</SelectItem>
+                      <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                     </SelectContent>
                   </Select>
                   <Select value={statusFiltro} onValueChange={v => { setStatusFiltro(v ?? 'ALL'); setPagina(0); setRowSelection({}); }}>
-                    <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-36">
+                    <SelectTrigger className="bg-surface-muted border-border text-foreground w-36">
                       <SelectValue />
                     </SelectTrigger>
-                    <SelectContent className="bg-gray-800 border-gray-700">
-                      <SelectItem value="ALL" className="text-gray-100">Todos</SelectItem>
-                      <SelectItem value="pendiente" className="text-gray-100">Pendiente</SelectItem>
-                      <SelectItem value="sincronizado" className="text-gray-100">Sincronizado</SelectItem>
-                      <SelectItem value="error" className="text-gray-100">Error</SelectItem>
+                    <SelectContent className="bg-surface-muted border-border">
+                      <SelectItem value="ALL" className="text-foreground">Todos</SelectItem>
+                      <SelectItem value="pendiente" className="text-foreground">Pendiente</SelectItem>
+                      <SelectItem value="sincronizado" className="text-foreground">Sincronizado</SelectItem>
+                      <SelectItem value="error" className="text-foreground">Error</SelectItem>
                     </SelectContent>
                   </Select>
                   {selectedIds.length > 0 && (
-                    <span className="text-xs text-gray-400">
+                    <span className="text-xs text-muted-foreground">
                       {selectedIds.length} seleccionado{selectedIds.length !== 1 ? 's' : ''}
                     </span>
                   )}
@@ -823,17 +860,17 @@ export default function ContactosPage() {
               </div>
 
               {/* Contacts Table */}
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardContent className="p-0">
                   {isLoading ? (
-                    <div className="divide-y divide-gray-800/50">
+                    <div className="divide-y divide-border">
                       {Array.from({ length: 8 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
-                          <div className="h-4 w-4 bg-gray-800 rounded" />
-                          <div className="h-4 bg-gray-800 rounded w-36" />
-                          <div className="h-4 bg-gray-800 rounded w-32" />
-                          <div className="h-4 bg-gray-800 rounded w-40" />
-                          <div className="h-4 bg-gray-800 rounded w-20 ml-auto" />
+                          <div className="h-4 w-4 bg-surface-muted rounded" />
+                          <div className="h-4 bg-surface-muted rounded w-36" />
+                          <div className="h-4 bg-surface-muted rounded w-32" />
+                          <div className="h-4 bg-surface-muted rounded w-40" />
+                          <div className="h-4 bg-surface-muted rounded w-20 ml-auto" />
                         </div>
                       ))}
                     </div>
@@ -848,29 +885,29 @@ export default function ContactosPage() {
                       <table className="w-full text-sm">
                         <thead>
                           {table.getHeaderGroups().map(hg => (
-                            <tr key={hg.id} className="border-b border-gray-800 bg-gray-800/60">
+                            <tr key={hg.id} className="border-b border-border bg-surface-muted/60">
                               {hg.headers.map(header => (
                                 <th
                                   key={header.id}
-                                  className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide select-none"
+                                  className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide select-none"
                                   onClick={header.column.getToggleSortingHandler()}
                                   style={{ cursor: header.column.getCanSort() ? 'pointer' : 'default' }}
                                 >
                                   <div className="flex items-center gap-1">
                                     {flexRender(header.column.columnDef.header, header.getContext())}
-                                    {header.column.getIsSorted() === 'asc' && <span className="text-blue-400">↑</span>}
-                                    {header.column.getIsSorted() === 'desc' && <span className="text-blue-400">↓</span>}
+                                    {header.column.getIsSorted() === 'asc' && <span className="text-blue-600">↑</span>}
+                                    {header.column.getIsSorted() === 'desc' && <span className="text-blue-600">↓</span>}
                                   </div>
                                 </th>
                               ))}
                             </tr>
                           ))}
                         </thead>
-                        <tbody className="divide-y divide-gray-800/50">
+                        <tbody className="divide-y divide-border">
                           {table.getRowModel().rows.map(row => (
                             <tr
                               key={row.id}
-                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-950/30' : 'hover:bg-gray-800/30'}`}
+                              className={`transition-colors ${row.getIsSelected() ? 'bg-blue-50' : 'hover:bg-surface-muted/30'}`}
                             >
                               {row.getVisibleCells().map(cell => (
                                 <td key={cell.id} className="px-4 py-3">
@@ -888,29 +925,13 @@ export default function ContactosPage() {
 
               {/* Paginación */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-gray-500">
-                    Página {pagina + 1} de {totalPaginas} · {contactosFiltrados.length} contactos
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
-                      disabled={pagina === 0}
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
-                    >
-                      <ChevronLeft size={14} /> Anterior
-                    </Button>
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
-                      disabled={pagina >= totalPaginas - 1}
-                      className="border-gray-700 text-gray-300 hover:bg-gray-800 gap-1"
-                    >
-                      Siguiente <ChevronRight size={14} />
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={pagina + 1}
+                  pageSize={pageSize}
+                  totalRows={contactosFiltrados.length}
+                  onPageChange={(p) => { setPagina(p - 1); setRowSelection({}); }}
+                  onPageSizeChange={(s) => { setPageSize(s); setPagina(0); setRowSelection({}); }}
+                />
               )}
             </TabsContent>
 
@@ -918,35 +939,35 @@ export default function ContactosPage() {
             <TabsContent value="logs">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between mb-5">
                 <div>
-                  <h2 className="text-lg font-semibold text-white">Log de Prospección</h2>
-                  <p className="text-xs text-gray-500 mt-0.5">
+                  <h2 className="text-lg font-semibold text-foreground">Log de Prospección</h2>
+                  <p className="text-xs text-muted-foreground mt-0.5">
                     Historial de ejecuciones del agente prospector
                   </p>
                 </div>
                 {/* Linea filter reuse */}
                 <Select value={lineaFiltro} onValueChange={v => setLineaFiltro(v ?? 'ALL')}>
-                  <SelectTrigger className="bg-gray-800 border-gray-700 text-white w-40">
+                  <SelectTrigger className="bg-surface-muted border-border text-foreground w-40">
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent className="bg-gray-800 border-gray-700">
-                    <SelectItem value="ALL" className="text-gray-100">Todas las líneas</SelectItem>
-                    <SelectItem value="BHS" className="text-gray-100">BHS</SelectItem>
-                    <SelectItem value="Cartón" className="text-gray-100">Cartón</SelectItem>
-                    <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                  <SelectContent className="bg-surface-muted border-border">
+                    <SelectItem value="ALL" className="text-foreground">Todas las líneas</SelectItem>
+                    <SelectItem value="BHS" className="text-foreground">BHS</SelectItem>
+                    <SelectItem value="Cartón" className="text-foreground">Cartón</SelectItem>
+                    <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
 
-              <Card className="bg-gray-900 border-gray-800">
+              <Card>
                 <CardContent className="p-0">
                   {logsLoading ? (
-                    <div className="divide-y divide-gray-800/50">
+                    <div className="divide-y divide-border">
                       {Array.from({ length: 5 }).map((_, i) => (
                         <div key={i} className="flex gap-4 px-4 py-3 animate-pulse">
-                          <div className="h-4 bg-gray-800 rounded w-40" />
-                          <div className="h-4 bg-gray-800 rounded w-24" />
-                          <div className="h-4 bg-gray-800 rounded w-20" />
-                          <div className="h-4 bg-gray-800 rounded w-16 ml-auto" />
+                          <div className="h-4 bg-surface-muted rounded w-40" />
+                          <div className="h-4 bg-surface-muted rounded w-24" />
+                          <div className="h-4 bg-surface-muted rounded w-20" />
+                          <div className="h-4 bg-surface-muted rounded w-16 ml-auto" />
                         </div>
                       ))}
                     </div>
@@ -960,46 +981,46 @@ export default function ContactosPage() {
                     <div className="overflow-x-auto">
                       <table className="w-full text-sm">
                         <thead>
-                          <tr className="border-b border-gray-800 bg-gray-800/60">
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Empresa</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Línea</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Estado</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Contactos</th>
-                            <th className="px-4 py-2.5 text-left text-xs font-medium text-gray-400 uppercase tracking-wide">Fecha</th>
+                          <tr className="border-b border-border bg-surface-muted/60">
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Empresa</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Línea</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Estado</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Contactos</th>
+                            <th className="px-4 py-2.5 text-left text-xs font-medium text-muted-foreground uppercase tracking-wide">Fecha</th>
                           </tr>
                         </thead>
-                        <tbody className="divide-y divide-gray-800/50">
+                        <tbody className="divide-y divide-border">
                           {prospeccionLogs.map(log => (
-                            <tr key={log.id} className="hover:bg-gray-800/30 transition-colors">
+                            <tr key={log.id} className="hover:bg-surface-muted/30 transition-colors">
                               <td className="px-4 py-3">
-                                <span className="text-sm text-gray-200 font-medium">{log.empresaNombre}</span>
+                                <span className="text-sm text-foreground font-medium">{log.empresaNombre}</span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-xs text-gray-400">{log.linea}</span>
+                                <span className="text-xs text-muted-foreground">{log.linea}</span>
                               </td>
                               <td className="px-4 py-3">
                                 {log.estado === 'running' && (
-                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-900/50 text-yellow-300 border border-yellow-800">
+                                  <span className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-yellow-50 text-yellow-700 border border-yellow-200">
                                     <Loader2 size={12} className="animate-spin" />
                                     Ejecutando...
                                   </span>
                                 )}
                                 {log.estado === 'success' && (
-                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-green-900/50 text-green-300 border border-green-800">
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-green-50 text-green-700 border border-green-200">
                                     Completado
                                   </span>
                                 )}
                                 {log.estado === 'error' && (
-                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-900/50 text-red-400 border border-red-800">
+                                  <span className="inline-flex items-center text-xs px-2 py-0.5 rounded-full bg-red-50 text-red-700 border border-red-200">
                                     Error
                                   </span>
                                 )}
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-sm text-gray-300 font-mono">{log.contactosEncontrados}</span>
+                                <span className="text-sm text-muted-foreground font-mono">{log.contactosEncontrados}</span>
                               </td>
                               <td className="px-4 py-3">
-                                <span className="text-xs text-gray-500">{formatLogDate(log.createdAt)}</span>
+                                <span className="text-xs text-muted-foreground">{formatLogDate(log.createdAt)}</span>
                               </td>
                             </tr>
                           ))}
@@ -1012,7 +1033,6 @@ export default function ContactosPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
     </div>
   );
 }

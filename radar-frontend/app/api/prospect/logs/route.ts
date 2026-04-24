@@ -13,8 +13,8 @@ export async function GET(req: NextRequest) {
 
     const mapped = logs.map(l => ({
       id:                   l.id,
-      empresaNombre:        l.empresa_nombre,
-      linea:                l.linea,
+      empresaNombre:        `empresa_id:${l.empresa_id}`,
+      linea:                l.sub_linea_id ? `sub_linea:${l.sub_linea_id}` : '',
       n8nExecutionId:       l.n8n_execution_id ?? undefined,
       estado:               l.estado as 'running' | 'success' | 'error',
       contactosEncontrados: l.contactos_encontrados,

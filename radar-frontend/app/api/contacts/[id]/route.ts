@@ -14,8 +14,6 @@ export async function PUT(
       email:          body.email          ?? undefined,
       telefono:       body.telefono       ?? undefined,
       linkedin_url:   body.linkedin_url   ?? undefined,
-      empresa_nombre: body.empresa_nombre ?? undefined,
-      linea_negocio:  body.linea_negocio  ?? undefined,
       hubspot_status: body.hubspot_status ?? undefined,
       hubspot_id:     body.hubspot_id     ?? undefined,
     });

@@ -1,22 +1,39 @@
 // lib/db/supabase/admin.ts
 // Service-role Supabase client — SERVER ONLY.
-// This import ensures this module is NEVER bundled into client code.
 import 'server-only';
 
 import { createClient } from '@supabase/supabase-js';
 
-const url    = process.env.SUPABASE_URL;
-const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const schema = process.env.SUPABASE_DB_SCHEMA ?? 'matec_radar';
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type AnyClient = ReturnType<typeof createClient<any, any, any>>;
 
-if (!url || !key) {
-  throw new Error(
-    'Supabase admin client: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set.',
-  );
+let _client: AnyClient | null = null;
+
+export function getAdminDb(): AnyClient {
+  if (_client) return _client;
+
+  const url    = process.env.SUPABASE_URL;
+  const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  const schema = process.env.SUPABASE_DB_SCHEMA ?? 'public';
+
+  if (!url || !key) {
+    throw new Error(
+      'Supabase admin client: SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY must be set in .env.local',
+    );
+  }
+
+  _client = createClient(url, key, {
+    db:   { schema },
+    auth: { persistSession: false, autoRefreshToken: false },
+  });
+
+  return _client;
 }
 
-// Singleton — shared across all route handler invocations in the same process.
-export const adminDb = createClient(url, key, {
-  db:   { schema },
-  auth: { persistSession: false, autoRefreshToken: false },
+// Proxy so callers can write `adminDb.from(...)` without calling getAdminDb() explicitly.
+export const adminDb: AnyClient = new Proxy({} as AnyClient, {
+  get(_target, prop) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (getAdminDb() as any)[prop];
+  },
 });

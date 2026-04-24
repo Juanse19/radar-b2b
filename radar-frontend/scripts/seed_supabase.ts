@@ -13,11 +13,11 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as dotenv from 'dotenv';
 
-dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
+dotenv.config({ path: path.resolve(process.cwd(), '.env.local'), override: true });
 
 const url    = process.env.SUPABASE_URL;
 const key    = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const schema = process.env.SUPABASE_DB_SCHEMA ?? 'matec_radar';
+const schema = process.env.SUPABASE_DB_SCHEMA ?? 'public';
 
 if (!url || !key || key === 'FILL_IN_SERVICE_ROLE_KEY') {
   console.error('❌  Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY in .env.local');
@@ -151,25 +151,19 @@ async function main() {
 
   // UPSERT in batches
   const BATCH = 100;
-  let totalInserted = 0;
-  let totalUpdated  = 0;
 
   for (let i = 0; i < records.length; i += BATCH) {
     const batch = records.slice(i, i + BATCH);
 
-    const { data, error } = await db
+    const { error } = await db
       .from('empresas')
-      .upsert(batch, { onConflict: 'company_name,linea_negocio' })
-      .select('id');
+      .upsert(batch, { onConflict: 'company_name,linea_negocio' });
 
     if (error) {
       console.error(`❌  Batch ${i}–${i + BATCH}: ${error.message}`);
       process.exit(1);
     }
 
-    // Supabase upsert returns all affected rows; we approximate inserted vs updated
-    // by checking if the returned count matches the batch size.
-    totalInserted += (data ?? []).length;
     process.stdout.write(`  ${Math.min(i + BATCH, records.length)}/${records.length}\r`);
   }
 

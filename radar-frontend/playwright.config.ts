@@ -13,7 +13,7 @@ export default defineConfig({
   reporter: 'list',
   timeout: 30000,
   use: {
-    baseURL: 'http://localhost:3000',
+    baseURL: process.env.BASE_URL ?? 'http://localhost:3001',
     trace: 'on-first-retry',
     headless: true,
   },
@@ -25,5 +25,6 @@ export default defineConfig({
     },
   ],
 
-  // No webServer config porque el dev server ya está corriendo
+  // Puerto puede ser 3000 (default) o 3001 (si 3000 estaba ocupado)
+  // Usar BASE_URL env var para flexibilidad: BASE_URL=http://localhost:3001 npx playwright test
 });

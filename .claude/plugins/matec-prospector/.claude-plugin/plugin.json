@@ -1,0 +1,9 @@
+{
+  "name": "matec-prospector",
+  "version": "0.2.0",
+  "description": "Prospección B2B autónoma para Matec LATAM usando Apollo.io. Fase 1 (búsqueda gratuita), Fase 2 (reveal de emails y teléfonos), análisis de cobertura y generación del Excel MASTER — para cualquier línea de negocio.",
+  "author": {
+    "name": "Matec LATAM"
+  },
+  "keywords": ["prospección", "apollo", "b2b", "latam", "matec", "crm", "emails"]
+}

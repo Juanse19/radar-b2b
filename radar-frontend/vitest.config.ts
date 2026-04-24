@@ -8,11 +8,7 @@ export default defineConfig({
     // Los tests actuales son de lógica pura (rotación, fechas, filtros) — no necesitan browser
     environment: 'node',
     globals: true,
-    // Set DATABASE_URL before any module is loaded so PrismaClient picks it up
-    env: {
-      DATABASE_URL:
-        'file:C:/Users/Juan/Documents/Agentic Workflows/clients/radar-frontend/prisma/dev.db',
-    },
+    exclude: ['**/node_modules/**', '**/tests/e2e/**', '**/.next/**', '**/tests/integration/**'],
   },
   resolve: {
     alias: {

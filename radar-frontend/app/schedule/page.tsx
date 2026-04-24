@@ -1,5 +1,5 @@
 'use client';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -10,8 +10,15 @@ import { Switch } from '@/components/ui/switch';
 import {
   Save, CheckCircle, Loader2, Calendar, Clock,
   PlayCircle, AlertCircle, Plane, Package, Warehouse,
+  ClipboardCheck, Radar, Users, Layers,
 } from 'lucide-react';
 import type { ScheduleConfig, DiaSemana, LineaSchedule } from '@/lib/types';
+import { fetchJson, ApiError } from '@/lib/fetcher';
+import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
+import { useLineasActivas } from '@/hooks/useLineasActivas';
+import { toast } from 'sonner';
+import type { AgentType } from '@/lib/db/types';
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -24,13 +31,12 @@ const DIAS_ABBR: Record<DiaSemana, string> = {
   Jueves: 'Jue', Viernes: 'Vie', Sábado: 'Sáb', Domingo: 'Dom',
 };
 
-const LINEAS_SEMANA: { value: LineaSchedule; label: string }[] = [
-  { value: 'BHS',            label: 'BHS — Aeropuertos' },
-  { value: 'Cartón',         label: 'Cartón — Corrugadoras' },
-  { value: 'Intralogística', label: 'Intralogística — CEDI' },
-  { value: 'Todas',          label: 'Todas las líneas' },
-  { value: 'ALL_TIER_A',     label: 'Tier A (todas)' },
-  { value: 'Descanso',       label: 'Descanso' },
+// Static special options always present at the end of the weekly rotation
+// selector, regardless of what the DB returns.
+const LINEAS_SEMANA_EXTRA: { value: LineaSchedule; label: string }[] = [
+  { value: 'Todas',      label: 'Todas las líneas' },
+  { value: 'ALL_TIER_A', label: 'Tier A (todas)' },
+  { value: 'Descanso',   label: 'Descanso' },
 ];
 
 const DEFAULT_ROTACION: Partial<Record<DiaSemana, LineaSchedule>> = {
@@ -53,7 +59,7 @@ const LINEA_STYLE: Record<string, { bg: string; border: string; text: string; do
   'SOLUMAT':        { bg: 'bg-cyan-950/60',    border: 'border-cyan-700',    text: 'text-cyan-300',    dot: 'bg-cyan-400',    label: 'SOLUMAT' },
   Todas:            { bg: 'bg-indigo-950/60',  border: 'border-indigo-700',  text: 'text-indigo-300',  dot: 'bg-indigo-400',  label: 'Todas' },
   ALL_TIER_A:       { bg: 'bg-purple-950/60',  border: 'border-purple-700',  text: 'text-purple-300',  dot: 'bg-purple-400',  label: 'Tier A' },
-  Descanso:         { bg: 'bg-gray-800/30',    border: 'border-gray-700',    text: 'text-gray-600',    dot: 'bg-gray-600',    label: 'Descanso' },
+  Descanso:         { bg: 'bg-surface-muted/30',    border: 'border-border',    text: 'text-gray-600',    dot: 'bg-gray-600',    label: 'Descanso' },
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -103,10 +109,27 @@ export default function SchedulePage() {
   const [runningNow, setRunningNow]       = useState(false);
   const [runError, setRunError]           = useState<string | null>(null);
   const [runSuccess, setRunSuccess]       = useState(false);
+  // Which agent to fire with "Ejecutar ahora"
+  const [agentToRun, setAgentToRun]       = useState<AgentType | 'cascade'>('calificador');
+  // Execution id returned after firing — shows an inline tracker card.
+  const [lastExecId, setLastExecId]       = useState<string | null>(null);
+  const { invalidate: invalidateTray }    = useInflightExecutions();
+
+  const { lineas: lineasActivas } = useLineasActivas();
+
+  // Build the select options for the weekly rotation: DB-active lines first,
+  // then the fixed special options (Todas, ALL_TIER_A, Descanso).
+  const lineasSemana = useMemo<{ value: LineaSchedule; label: string }[]>(() => {
+    const dbLines = lineasActivas.map(l => ({
+      value: l.nombre as LineaSchedule,
+      label: l.nombre,
+    }));
+    return [...dbLines, ...LINEAS_SEMANA_EXTRA];
+  }, [lineasActivas]);
 
   const { data: schedule, isLoading } = useQuery<ScheduleConfig>({
     queryKey: ['schedule'],
-    queryFn: () => fetch('/api/schedule').then(r => r.json()),
+    queryFn: () => fetchJson<ScheduleConfig>('/api/schedule'),
   });
 
   const [draftConfig, setDraftConfig]     = useState<Partial<ScheduleConfig> | null>(null);
@@ -133,11 +156,11 @@ export default function SchedulePage() {
 
   const saveMutation = useMutation({
     mutationFn: (data: Partial<ScheduleConfig>) =>
-      fetch('/api/schedule', {
+      fetchJson<ScheduleConfig>('/api/schedule', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).then(r => r.json()),
+      }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['schedule'] });
     },
@@ -165,22 +188,49 @@ export default function SchedulePage() {
     setTimeout(() => { setSavedConfig(false); setSavedWeek(false); }, 3000);
   }
 
+  // Agent labels for the selector
+  const AGENT_OPTIONS: { value: AgentType | 'cascade'; label: string; Icon: React.ElementType; desc: string }[] = [
+    { value: 'calificador', label: 'Calificación',   Icon: ClipboardCheck, desc: 'WF01 — califica el siguiente batch de empresas' },
+    { value: 'radar',       label: 'Radar',          Icon: Radar,          desc: 'WF02 — detecta señales CAPEX (requiere empresa específica)' },
+    { value: 'prospector',  label: 'Prospección',    Icon: Users,          desc: 'WF03 — busca contactos con Apollo.io' },
+    { value: 'cascade',     label: 'Cascada completa', Icon: Layers,       desc: 'WF01 → WF02 → WF03 — pipeline completo (WF01 activa los siguientes)' },
+  ];
+
   async function ejecutarAhora() {
     setRunningNow(true);
     setRunError(null);
     setRunSuccess(false);
+    setLastExecId(null);
+
+    // Cascada: dispara solo WF01 — n8n se encarga de activar WF02 y WF03
+    // automáticamente para las empresas que califican.
+    const agentPayload = agentToRun === 'cascade' ? 'calificador' : agentToRun;
+    const todayLinea = (() => {
+      const todayIdx = getTodayIdx();
+      const dia = DIAS[todayIdx];
+      const linea = draftRotacion?.[dia] ?? 'BHS';
+      return linea === 'Descanso' || linea === 'Todas' || linea === 'ALL_TIER_A' ? 'BHS' : linea;
+    })();
+
     try {
-      const res = await fetch('/api/trigger', {
+      const result = await fetchJson<{ execution_id: string; pipeline_id: string }>('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ linea: 'ALL', batchSize: draftConfig?.batchSizes?.BHS ?? 10 }),
+        body: JSON.stringify({
+          agent:     agentPayload,
+          linea:     todayLinea,
+          batchSize: draftConfig?.batchSizes?.BHS ?? 10,
+        }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error lanzando escaneo');
+      setLastExecId(result.execution_id);
       setRunSuccess(true);
+      invalidateTray(); // wake the global tracker tray
+      toast.success(`${AGENT_OPTIONS.find(o => o.value === agentToRun)?.label ?? 'Agente'} iniciado`);
       setTimeout(() => setRunSuccess(false), 8000);
     } catch (e) {
-      setRunError(e instanceof Error ? e.message : 'Error desconocido');
+      const msg = e instanceof ApiError ? e.message : e instanceof Error ? e.message : 'Error desconocido';
+      setRunError(msg);
+      toast.error(`Error: ${msg}`);
     } finally {
       setRunningNow(false);
     }
@@ -188,8 +238,8 @@ export default function SchedulePage() {
 
   if (isLoading || !draftConfig || !draftRotacion) {
     return (
-      <div className="min-h-screen bg-gray-950 flex items-center justify-center">
-        <div className="flex items-center gap-3 text-gray-400">
+      <div className="flex items-center justify-center py-8">
+        <div className="flex items-center gap-3 text-muted-foreground">
           <Loader2 size={20} className="animate-spin" />
           <span>Cargando configuración...</span>
         </div>
@@ -204,24 +254,47 @@ export default function SchedulePage() {
   const todayIdx = getTodayIdx();
 
   return (
-    <div className="min-h-screen bg-gray-950 px-4 py-8 lg:px-8">
+    <div className="space-y-6">
 
       {/* ── Status header bar ─────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto mb-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           {/* Title */}
           <div className="flex items-center gap-3">
-            <div className="p-2 bg-gray-800 rounded-lg border border-gray-700">
-              <Calendar size={20} className="text-gray-400" />
+            <div className="p-2 bg-surface-muted rounded-lg border border-border">
+              <Calendar size={20} className="text-muted-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Cronograma</h1>
-              <p className="text-gray-500 text-sm">Escaneo automático diario del Radar de Inversión B2B</p>
+              <h1 className="text-3xl font-bold text-foreground tracking-tight">Cronograma</h1>
+              <p className="text-muted-foreground text-sm">Escaneo automático diario del Radar de Inversión B2B</p>
             </div>
           </div>
 
           {/* Run now */}
-          <div className="flex flex-col items-end gap-2">
+          <div className="flex flex-col items-end gap-3">
+            {/* Agent selector */}
+            <div className="flex items-center gap-2 flex-wrap justify-end">
+              {AGENT_OPTIONS.map(opt => {
+                const isActive = agentToRun === opt.value;
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    title={opt.desc}
+                    onClick={() => setAgentToRun(opt.value)}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-colors ${
+                      isActive
+                        ? 'bg-orange-900/60 border-orange-600 text-orange-200'
+                        : 'bg-surface border-border text-muted-foreground hover:border-border'
+                    }`}
+                  >
+                    <opt.Icon size={12} />
+                    {opt.label}
+                  </button>
+                );
+              })}
+            </div>
+
             <Button
               onClick={ejecutarAhora}
               disabled={runningNow}
@@ -233,9 +306,10 @@ export default function SchedulePage() {
                 <><PlayCircle size={15} /> Ejecutar ahora</>
               )}
             </Button>
+
             {runSuccess && (
               <div className="flex items-center gap-1.5 text-green-400 text-xs">
-                <CheckCircle size={12} /> Escaneo iniciado — revisa Resultados en unos minutos
+                <CheckCircle size={12} /> Iniciado — sigue el progreso abajo o en el tracker ↘
               </div>
             )}
             {runError && (
@@ -248,31 +322,43 @@ export default function SchedulePage() {
 
         {/* Inline stats bar */}
         <div className="mt-5 grid grid-cols-1 sm:grid-cols-3 gap-3">
-          <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl">
+          <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-xl">
             <span className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${activo ? 'bg-green-400 shadow-[0_0_6px_rgba(74,222,128,0.6)]' : 'bg-gray-600'}`} />
             <div>
               <p className="text-xs text-gray-600 uppercase tracking-wider">Estado</p>
-              <p className={`text-sm font-semibold ${activo ? 'text-green-400' : 'text-gray-400'}`}>
+              <p className={`text-sm font-semibold ${activo ? 'text-green-400' : 'text-muted-foreground'}`}>
                 {activo ? 'Activo' : 'Inactivo'}
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl">
+          <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-xl">
             <Clock size={16} className="text-gray-600 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-600 uppercase tracking-wider">Hora programada</p>
-              <p className="text-sm font-semibold text-white">{formatHora(hora)} <span className="text-gray-600 font-normal text-xs">(UTC-5)</span></p>
+              <p className="text-sm font-semibold text-foreground">{formatHora(hora)} <span className="text-gray-600 font-normal text-xs">(UTC-5)</span></p>
             </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl">
+          <div className="flex items-center gap-3 px-4 py-3 bg-surface border border-border rounded-xl">
             <Calendar size={16} className="text-blue-500 flex-shrink-0" />
             <div>
               <p className="text-xs text-gray-600 uppercase tracking-wider">Próxima ejecución</p>
-              <p className="text-sm font-medium text-gray-300 truncate">{nextRun}</p>
+              <p className="text-sm font-medium text-muted-foreground truncate">{nextRun}</p>
             </div>
           </div>
         </div>
       </div>
+
+      {/* ── Inline tracker — shows the execution just fired ─────────────────── */}
+      {lastExecId && (
+        <div className="max-w-6xl mx-auto mt-4">
+          <div className="rounded-xl border border-orange-800/50 bg-orange-950/20 p-4 space-y-2">
+            <p className="text-xs font-semibold text-orange-300 uppercase tracking-wide">
+              Ejecución en curso
+            </p>
+            <AgentPipelineCard executionId={lastExecId} />
+          </div>
+        </div>
+      )}
 
       {/* ── Main grid ───────────────────────────────────────────────────────── */}
       <div className="max-w-6xl mx-auto grid grid-cols-1 lg:grid-cols-5 gap-6">
@@ -281,12 +367,12 @@ export default function SchedulePage() {
         <div className="lg:col-span-2 space-y-5">
 
           {/* Toggle activo */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardContent className="p-5">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-semibold text-gray-200">Escaneo automático</p>
-                  <p className="text-xs text-gray-500 mt-0.5">Ejecuta el radar diariamente</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Ejecuta el radar diariamente</p>
                 </div>
                 <Switch
                   checked={activo}
@@ -302,9 +388,9 @@ export default function SchedulePage() {
           </Card>
 
           {/* Hora de ejecución */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+              <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                 <Clock size={12} /> Hora de ejecución
               </CardTitle>
             </CardHeader>
@@ -315,7 +401,7 @@ export default function SchedulePage() {
                     type="time"
                     value={hora}
                     onChange={e => setDraftConfig(prev => prev ? { ...prev, hora: e.target.value } : prev)}
-                    className="bg-gray-800 border-gray-700 text-white text-2xl h-12 font-mono tabular-nums"
+                    className="bg-surface-muted border-border text-foreground text-2xl h-12 font-mono tabular-nums"
                   />
                 </div>
                 <div className="pb-1">
@@ -327,9 +413,9 @@ export default function SchedulePage() {
           </Card>
 
           {/* Batch sizes por línea — horizontal cards */}
-          <Card className="bg-gray-900 border-gray-800">
+          <Card className="bg-surface border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold">
+              <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold">
                 Empresas por ejecución
               </CardTitle>
             </CardHeader>
@@ -349,7 +435,7 @@ export default function SchedulePage() {
                     ...prev,
                     batchSizes: { ...(prev.batchSizes ?? { BHS: 10, Carton: 10, Intralogistica: 10, FinalLinea: 10, Motos: 10, Solumat: 10 }), BHS: Number(e.target.value) },
                   } : prev)}
-                  className="bg-gray-800 border-gray-700 text-white w-20 h-8 text-sm text-center"
+                  className="bg-surface-muted border-border text-foreground w-20 h-8 text-sm text-center"
                 />
               </div>
 
@@ -368,7 +454,7 @@ export default function SchedulePage() {
                     ...prev,
                     batchSizes: { ...(prev.batchSizes ?? { BHS: 10, Carton: 10, Intralogistica: 10, FinalLinea: 10, Motos: 10, Solumat: 10 }), Carton: Number(e.target.value) },
                   } : prev)}
-                  className="bg-gray-800 border-gray-700 text-white w-20 h-8 text-sm text-center"
+                  className="bg-surface-muted border-border text-foreground w-20 h-8 text-sm text-center"
                 />
               </div>
 
@@ -387,7 +473,7 @@ export default function SchedulePage() {
                     ...prev,
                     batchSizes: { ...(prev.batchSizes ?? { BHS: 10, Carton: 10, Intralogistica: 10, FinalLinea: 10, Motos: 10, Solumat: 10 }), Intralogistica: Number(e.target.value) },
                   } : prev)}
-                  className="bg-gray-800 border-gray-700 text-white w-20 h-8 text-sm text-center"
+                  className="bg-surface-muted border-border text-foreground w-20 h-8 text-sm text-center"
                 />
               </div>
 
@@ -396,18 +482,18 @@ export default function SchedulePage() {
 
           {/* Última ejecución */}
           {schedule?.ultimaEjecucion && (
-            <div className="px-4 py-3 bg-gray-900 border border-gray-800 rounded-xl">
+            <div className="px-4 py-3 bg-surface border border-border rounded-xl">
               <p className="text-xs text-gray-600 uppercase tracking-wider mb-1">Última ejecución</p>
-              <p className="text-sm text-gray-400">{schedule.ultimaEjecucion}</p>
+              <p className="text-sm text-muted-foreground">{schedule.ultimaEjecucion}</p>
             </div>
           )}
         </div>
 
         {/* ─────────── RIGHT COLUMN — 3/5 — Weekly calendar ─────────── */}
         <div className="lg:col-span-3">
-          <Card className="bg-gray-900 border-gray-800 h-full">
+          <Card className="bg-surface border-border h-full">
             <CardHeader className="pb-3">
-              <CardTitle className="text-gray-400 text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
+              <CardTitle className="text-muted-foreground text-xs uppercase tracking-widest font-semibold flex items-center gap-2">
                 <Calendar size={12} /> Rotación semanal
               </CardTitle>
               <p className="text-xs text-gray-600 mt-1">
@@ -433,7 +519,7 @@ export default function SchedulePage() {
                     >
                       {/* Day header */}
                       <div className="px-2 pt-2.5 pb-1.5 text-center">
-                        <p className={`text-xs font-bold ${isToday ? 'text-white' : 'text-gray-500'}`}>
+                        <p className={`text-xs font-bold ${isToday ? 'text-white' : 'text-muted-foreground'}`}>
                           {DIAS_ABBR[dia]}
                         </p>
                         {isToday && (
@@ -461,11 +547,11 @@ export default function SchedulePage() {
                             setDraftRotacion(prev => prev ? { ...prev, [dia]: v as LineaSchedule } : prev)
                           }
                         >
-                          <SelectTrigger className="bg-gray-900/80 border-gray-700 text-gray-300 h-7 text-xs px-1.5 w-full">
+                          <SelectTrigger className="bg-surface/80 border-border text-muted-foreground h-7 text-xs px-1.5 w-full">
                             <SelectValue />
                           </SelectTrigger>
-                          <SelectContent className="bg-gray-800 border-gray-700">
-                            {LINEAS_SEMANA.map(l => (
+                          <SelectContent className="bg-surface-muted border-border">
+                            {lineasSemana.map(l => (
                               <SelectItem key={l.value} value={l.value} className="text-gray-100 text-xs">
                                 {l.label}
                               </SelectItem>
@@ -523,7 +609,7 @@ export default function SchedulePage() {
           <Button
             onClick={saveConfig}
             disabled={saveMutation.isPending}
-            className="h-12 px-5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm gap-2"
+            className="h-12 px-5 bg-surface-muted hover:bg-surface-muted border border-border text-muted-foreground text-sm gap-2"
           >
             {savedConfig ? <CheckCircle size={14} /> : <Save size={14} />}
             Config
@@ -531,7 +617,7 @@ export default function SchedulePage() {
           <Button
             onClick={saveWeek}
             disabled={saveMutation.isPending}
-            className="h-12 px-5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-300 text-sm gap-2"
+            className="h-12 px-5 bg-surface-muted hover:bg-surface-muted border border-border text-muted-foreground text-sm gap-2"
           >
             {savedWeek ? <CheckCircle size={14} /> : <Calendar size={14} />}
             Semana

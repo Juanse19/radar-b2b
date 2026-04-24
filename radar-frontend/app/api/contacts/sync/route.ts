@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { actualizarHubSpotStatus } from '@/lib/contacts';
-import type { HubSpotStatus } from '@/lib/types';
 
 export async function POST(req: NextRequest) {
   try {

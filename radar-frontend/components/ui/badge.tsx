@@ -1,52 +1,71 @@
-import { mergeProps } from "@base-ui/react/merge-props"
-import { useRender } from "@base-ui/react/use-render"
-import { cva, type VariantProps } from "class-variance-authority"
+/**
+ * Badge — MAT HUB Theme Kit
+ * Tones semánticos: neutral | info | success | danger | warning
+ * Mantiene variantes de shadcn como aliases para compatibilidad.
+ */
+import { cn } from "@/lib/utils";
 
-import { cn } from "@/lib/utils"
+/* ── Tones del theme kit ─────────────────────── */
+export type BadgeTone =
+  | "neutral"
+  | "info"
+  | "success"
+  | "danger"
+  | "warning";
 
-const badgeVariants = cva(
-  "group/badge inline-flex h-5 w-fit shrink-0 items-center justify-center gap-1 overflow-hidden rounded-4xl border border-transparent px-2 py-0.5 text-xs font-medium whitespace-nowrap transition-all focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 has-data-[icon=inline-end]:pr-1.5 has-data-[icon=inline-start]:pl-1.5 aria-invalid:border-destructive aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 [&>svg]:pointer-events-none [&>svg]:size-3!",
-  {
-    variants: {
-      variant: {
-        default: "bg-primary text-primary-foreground [a]:hover:bg-primary/80",
-        secondary:
-          "bg-secondary text-secondary-foreground [a]:hover:bg-secondary/80",
-        destructive:
-          "bg-destructive/10 text-destructive focus-visible:ring-destructive/20 dark:bg-destructive/20 dark:focus-visible:ring-destructive/40 [a]:hover:bg-destructive/20",
-        outline:
-          "border-border text-foreground [a]:hover:bg-muted [a]:hover:text-muted-foreground",
-        ghost:
-          "hover:bg-muted hover:text-muted-foreground dark:hover:bg-muted/50",
-        link: "text-primary underline-offset-4 hover:underline",
-      },
-    },
-    defaultVariants: {
-      variant: "default",
-    },
-  }
-)
+const toneStyles: Record<BadgeTone, string> = {
+  neutral: "bg-surface-muted text-primary",
+  info:    "bg-secondary/16 text-primary",
+  success: "bg-success/14 text-success",
+  danger:  "bg-danger/12 text-danger",
+  warning: "bg-warning/12 text-warning",
+};
 
-function Badge({
+/* ── Aliases shadcn → tone MATEC (compatibilidad) */
+type BadgeVariant = BadgeTone | "default" | "secondary" | "destructive" | "outline";
+
+const variantToTone: Record<BadgeVariant, BadgeTone> = {
+  default:     "neutral",
+  neutral:     "neutral",
+  secondary:   "info",
+  info:        "info",
+  success:     "success",
+  destructive: "danger",
+  danger:      "danger",
+  warning:     "warning",
+  outline:     "neutral",
+};
+
+export function Badge({
+  children,
+  tone,
+  variant,
   className,
-  variant = "default",
-  render,
-  ...props
-}: useRender.ComponentProps<"span"> & VariantProps<typeof badgeVariants>) {
-  return useRender({
-    defaultTagName: "span",
-    props: mergeProps<"span">(
-      {
-        className: cn(badgeVariants({ variant }), className),
-      },
-      props
-    ),
-    render,
-    state: {
-      slot: "badge",
-      variant,
-    },
-  })
+}: {
+  children: React.ReactNode;
+  tone?: BadgeTone;
+  variant?: BadgeVariant;
+  className?: string;
+}) {
+  const resolvedTone = tone ?? (variant ? variantToTone[variant] : "neutral");
+  return (
+    <span
+      className={cn(
+        "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]",
+        toneStyles[resolvedTone],
+        className,
+      )}
+    >
+      {children}
+    </span>
+  );
 }
 
-export { Badge, badgeVariants }
+/* Alias para shadcn compat */
+export const badgeVariants = (v?: { variant?: BadgeVariant }) =>
+  cn(
+    "inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em]",
+    toneStyles[variantToTone[v?.variant ?? "default"]],
+  );
+
+export { Badge as default };
