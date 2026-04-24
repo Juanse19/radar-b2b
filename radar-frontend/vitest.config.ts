@@ -8,6 +8,7 @@ export default defineConfig({
     // Los tests actuales son de lógica pura (rotación, fechas, filtros) — no necesitan browser
     environment: 'node',
     globals: true,
+    exclude: ['**/node_modules/**', '**/tests/e2e/**', '**/.next/**', '**/tests/integration/**'],
   },
   resolve: {
     alias: {

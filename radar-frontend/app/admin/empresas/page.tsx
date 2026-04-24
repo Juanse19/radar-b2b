@@ -250,9 +250,9 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="BHS"            className="text-gray-100">BHS</SelectItem>
-                  <SelectItem value="Cartón"         className="text-gray-100">Cartón</SelectItem>
-                  <SelectItem value="Intralogística" className="text-gray-100">Intralogística</SelectItem>
+                  <SelectItem value="BHS"            className="text-foreground">BHS</SelectItem>
+                  <SelectItem value="Cartón"         className="text-foreground">Cartón</SelectItem>
+                  <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -263,9 +263,9 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="Tier A" className="text-gray-100">Tier A</SelectItem>
-                  <SelectItem value="Tier B" className="text-gray-100">Tier B</SelectItem>
-                  <SelectItem value="Tier C" className="text-gray-100">Tier C</SelectItem>
+                  <SelectItem value="Tier A" className="text-foreground">Tier A</SelectItem>
+                  <SelectItem value="Tier B" className="text-foreground">Tier B</SelectItem>
+                  <SelectItem value="Tier C" className="text-foreground">Tier C</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -279,7 +279,7 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
               type="button"
               variant="outline"
               onClick={onClose}
-              className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
+              className="border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground"
             >
               Cancelar
             </Button>
@@ -556,7 +556,7 @@ export default function EmpresasPage() {
                   <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
                     <opt.Icon size={24} />
                   </div>
-                  <p className={`font-semibold text-sm ${isActive ? 'text-white' : 'text-muted-foreground'}`}>
+                  <p className={`font-semibold text-sm ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
                     {opt.label}
                   </p>
                   <p className="text-xs text-gray-600 mt-0.5 leading-tight">{opt.desc}</p>
@@ -637,7 +637,7 @@ export default function EmpresasPage() {
                       }`}
                     />
                     <span
-                      className="text-white text-sm font-medium truncate"
+                      className="text-foreground text-sm font-medium truncate"
                       title={empresa.nombre}
                     >
                       {empresa.nombre}
@@ -675,7 +675,7 @@ export default function EmpresasPage() {
                       size="sm"
                       variant="ghost"
                       onClick={() => openEdit(empresa)}
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-white hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Editar"
                     >
                       <Pencil size={13} />
@@ -707,7 +707,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 gap-1"
                 >
                   <ChevronLeft size={14} /> Anterior
                 </Button>
@@ -716,7 +716,7 @@ export default function EmpresasPage() {
                   variant="outline"
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-white disabled:opacity-40 gap-1"
+                  className="h-7 border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground disabled:opacity-40 gap-1"
                 >
                   Siguiente <ChevronRight size={14} />
                 </Button>
@@ -751,7 +751,7 @@ export default function EmpresasPage() {
               <Button
                 variant="outline"
                 onClick={() => setDeleteId(null)}
-                className="border-border text-muted-foreground hover:bg-surface-muted hover:text-white"
+                className="border-border text-muted-foreground hover:bg-surface-muted hover:text-foreground"
               >
                 Cancelar
               </Button>

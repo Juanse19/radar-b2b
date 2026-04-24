@@ -3,6 +3,7 @@ import Image from 'next/image'
 import Link from 'next/link'
 import { Menu, Bell, Sun, Moon } from 'lucide-react'
 import { useTheme } from 'next-themes'
+import { useEffect, useState } from 'react'
 import type { SessionUser } from '@/lib/auth/types'
 
 interface TopBarProps {
@@ -20,6 +21,10 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
     .toUpperCase()
 
   const { theme, setTheme } = useTheme()
+  // next-themes: avoid hydration mismatch — only render theme icon after mount
+  const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
+  useEffect(() => setMounted(true), [])
 
   return (
     <header className="h-14 bg-sidebar border-b border-sidebar-border flex items-center px-4 gap-4 shrink-0 z-30">
@@ -47,7 +52,7 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
 
       {/* Project name */}
       <span className="text-sidebar-primary font-medium text-sm">
-        Radar B2B
+        Radar Comercial B2B
       </span>
 
       {/* Spacer */}
@@ -58,14 +63,17 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
         <Bell className="w-5 h-5" />
       </button>
 
-      {/* Theme toggle */}
+      {/* Theme toggle — deferred until mounted to avoid SSR/client hydration mismatch */}
       <button
         type="button"
         onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
         aria-label="Cambiar tema"
         className="text-white/60 hover:text-white transition-colors"
       >
-        {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+        {mounted
+          ? theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />
+          : <div className="w-4 h-4" />
+        }
       </button>
 
       {/* User avatar → link to /profile */}

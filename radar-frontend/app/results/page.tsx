@@ -15,7 +15,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Download, Activity, ClipboardCheck, Users, Radar, X } from 'lucide-react';
+import { Download, Activity, ClipboardCheck, Users, Radar, X, User } from 'lucide-react';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 import { EmptyState } from '@/components/EmptyState';
@@ -105,6 +105,8 @@ function ResultsInner() {
   const [activeTab, setActiveTab] = useState<'signals' | 'calificacion' | 'radar' | 'contactos'>('signals');
   // Re-scan state: { executionId, empresa } set when user fires Radar from a row.
   const [rescan, setRescan] = useState<{ executionId: string; empresa: string } | null>(null);
+  // "Mis escaneos" toggle — filters the signals list to only the current user's scans.
+  const [soloMios, setSoloMios] = useState(false);
   const { invalidate: invalidateTray } = useInflightExecutions();
 
   // Sincronizar con el query param inicial
@@ -117,9 +119,10 @@ function ResultsInner() {
     if (paisFiltro)            p.set('pais', paisFiltro);
     if (desde)                 p.set('from', desde);
     if (hasta)                 p.set('to', hasta);
+    if (soloMios)              p.set('solo_mios', 'true');
     p.set('limit', '500');
     return `/api/signals?${p}`;
-  }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta]);
+  }, [lineaFiltro, tierFiltro, paisFiltro, desde, hasta, soloMios]);
 
   const {
     data: rawResults = [],
@@ -127,7 +130,7 @@ function ResultsInner() {
     error: signalsError,
     refetch: refetchSignals,
   } = useQuery<ResultadoRadar[]>({
-    queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta],
+    queryKey: ['signals', lineaFiltro, tierFiltro, paisFiltro, desde, hasta, soloMios],
     queryFn: async () => {
       const data = await fetchJson<unknown>(signalUrl);
       return Array.isArray(data) ? (data as ResultadoRadar[]) : [];
@@ -208,21 +211,55 @@ function ResultsInner() {
   });
 
   function exportarCSV() {
-    const headers = ['Empresa', 'País', 'Línea', 'Tier', 'Radar', 'Tipo Señal', 'Score', 'Tier Score', 'Descripción', 'Fuente', 'URL', 'Fecha'];
+    const headers = [
+      'Empresa', 'País', 'Línea', 'Tier', 'Radar Activo', 'Tipo Señal',
+      'Score Radar', 'Ventana Compra', 'Monto Inversión', 'Fecha Señal',
+      'Empresa / Proyecto', 'Criterios Cumplidos', 'Total Criterios',
+      'Evaluación Temporal', 'TIER Score', 'TIER', 'TIR Score', 'TIR',
+      'Score Final MAOA', 'Convergencia', 'Acción Recomendada',
+      'Signal ID', 'Descripción', 'Fuente', 'URL', 'Observaciones', 'Fecha Escaneo',
+      'Escaneado por',
+    ];
+    const esc = (v: unknown) => String(v ?? '').replace(/,/g, ';').replace(/\n/g, ' ');
     const rows = results.map(r => [
-      r.empresa, r.pais, r.linea, r.tier, r.radarActivo, r.tipoSenal,
-      r.scoreRadar, r.ventanaCompra, r.descripcion.replace(/,/g, ';'),
-      r.fuente, r.fuenteUrl, r.fechaEscaneo,
+      esc(r.empresa),
+      esc(r.pais),
+      esc(r.linea),
+      esc(r.tier),
+      esc(r.radarActivo),
+      esc(r.tipoSenal),
+      esc(r.scoreRadar),
+      esc(r.ventanaCompra),
+      esc(r.montoInversion),
+      esc(r.fechaSenal),
+      esc(r.empresaProyecto),
+      esc((r.criteriosCumplidos ?? []).join(' | ')),
+      esc(r.totalCriterios),
+      esc(r.evaluacionTemporal),
+      esc(r.tierScore),
+      esc(r.tierClasificacion),
+      esc(r.tirScore),
+      esc(r.tirClasificacion),
+      esc(r.scoreFinalMaoa),
+      esc(r.convergenciaMaoa),
+      esc(r.accionRecomendada),
+      esc(r.signalId),
+      esc(r.descripcion),
+      esc(r.fuente),
+      esc(r.fuenteUrl),
+      esc(r.observacionesMaoa),
+      esc(r.fechaEscaneo),
+      esc(r.ejecutadoPorNombre),
     ]);
     const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `radar-b2b-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.download = `radar-b2b-maoa-${new Date().toISOString().slice(0, 10)}.csv`;
     a.click();
     URL.revokeObjectURL(url);
-    toast.success(`${results.length} señales exportadas`);
+    toast.success(`${results.length} señales exportadas (formato MAOA)`);
   }
 
   const oroCount        = rawResults.filter(r => (r.scoreRadar >= 8 || r.scoreRadar >= 80)).length;
@@ -345,9 +382,19 @@ function ResultsInner() {
           onChange={e => { setHasta(e.target.value); setPagina(0); }}
           className="bg-surface-muted border-border text-foreground w-36" title="Hasta"
         />
-        {(busqueda || tierFiltro !== 'ALL' || paisFiltro || desde || hasta) && (
+        <Button
+          variant={soloMios ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => { setSoloMios(!soloMios); setPagina(0); }}
+          className="gap-1.5"
+          title="Mostrar solo los escaneos iniciados por mí"
+        >
+          <User size={13} />
+          {soloMios ? 'Mis escaneos' : 'Todos'}
+        </Button>
+        {(busqueda || tierFiltro !== 'ALL' || paisFiltro || desde || hasta || soloMios) && (
           <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-muted-foreground text-xs"
-            onClick={() => { setBusqueda(''); setTierFiltro('ALL'); setPaisFiltro(''); setDesde(''); setHasta(''); setPagina(0); }}
+            onClick={() => { setBusqueda(''); setTierFiltro('ALL'); setPaisFiltro(''); setDesde(''); setHasta(''); setSoloMios(false); setPagina(0); }}
           >
             Limpiar filtros
           </Button>
@@ -512,21 +559,72 @@ function ResultsInner() {
             </Card>
           ) : (
             results.filter(r => r.radarActivo === 'Sí').map((r, i) => (
-              <Card key={i} className="hover:border-border transition-colors">
+              <Card
+                key={i}
+                className="hover:border-border transition-colors cursor-pointer"
+                onClick={() => setDetailSignal(r)}
+              >
                 <CardContent className="p-4">
                   <div className="flex items-start justify-between gap-4">
                     <div className="flex-1 min-w-0">
+                      {/* Row 1: empresa + badges */}
                       <div className="flex items-center gap-2 mb-1 flex-wrap">
                         <span className="font-semibold text-foreground text-sm">{r.empresa}</span>
                         <LineaBadge linea={r.linea} />
                         <ScoreBadge score={r.scoreRadar} />
-                        <span className="text-xs text-muted-foreground">{r.tipoSenal}</span>
+                        {r.tipoSenal && (
+                          <span className="text-xs text-muted-foreground border border-border px-1.5 py-0.5 rounded">
+                            {r.tipoSenal}
+                          </span>
+                        )}
                       </div>
+
+                      {/* Row 2: MAOA badges */}
+                      {(r.convergenciaMaoa || r.accionRecomendada || r.ventanaCompra) && (
+                        <div className="flex items-center gap-2 mb-2 flex-wrap">
+                          {r.ventanaCompra && (
+                            <span className="text-xs text-blue-300 bg-blue-900/30 border border-blue-800/50 px-2 py-0.5 rounded-full">
+                              ⏱ {r.ventanaCompra}
+                            </span>
+                          )}
+                          {r.convergenciaMaoa && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border ${
+                              r.convergenciaMaoa === 'Verificada'
+                                ? 'bg-green-900/40 text-green-300 border-green-800/50'
+                                : r.convergenciaMaoa === 'Pendiente'
+                                ? 'bg-yellow-900/40 text-yellow-300 border-yellow-800/50'
+                                : 'bg-surface-muted text-muted-foreground border-border'
+                            }`}>
+                              {r.convergenciaMaoa === 'Verificada' ? '🟢' : r.convergenciaMaoa === 'Pendiente' ? '🟡' : '🔴'} {r.convergenciaMaoa}
+                            </span>
+                          )}
+                          {r.accionRecomendada && (
+                            <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                              r.accionRecomendada === 'ABM ACTIVADO'
+                                ? 'bg-violet-900/40 text-violet-300 border-violet-800/50'
+                                : r.accionRecomendada === 'MONITOREO ACTIVO'
+                                ? 'bg-blue-900/40 text-blue-300 border-blue-800/50'
+                                : 'bg-surface-muted text-muted-foreground border-border'
+                            }`}>
+                              {r.accionRecomendada}
+                            </span>
+                          )}
+                          {r.scoreFinalMaoa != null && (
+                            <span className="text-xs text-muted-foreground tabular-nums">
+                              Score {r.scoreFinalMaoa.toFixed(1)} · T{r.tierClasificacion}/{r.tirClasificacion}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <p className="text-muted-foreground text-xs line-clamp-2">{r.descripcion}</p>
                     </div>
                     <div className="text-right flex-shrink-0">
                       <p className="text-xs text-muted-foreground">{r.fechaEscaneo}</p>
                       <p className="text-xs text-gray-600 mt-1">{r.pais}</p>
+                      {r.montoInversion && r.montoInversion !== 'No reportado' && (
+                        <p className="text-xs text-emerald-400 mt-1 font-medium">{r.montoInversion}</p>
+                      )}
                     </div>
                   </div>
                 </CardContent>

@@ -55,7 +55,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
       header: 'Línea',
       cell: ({ getValue }) => {
         const linea = getValue<string>();
-        return linea ? <LineaBadge linea={linea as LineaNegocio} /> : <span className="text-gray-600 text-xs">—</span>;
+        return linea ? <LineaBadge linea={linea as LineaNegocio} /> : <span className="text-muted-foreground text-xs">—</span>;
       },
     },
     {
@@ -63,7 +63,7 @@ export function createContactsColumns(): ColumnDef<Contacto>[] {
       header: 'Email',
       cell: ({ getValue }) => {
         const email = getValue<string>();
-        if (!email) return <span className="text-gray-600 text-xs">—</span>;
+        if (!email) return <span className="text-muted-foreground text-xs">—</span>;
         return (
           <a
             href={`mailto:${email}`}

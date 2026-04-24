@@ -18,7 +18,7 @@ export async function PATCH(
 
   const { id } = await params;
   const body = await req.json().catch(() => ({}));
-  const updates: Record<string, string> = {};
+  const updates: Record<string, unknown> = {};
 
   if (typeof body.nombre === 'string' && body.nombre.trim()) {
     updates.nombre = body.nombre.trim();
@@ -28,6 +28,14 @@ export async function PATCH(
   }
   if (body.estado_acceso && ['ACTIVO', 'PENDIENTE', 'INACTIVO'].includes(body.estado_acceso)) {
     updates.estado_acceso = body.estado_acceso;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'daily_token_limit')) {
+    const v = body.daily_token_limit;
+    updates.daily_token_limit = (v === null || v === undefined) ? null : Math.max(0, parseInt(String(v), 10)) || null;
+  }
+  if (Object.prototype.hasOwnProperty.call(body, 'weekly_token_limit')) {
+    const v = body.weekly_token_limit;
+    updates.weekly_token_limit = (v === null || v === undefined) ? null : Math.max(0, parseInt(String(v), 10)) || null;
   }
 
   if (Object.keys(updates).length === 0) {

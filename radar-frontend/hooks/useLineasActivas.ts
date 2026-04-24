@@ -16,12 +16,12 @@ import type { LineaRow } from '@/app/api/lineas/route';
 export type { LineaRow };
 
 export const LINEAS_FALLBACK: LineaRow[] = [
-  { id: 'bhs',            nombre: 'BHS',             color_hex: '#3b82f6', icono: 'Plane',     descripcion: 'Terminales, carruseles, sorters' },
-  { id: 'carton',         nombre: 'Cartón',           color_hex: '#f59e0b', icono: 'Package',   descripcion: 'Plantas corrugadoras, empaque' },
-  { id: 'intralogistica', nombre: 'Intralogística',   color_hex: '#10b981', icono: 'Warehouse', descripcion: 'CEDI, WMS, ASRS, conveyor' },
-  { id: 'final-linea',    nombre: 'Final de Línea',   color_hex: '#f97316', icono: 'Factory',   descripcion: 'Alimentos, bebidas, palletizado' },
-  { id: 'motos',          nombre: 'Motos',            color_hex: '#f43f5e', icono: 'Bike',      descripcion: 'Ensambladoras, motocicletas' },
-  { id: 'solumat',        nombre: 'SOLUMAT',          color_hex: '#8b5cf6', icono: 'Truck',     descripcion: 'Plásticos, materiales industriales' },
+  { id: 'bhs',            codigo: 'bhs',            nombre: 'BHS',             color_hex: '#3b82f6', icono: 'Plane',     descripcion: 'Terminales, carruseles, sorters' },
+  { id: 'carton',         codigo: 'carton_papel',   nombre: 'Cartón',           color_hex: '#f59e0b', icono: 'Package',   descripcion: 'Plantas corrugadoras, empaque' },
+  { id: 'intralogistica', codigo: 'intralogistica', nombre: 'Intralogística',   color_hex: '#10b981', icono: 'Warehouse', descripcion: 'CEDI, WMS, ASRS, conveyor' },
+  { id: 'final-linea',    codigo: 'final_linea',    nombre: 'Final de Línea',   color_hex: '#f97316', icono: 'Factory',   descripcion: 'Alimentos, bebidas, palletizado' },
+  { id: 'motos',          codigo: 'motos',          nombre: 'Motos',            color_hex: '#f43f5e', icono: 'Bike',      descripcion: 'Ensambladoras, motocicletas' },
+  { id: 'solumat',        codigo: 'solumat',        nombre: 'SOLUMAT',          color_hex: '#8b5cf6', icono: 'Truck',     descripcion: 'Plásticos, materiales industriales' },
 ];
 
 export interface UseLineasActivasResult {

@@ -63,7 +63,9 @@ export async function POST(req: NextRequest) {
     } catch { /* tracker es best-effort */ }
 
     // Crear entradas de log para cada empresa — estado inicial "running"
-    const logEntries = await crearProspeccionLogs(
+    // crearProspeccionLogs returns void (best-effort inserts), so guard against
+    // calling .map on a non-array value.
+    await crearProspeccionLogs(
       empresasParaN8N.map(nombre => ({
         empresa_nombre:   nombre,
         linea,
@@ -71,7 +73,7 @@ export async function POST(req: NextRequest) {
       })),
     );
 
-    const logIds = logEntries.map(l => l.id);
+    const logIds: number[] = [];
 
     return NextResponse.json({
       ...result,

@@ -17,13 +17,17 @@ import type { UserRole } from './types';
 // More specific prefixes should come first if needed.
 
 export const ROUTE_ACCESS: Record<string, UserRole[]> = {
-  '/admin/empresas': ['ADMIN', 'COMERCIAL'],
-  '/admin':     ['ADMIN'],
-  '/scan':      ['ADMIN', 'COMERCIAL'],
-  '/schedule':  ['ADMIN', 'COMERCIAL'],
-  '/results':   ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
-  '/contactos': ['ADMIN', 'COMERCIAL', 'AUXILIAR'],
-  '/':          ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
+  '/admin/empresas':    ['ADMIN'],                       // módulo Empresas → solo ADMIN
+  '/admin':             ['ADMIN'],
+  '/scan':              ['ADMIN'],                       // v1 Escanear → solo ADMIN
+  '/schedule':          ['ADMIN'],                       // v1 Cronograma → solo ADMIN
+  '/results':           ['ADMIN', 'AUXILIAR'],           // v1 Resultados → solo ADMIN + AUXILIAR
+  '/calificacion':      ['ADMIN'],                       // v1 Calificación → solo ADMIN
+  '/agente-resultados': ['ADMIN'],                       // v1 Resultados Agente → solo ADMIN
+  '/contactos':         ['ADMIN'],                       // solo ADMIN
+  '/prompt':   ['ADMIN'],                       // solo ADMIN
+  '/comercial':          ['ADMIN', 'COMERCIAL'],          // todos los demás submódulos comercial
+  '/':                  ['ADMIN', 'COMERCIAL', 'AUXILIAR'], // dashboard
 };
 
 // ── Fine-grained actions ──────────────────────────────────────────────────────
@@ -39,19 +43,24 @@ export type Action =
   | 'empresas.create'
   | 'empresas.edit'
   | 'contactos.export'
+  // Radar v2
+  | 'radar.scan'
+  | 'radar.prompt.view'
   // Admin
   | 'admin.manage_users'
   | 'admin.manage_config'
   | 'admin.view_logs';
 
 export const ACTION_ROLES: Record<Action, UserRole[]> = {
-  'scan.trigger':         ['ADMIN', 'COMERCIAL'],
-  'scan.rescan':          ['ADMIN', 'COMERCIAL'],
-  'schedule.create':      ['ADMIN', 'COMERCIAL'],
-  'schedule.toggle':      ['ADMIN', 'COMERCIAL'],
-  'empresas.create':      ['ADMIN', 'COMERCIAL'],
-  'empresas.edit':        ['ADMIN', 'COMERCIAL'],
+  'scan.trigger':         ['ADMIN'],
+  'scan.rescan':          ['ADMIN'],
+  'schedule.create':      ['ADMIN'],
+  'schedule.toggle':      ['ADMIN'],
+  'empresas.create':      ['ADMIN'],
+  'empresas.edit':        ['ADMIN'],
   'contactos.export':     ['ADMIN', 'COMERCIAL'],
+  'radar.scan':           ['ADMIN', 'COMERCIAL'],
+  'radar.prompt.view':    ['ADMIN'],
   'admin.manage_users':   ['ADMIN'],
   'admin.manage_config':  ['ADMIN'],
   'admin.view_logs':      ['ADMIN'],
@@ -85,7 +94,7 @@ export const ROLE_LABELS: Record<UserRole, string> = {
 /** Description of each role for UI display. */
 export const ROLE_DESCRIPTIONS: Record<UserRole, string> = {
   ADMIN:     'Acceso total: sistema, configuración y administración',
-  COMERCIAL: 'Acceso operacional completo: escaneo, señales, contactos y empresas',
+  COMERCIAL: 'Acceso a Radar v2, contactos y dashboard — módulos v1 solo para ADMIN',
   AUXILIAR:  'Solo lectura: puede consultar resultados y contactos',
 };
 

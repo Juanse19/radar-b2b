@@ -17,15 +17,19 @@ import { toast } from 'sonner';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database, Info, Zap } from 'lucide-react';
+import { Loader2, Search, Square, CheckSquare, Minus, Plus, AlertTriangle, Upload, X, FileText, Database, Info, Zap, CheckCircle, XCircle, Clock } from 'lucide-react';
 import { fetchJson, ApiError } from '@/lib/fetcher';
 import { useInflightExecutions } from '@/hooks/useInflightExecutions';
+import { useAgentStatus } from '@/hooks/useAgentStatus';
 import { AgentPipelineCard } from '@/components/tracker/AgentPipelineCard';
+import { RadarSignalCard }   from '@/components/scan/RadarSignalCard';
 import { LINEA_OPTIONS_ALL } from '@/lib/constants/lineas';
 import { useLineasActivas } from '@/hooks/useLineasActivas';
 import { cn } from '@/lib/utils';
 import type { LineaNegocio, Empresa } from '@/lib/types';
 import type { AgentType } from '@/lib/db/types';
+
+const PAISES_LATAM = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Centroamérica'];
 
 interface ManualAgentFormProps {
   agent: AgentType;
@@ -87,11 +91,51 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
   const [batchSize, setBatchSize]         = useState(5);
   const [contactosPorEmpresa, setContactosPorEmpresa] = useState(3);
   const [tier, setTier]                   = useState<'ORO' | 'MONITOREO' | 'PLATA'>('ORO');
+  // Radar-specific: país override para escaneo manual (empresa única)
+  const [radarPais, setRadarPais]         = useState('');
   const [search, setSearch]               = useState('');
   const [selected, setSelected]           = useState<Empresa[]>([]);
   const [firing, setFiring]               = useState(false);
   const [lastExecutionId, setLastExecutionId] = useState<string | null>(null);
+  const [lastFiredEmpresaId, setLastFiredEmpresaId] = useState<number | null>(null);
+  const [lastFiredEmpresaNombre, setLastFiredEmpresaNombre] = useState<string>('');
   const [error, setError]                 = useState<string | null>(null);
+  const [paises, setPaises]               = useState<string[]>([]);
+
+  // ── Batch progress (multi-empresa radar) ────────────────────────────────
+  interface BatchProgressEntry {
+    empresa: string;
+    status: 'pending' | 'running' | 'ok' | 'error';
+    execution_id?: string;
+  }
+  interface BatchProgress {
+    total: number;
+    done: number;
+    failed: number;
+    currentEmpresa: string;
+    entries: BatchProgressEntry[];
+  }
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+
+  // ── Execution status (real-time from n8n) ────────────────────────────────
+  const agentStatus = useAgentStatus(lastExecutionId);
+
+  // Toast when execution finishes (success or error)
+  useEffect(() => {
+    if (!agentStatus.isDone || !lastExecutionId) return;
+    if (agentStatus.status === 'success') {
+      toast.success(`${meta.title} completado`, {
+        description: `Terminó en ${agentStatus.elapsedSeconds}s`,
+        duration: 8000,
+      });
+    } else if (agentStatus.status === 'error') {
+      toast.error(`${meta.title} falló`, {
+        description: 'Revisa los logs en n8n para ver el detalle del error.',
+        duration: 12000,
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [agentStatus.isDone, agentStatus.status]);
   // CSV import mode
   const [csvMode, setCsvMode]             = useState(false);
   const [csvEmpresas, setCsvEmpresas]     = useState<Empresa[]>([]);
@@ -139,11 +183,13 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
   // For Radar (single empresa) and others (batch), we always fetch a list of
   // empresas to allow cherry-picking. Radar variant is single-select.
-  const limit = Math.min(totalLinea || 200, 500);
+  // When linea === 'ALL', fetch up to 200 empresas for manual selection;
+  // the auto-batch mode (batchSize) still works without selecting any.
+  const limit = linea === 'ALL' ? 200 : Math.min(totalLinea || 200, 500);
   const { data: empresas = [], isFetching: loadingEmpresas } = useQuery<Empresa[]>({
     queryKey: ['empresasForAgent', linea, limit],
     queryFn:  () => fetchJson<Empresa[]>(`/api/companies?linea=${encodeURIComponent(linea)}&limit=${limit}`),
-    enabled:  linea !== 'ALL',
+    enabled:  true,
     staleTime: 5 * 60 * 1000,
   });
 
@@ -185,6 +231,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
     setError(null);
     setFiring(true);
     setLastExecutionId(null);
+    setBatchProgress(null);
 
     // Determine the empresa list to use.
     const fireEmpresas = csvMode ? csvEmpresas : effectiveEmpresas;
@@ -194,35 +241,79 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
 
       if (agent === 'radar') {
         if (fireEmpresas.length > 1) {
-          // Multi-radar: fire one request per company sequentially.
-          const results: FireResponse[] = [];
-          for (const e of fireEmpresas) {
-            const r = await fetchJson<FireResponse>('/api/agent', {
-              method:  'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body:    JSON.stringify({
-                agent, linea,
-                options: {
-                  empresa:            e.nombre,
-                  pais:               e.pais ?? 'Colombia',
-                  company_domain:     e.dominio,
-                  tier,
-                  score_calificacion: 9,
-                },
-              }),
-            });
-            results.push(r);
+          // Multi-radar: fire one request per company sequentially with progress tracking.
+          setBatchProgress({
+            total: fireEmpresas.length,
+            done: 0, failed: 0,
+            currentEmpresa: fireEmpresas[0]?.nombre ?? '',
+            entries: fireEmpresas.map(e => ({ empresa: e.nombre, status: 'pending' as const })),
+          });
+
+          let firstExecutionId: string | null = null;
+          let successCount = 0;
+          let failCount = 0;
+
+          for (let i = 0; i < fireEmpresas.length; i++) {
+            const e = fireEmpresas[i]!;
+            setBatchProgress(p => p ? {
+              ...p,
+              currentEmpresa: e.nombre,
+              entries: p.entries.map((en, idx) => idx === i ? { ...en, status: 'running' as const } : en),
+            } : null);
+
+            try {
+              const r = await fetchJson<FireResponse>('/api/agent', {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({
+                  agent, linea,
+                  options: {
+                    empresa:            e.nombre,
+                    pais:               e.pais ?? 'Colombia',
+                    company_domain:     e.dominio,
+                    tier,
+                    score_calificacion: 9,
+                  },
+                }),
+              });
+              if (!firstExecutionId) firstExecutionId = r.execution_id;
+              successCount++;
+              setBatchProgress(p => p ? {
+                ...p,
+                done: p.done + 1,
+                entries: p.entries.map((en, idx) =>
+                  idx === i ? { ...en, status: 'ok' as const, execution_id: r.execution_id } : en
+                ),
+              } : null);
+            } catch {
+              failCount++;
+              setBatchProgress(p => p ? {
+                ...p,
+                failed: p.failed + 1,
+                entries: p.entries.map((en, idx) =>
+                  idx === i ? { ...en, status: 'error' as const } : en
+                ),
+              } : null);
+            }
           }
-          setLastExecutionId(results[0]!.execution_id);
-          toast.success(`Radar disparado para ${fireEmpresas.length} empresas`);
+
+          if (firstExecutionId) setLastExecutionId(firstExecutionId);
+          const msg = failCount === 0
+            ? `Radar completado para ${successCount} empresa${successCount > 1 ? 's' : ''}`
+            : `Radar: ${successCount} OK · ${failCount} con error`;
+          if (failCount === 0) toast.success(msg);
+          else toast.warning(msg);
           invalidate();
           return;
         }
         if (fireEmpresas.length === 1) {
           const e = fireEmpresas[0]!;
+          // Track fired empresa for RadarSignalCard post-scan display
+          setLastFiredEmpresaId(typeof e.id === 'number' && e.id > 0 ? e.id : null);
+          setLastFiredEmpresaNombre(e.nombre);
           body.options = {
             empresa:            e.nombre,
-            pais:               e.pais ?? 'Colombia',
+            pais:               radarPais.trim() || e.pais || 'Colombia',
             company_domain:     e.dominio,
             tier,
             score_calificacion: 9,
@@ -237,7 +328,7 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           arr.map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais ?? 'Colombia', linea: e.linea }));
         body.empresas  = fireEmpresas.length > 0 ? mapEmpresas(fireEmpresas) : undefined;
         body.batchSize = fireEmpresas.length || batchSize;
-        body.options   = { contactosPorEmpresa, tier };
+        body.options   = { contactosPorEmpresa, tier, ...(paises.length > 0 ? { paises } : {}) };
       } else {
         // calificador
         const mapEmpresas = (arr: Empresa[]) =>
@@ -294,12 +385,24 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           <div className="flex flex-wrap gap-2">
             {(() => {
               // Match each DB linea to its static metadata (icon, colors).
-              // Falls back to a generic option if the name isn't in LINEA_OPTIONS_ALL.
+              // Primary match: by `codigo` (robust against name changes).
+              // Secondary match: by `nombre` exact string (belt-and-suspenders).
               const staticAll = LINEA_OPTIONS_ALL;
-              const dbNames = lineasActivas.map(l => l.nombre);
+              const VALUE_TO_CODIGO: Record<string, string> = {
+                'BHS':           'bhs',
+                'Cartón':        'carton_papel',
+                'Intralogística':'intralogistica',
+                'Final de Línea':'final_linea',
+                'Motos':         'motos',
+                'SOLUMAT':       'solumat',
+              };
+              const dbCodigos = new Set(lineasActivas.map(l => l.codigo).filter(Boolean));
+              const dbNames   = new Set(lineasActivas.map(l => l.nombre));
               // Build the rendered list: DB-active lines + ALL at the end.
-              const opts = staticAll.filter(
-                o => o.value === 'ALL' || dbNames.includes(o.value),
+              const opts = staticAll.filter(o =>
+                o.value === 'ALL'
+                || dbCodigos.has(VALUE_TO_CODIGO[o.value] ?? '')
+                || dbNames.has(o.value),
               );
               return opts.map(opt => {
                 const isActive = linea === opt.value;
@@ -483,9 +586,9 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
                 </div>
               ) : filteredEmpresas.length === 0 ? (
                 <div className="p-6 text-center text-sm text-muted-foreground">
-                  {linea === 'ALL'
-                    ? 'Selecciona una línea para ver empresas'
-                    : 'Sin empresas — importa el catálogo'}
+                  {search.trim()
+                    ? `Sin resultados para "${search}"`
+                    : 'Sin empresas — importa el catálogo o usa modo CSV'}
                 </div>
               ) : (
                 <ul className="divide-y divide-border/40">
@@ -580,6 +683,63 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           </div>
         )}
 
+        {agent === 'prospector' && (
+          <div className="space-y-2">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              Países objetivo
+            </label>
+            <p className="text-xs text-muted-foreground">
+              Sin selección = usa el país de cada empresa
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {PAISES_LATAM.map(p => {
+                const active = paises.includes(p);
+                return (
+                  <button
+                    key={p}
+                    type="button"
+                    onClick={() => setPaises(prev => active ? prev.filter(x => x !== p) : [...prev, p])}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-xs font-medium border transition-colors',
+                      active
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-surface text-muted-foreground border-border hover:border-blue-400',
+                    )}
+                  >
+                    {p}
+                  </button>
+                );
+              })}
+            </div>
+            {paises.length > 0 && (
+              <button
+                type="button"
+                onClick={() => setPaises([])}
+                className="text-xs text-muted-foreground hover:text-red-400 transition-colors"
+              >
+                Limpiar selección
+              </button>
+            )}
+          </div>
+        )}
+
+        {agent === 'radar' && effectiveEmpresas.length === 1 && (
+          <div className="space-y-1.5">
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
+              País (override)
+            </label>
+            <Input
+              placeholder={effectiveEmpresas[0]?.pais ?? 'Colombia'}
+              value={radarPais}
+              onChange={e => setRadarPais(e.target.value)}
+              className="bg-surface-muted border-border text-foreground text-sm"
+            />
+            <p className="text-xs text-muted-foreground">
+              Deja vacío para usar el país registrado de la empresa.
+            </p>
+          </div>
+        )}
+
         {(agent === 'radar' || agent === 'prospector') && (
           <div className="flex items-center gap-3">
             <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
@@ -660,8 +820,93 @@ export function ManualAgentForm({ agent }: ManualAgentFormProps) {
           <p className="text-sm text-red-600">{error}</p>
         )}
 
+        {/* ── Execution status banner ─────────────────────────────────── */}
+        {lastExecutionId && !agentStatus.isTimestampId && (
+          <div className={cn(
+            'flex items-center gap-2.5 rounded-lg border px-4 py-3 text-sm transition-colors',
+            agentStatus.status === 'success'
+              ? 'border-emerald-300 bg-emerald-50 text-emerald-800 dark:border-emerald-700 dark:bg-emerald-950/20 dark:text-emerald-200'
+              : agentStatus.status === 'error'
+              ? 'border-red-300 bg-red-50 text-red-800 dark:border-red-700 dark:bg-red-950/20 dark:text-red-200'
+              : 'border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-950/20 dark:text-blue-200',
+          )}>
+            {agentStatus.status === 'success' && <CheckCircle size={15} className="shrink-0 text-emerald-600" />}
+            {agentStatus.status === 'error'   && <XCircle    size={15} className="shrink-0 text-red-600" />}
+            {(agentStatus.status === 'running' || agentStatus.status === 'waiting') && (
+              <Loader2 size={15} className="shrink-0 animate-spin" />
+            )}
+            {agentStatus.status === 'idle' && <Clock size={15} className="shrink-0" />}
+            <span className="font-medium">
+              {agentStatus.status === 'success' && `Completado en ${agentStatus.elapsedSeconds}s`}
+              {agentStatus.status === 'error'   && 'La ejecución terminó con error — ver logs en n8n'}
+              {agentStatus.status === 'running' && `Ejecutando… ${agentStatus.elapsedSeconds}s`}
+              {agentStatus.status === 'waiting' && 'En cola…'}
+              {agentStatus.status === 'idle'    && 'Iniciando…'}
+            </span>
+            {agentStatus.currentStep && agentStatus.status === 'running' && (
+              <span className="ml-auto text-xs opacity-70 truncate max-w-[160px]">
+                {agentStatus.currentStep}
+              </span>
+            )}
+          </div>
+        )}
+
         {lastExecutionId && (
           <AgentPipelineCard executionId={lastExecutionId} />
+        )}
+
+        {/* ── Batch progress (multi-empresa radar) ─────────────────────── */}
+        {batchProgress && batchProgress.total > 1 && (
+          <div className="space-y-3 rounded-xl border border-border bg-surface-muted/20 p-4">
+            {/* Header */}
+            <div className="flex items-center justify-between">
+              <p className="text-sm font-semibold text-foreground">
+                Progreso Radar — {batchProgress.done + batchProgress.failed} / {batchProgress.total} empresas
+              </p>
+              {batchProgress.failed > 0 && (
+                <span className="text-xs text-red-500">{batchProgress.failed} con error</span>
+              )}
+            </div>
+            {/* Progress bar */}
+            <div className="h-1.5 w-full rounded-full bg-surface-muted overflow-hidden">
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all duration-300"
+                style={{ width: `${Math.round(((batchProgress.done + batchProgress.failed) / batchProgress.total) * 100)}%` }}
+              />
+            </div>
+            {/* Per-empresa list */}
+            <ul className="space-y-1 max-h-40 overflow-y-auto">
+              {batchProgress.entries.map((entry, i) => (
+                <li key={i} className="flex items-center gap-2 text-xs">
+                  {entry.status === 'pending'  && <div className="h-2 w-2 rounded-full bg-border shrink-0" />}
+                  {entry.status === 'running'  && <Loader2 size={12} className="animate-spin text-blue-500 shrink-0" />}
+                  {entry.status === 'ok'       && <CheckCircle size={12} className="text-emerald-500 shrink-0" />}
+                  {entry.status === 'error'    && <XCircle size={12} className="text-red-500 shrink-0" />}
+                  <span className={cn(
+                    'truncate',
+                    entry.status === 'running' ? 'text-blue-600 font-medium' :
+                    entry.status === 'ok'      ? 'text-emerald-600' :
+                    entry.status === 'error'   ? 'text-red-500' :
+                    'text-muted-foreground',
+                  )}>
+                    {entry.empresa}
+                  </span>
+                  {entry.status === 'running' && (
+                    <span className="ml-auto text-muted-foreground">En proceso…</span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {/* ── Radar MAOA Signal Card (F3.1) — shown after successful radar scan ── */}
+        {agent === 'radar' && (
+          <RadarSignalCard
+            empresaId={lastFiredEmpresaId}
+            empresaNombre={lastFiredEmpresaNombre}
+            visible={agentStatus.isDone && agentStatus.status === 'success' && !!lastFiredEmpresaNombre}
+          />
         )}
       </section>
     </div>

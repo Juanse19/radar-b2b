@@ -172,23 +172,27 @@ async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof
     // Fire first empresa synchronously (for tracking), rest fire-and-forget.
     const firstRow = dbRows[0]!;
     const firstResult = await triggerRadar({
-      empresa:            firstRow.company_name,
-      pais:               firstRow.pais ?? 'Colombia',
-      linea_negocio:      firstRow.linea_negocio ?? linea,
+      empresa:              firstRow.company_name,
+      pais:                 firstRow.pais ?? 'Colombia',
+      linea_negocio:        firstRow.linea_negocio ?? linea,
       tier,
-      company_domain:     firstRow.company_domain ?? '',
-      score_calificacion: score,
+      company_domain:       firstRow.company_domain ?? '',
+      score_calificacion:   score,
+      ejecutado_por_id:     session?.id,
+      ejecutado_por_nombre: session?.name,
     });
 
     // Remaining empresas: fire without awaiting (n8n queues them independently).
     for (const row of dbRows.slice(1)) {
       triggerRadar({
-        empresa:            row.company_name,
-        pais:               row.pais ?? 'Colombia',
-        linea_negocio:      row.linea_negocio ?? linea,
+        empresa:              row.company_name,
+        pais:                 row.pais ?? 'Colombia',
+        linea_negocio:        row.linea_negocio ?? linea,
         tier,
-        company_domain:     row.company_domain ?? '',
-        score_calificacion: score,
+        company_domain:       row.company_domain ?? '',
+        score_calificacion:   score,
+        ejecutado_por_id:     session?.id,
+        ejecutado_por_nombre: session?.name,
       }).catch(() => { /* swallow — tracked via n8n UI */ });
     }
 
@@ -222,10 +226,12 @@ async function fireRadar(body: BaseAgentBody, session: Awaited<ReturnType<typeof
   const result = await triggerRadar({
     empresa,
     pais,
-    linea_negocio:      linea,
+    linea_negocio:        linea,
     tier,
     company_domain,
-    score_calificacion: score,
+    score_calificacion:   score,
+    ejecutado_por_id:     session?.id,
+    ejecutado_por_nombre: session?.name,
   });
 
   let ejecucion: { id: number; pipeline_id: string } = { id: 0, pipeline_id: crypto.randomUUID() };

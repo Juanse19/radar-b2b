@@ -9,7 +9,7 @@ import {
 import { createSupabaseServerClient } from '@/lib/db/supabase/server';
 import { logActividad } from './audit';
 
-export type AuthActionState = { error?: string; success?: string };
+export type AuthActionState = { error?: string; success?: boolean; redirectTo?: string };
 
 export async function loginAction(
   _prevState: AuthActionState,
@@ -37,7 +37,9 @@ export async function loginAction(
       role: 'ADMIN',
       accessState: 'ACTIVO',
     });
-    redirect('/');
+    // NO redirect() here — let the client navigate after the POST completes
+    // so Set-Cookie headers are processed before useLayoutEffect fires.
+    return { success: true, redirectTo: '/escanear' };
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -84,7 +86,9 @@ export async function loginAction(
     return { error: 'Error de conexión con el servidor. Intenta nuevamente.' };
   }
 
-  redirect('/');
+  // Return success — client navigates after the POST response is fully
+  // processed, ensuring Set-Cookie headers are stored before useLayoutEffect.
+  return { success: true, redirectTo: '/escanear' };
 }
 
 export async function logoutAction(): Promise<void> {

@@ -329,7 +329,34 @@
 
 **Subtotal Abr 9:** 2.5h
 
-**Total HU-28 acumulado:** 15h
+#### Lunes 13 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T12 | Reestructuración `sprints-historias-usuario.md`: 8 HUs técnicas permanentes, 4 sprints, 400h registradas. Regenerar CSV Azure DevOps con 19 HUs y 110 tareas (Abr 13) | ✅ Closed | 3h |
+
+**Subtotal Abr 13:** 3h
+
+#### Martes 14 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T13 | WF02 Sprint A+B+R — scripts Radar v1.1/v1.2 + reorden cadena A1→A2→A3 + L2 integration tests. Fix API: mapeo ContactoRow/SenalRow/keywords, dispatcher re-exports, tipo SOLUMAT, conteos por línea en Scan (Abr 14) | ✅ Closed | 6h |
+
+**Subtotal Abr 14:** 6h
+
+#### Miércoles 15 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T14 | Sprint MAOA F0 — Fix 4 errores críticos WF02: Supabase URL localhost→prod, continueOnFail Pinecone/OpenAI, Filtro Menciones v5 con aliases DHL/FedEx/UPS. Script `fix_f0_critical_execution_errors.js` (Abr 15) | ✅ Closed | 3h |
+| T15 | Sprint MAOA F1 — WF02 MAOA alignment: AI RADAR1 → Agente 1 (prompt 10 secciones), nodo Scoring determinístico TIER+TIR, Parse Output 16 campos JSON, Format Final Columns1, migración 010 (21 cols Supabase). Script `fix_f1_maoa_alignment.js` (Abr 15) | ✅ Closed | 5h |
+| T16 | Sprint MAOA F3 — Frontend: tipos `ResultadoRadar`, columnas Convergencia+Acción+Score MAOA en `/results`, `SignalDetailSheet` sección MAOA, CSV export 27 cols, estado en tiempo real del agente, fix auth SharePoint (Abr 15) | ✅ Closed | 6h |
+| T17 | Componente `RadarSignalCard`: muestra resultado MAOA post-scan (AccionBadge, ConvergenciaBadge, score_final_maoa) + 91 tests MAOA Sprint 2 — 220 total passing. Reporte `REPORTE_PRUEBAS_MAOA_Sprint2.md` + 13 screenshots E2E (Abr 15) | ✅ Closed | 4h |
+
+**Subtotal Abr 15:** 18h
+
+**Total HU-28 acumulado:** 44h
 
 ---
 
@@ -400,23 +427,26 @@
 
 ---
 
-## Daily Standup — Miércoles 9 de abril de 2026
+## Daily Standup — Jueves 16 de abril de 2026
 
-### ¿Qué hice ayer (martes 8 de abril)?
-- Clasifiqué el estado real de las 15 HUs del proyecto: cuáles están Closed, cuáles tienen tareas pendientes críticas y cuáles son Fase 2.
-- Generé el documento completo `sprints-historias-usuario.md` con trazabilidad de Sprint 01, 02 y 03, incluyendo leyenda de estados y daily standup.
-- Identifiqué tareas pendientes críticas: encabezados `Logs_Fuentes` en Excel SharePoint, columnas de segmentación cualitativa, renovación Tavily.
+### ¿Qué hice ayer (miércoles 15 de abril)?
+- Sprint MAOA F0: 4 fixes críticos en WF02 — Supabase URL a producción, continueOnFail en Pinecone/OpenAI, Filtro Menciones v5 con aliases para multinacionales (DHL/FedEx/UPS)
+- Sprint MAOA F1: WF02 alineado — AI RADAR1 → Agente 1 (prompt 10 secciones), nodo Scoring determinístico TIER+TIR, migración SQL 010 (21 columnas MAOA en Supabase)
+- Sprint MAOA F3: Frontend — tipos ResultadoRadar, columnas Convergencia y Acción, SignalDetailSheet con sección MAOA, CSV export 27 columnas, estado en tiempo real del agente
+- Componente RadarSignalCard: resultado MAOA post-scan con AccionBadge, ConvergenciaBadge y score_final_maoa
+- 91 tests MAOA nuevos (220 total passing): maoa-scoring (46), api-signals-maoa (15), RadarSignalCard (30)
 
-### ¿Qué voy a hacer hoy (miércoles 9 de abril)?
-- Actualizar el documento con el trabajo de los días anteriores (Abr 7 y Abr 8) — **completado esta mañana**.
-- Crear el skill `/daily-tracker` para automatizar el registro diario — **completado esta mañana**.
-- 🔴 **Renovar la N8N API Key** — expira mañana viernes 10 de abril (bloqueante crítico).
-- Importar las HUs al Azure DevOps usando el CSV generado.
-- Crear Sprint 03 en Azure DevOps con HU-23 a HU-28.
+### ¿Qué voy a hacer hoy (jueves 16 de abril)?
+- Aplicar `fix_f0f1_combined.js` en WF02 cuando n8n esté accesible (pendiente Cloudflare 530)
+- Coordinar resolución del bloqueante de n8n API con el equipo de infra
+- Importar HUs al Azure DevOps con el CSV generado
+- Evaluar activación `DB_DRIVER=supabase` — exponer `matec_radar` en `PGRST_DB_SCHEMAS`
+- Prueba E2E cadena completa: Smurfit Kappa → WF01 → WF02 → WF03 → `/results`
 
 ### ¿Hay algún bloqueo?
-- 🔴 **N8N API Key expira el 10 de abril (mañana)** — si no se renueva, ningún script de modificación de workflows funcionará.
-- ⚠️ **Tavily key agotada** — las búsquedas del radar están detenidas hasta renovar el plan (~$30/mes).
+- 🔴 **n8n API inaccesible** — Cloudflare 530 bloquea aplicación de `fix_f0f1_combined.js` en WF02
+- ⚠️ **Tavily key agotada** — búsquedas del radar detenidas hasta renovar plan (~$30/mes)
+- ⚠️ **Supabase `matec_radar` no en `PGRST_DB_SCHEMAS`** — pendiente configuración para activar driver
 
 ---
 
