@@ -7,6 +7,28 @@ import { CompanySelector } from '../../components/CompanySelector';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
 
+const AUTO_PREVIEW_LIMIT = 5;
+
+function useAutoPreview(linea: string, enabled: boolean) {
+  const [companies, setCompanies] = useState<ComercialCompany[]>([]);
+  const [loading, setLoading]     = useState(false);
+
+  useEffect(() => {
+    if (!enabled || !linea) { setCompanies([]); return; }
+    let cancelled = false;
+    setLoading(true);
+    const params = new URLSearchParams({ linea, limit: String(AUTO_PREVIEW_LIMIT) });
+    fetch(`/api/comercial/companies?${params}`)
+      .then(r => r.ok ? r.json() as Promise<ComercialCompany[]> : [])
+      .then(data => { if (!cancelled) setCompanies(data); })
+      .catch(() => { if (!cancelled) setCompanies([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [linea, enabled]);
+
+  return { companies, loading };
+}
+
 interface EstimateResponse {
   cost_usd_est: number;
 }
@@ -40,6 +62,7 @@ export function CalStep2Configure({ state, onChange }: Props) {
 
   const displayCount  = state.mode === 'manual' ? selectedCompanies.length : state.count;
   const costEstimate  = useCostEstimate(state.linea, displayCount);
+  const autoPreview   = useAutoPreview(state.linea, state.mode === 'auto');
 
   // Hydrate manual selection from URL IDs
   useEffect(() => {
@@ -99,6 +122,59 @@ export function CalStep2Configure({ state, onChange }: Props) {
               <span>50</span>
             </div>
           </div>
+
+          {/* Read-only company preview for auto mode */}
+          {state.linea && (
+            <div className="space-y-1.5">
+              <p className="text-xs font-medium text-muted-foreground">
+                Muestra de empresas ({AUTO_PREVIEW_LIMIT} primeras)
+              </p>
+              {autoPreview.loading ? (
+                <p className="py-3 text-center text-xs text-muted-foreground">
+                  Cargando muestra...
+                </p>
+              ) : autoPreview.companies.length === 0 ? (
+                <p className="py-3 text-center text-xs text-muted-foreground">
+                  No se encontraron empresas para esta línea
+                </p>
+              ) : (
+                <div className="overflow-hidden rounded-lg border border-border">
+                  <table className="w-full text-xs">
+                    <thead>
+                      <tr className="border-b border-border bg-muted/40 text-muted-foreground">
+                        <th className="px-3 py-1.5 text-left font-medium">Empresa</th>
+                        <th className="px-3 py-1.5 text-left font-medium">País</th>
+                        <th className="px-3 py-1.5 text-left font-medium">Tier</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {autoPreview.companies.map(c => (
+                        <tr
+                          key={c.id}
+                          className="border-b border-border/50 last:border-0 bg-muted/10"
+                        >
+                          <td className="px-3 py-1.5 font-medium">{c.name}</td>
+                          <td className="px-3 py-1.5 text-muted-foreground">{c.country}</td>
+                          <td className="px-3 py-1.5">
+                            {c.tier ? (
+                              <Badge
+                                variant={c.tier === 'ORO' ? 'default' : 'secondary'}
+                                className="h-4 text-[10px] px-1"
+                              >
+                                {c.tier}
+                              </Badge>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
         </div>
       ) : (
         <div className="space-y-4">

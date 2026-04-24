@@ -28,6 +28,15 @@ const LINE_FILTER: Record<string, { type: 'parent' | 'sub'; code: string }> = {
   'SOLUMAT':        { type: 'sub',    code: 'solumat' },
 };
 
+// Maps sub-line DB code → parent line DB code.
+// Used by the mock fallback to resolve which sub-lines belong under a parent.
+// Extend this when new sub-lines are added to LINE_FILTER.
+const MOCK_PARENT_MAP: Record<string, string> = {
+  'final_linea':         'carton_papel',
+  'ensambladoras_motos': 'intralogistica',
+  'solumat':             'intralogistica',
+};
+
 export async function GET(req: NextRequest) {
   const session = await getCurrentSession();
   if (!session) {
@@ -38,9 +47,31 @@ export async function GET(req: NextRequest) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     const lineaParam = decodeURIComponent(req.nextUrl.searchParams.get('linea') ?? '');
     const q          = req.nextUrl.searchParams.get('q')?.toLowerCase();
-    let mock = lineaParam && lineaParam !== 'ALL'
-      ? MOCK_COMPANIES.filter(c => c.linea === lineaParam)
-      : MOCK_COMPANIES;
+    let mock: typeof MOCK_COMPANIES;
+    if (!lineaParam || lineaParam === 'ALL') {
+      mock = MOCK_COMPANIES;
+    } else {
+      const mapping = LINE_FILTER[lineaParam];
+      if (mapping?.type === 'parent') {
+        // For a parent line, include all mock companies whose linea matches any
+        // entry in LINE_FILTER that shares the same parent code, plus the
+        // parent label itself. Since mock data uses UI labels as linea values,
+        // we collect all UI labels whose LINE_FILTER code starts with the
+        // parent code prefix (or equals it), then also include exact matches.
+        // Simplest correct approach: include the parent label and every label
+        // whose LINE_FILTER type is 'sub' and whose parent is this parent code.
+        // Because mock data only has top-level labels we fall back to exact match
+        // for sub entries, but always include the parent label.
+        const parentCode = mapping.code;
+        const matchingLabels = Object.entries(LINE_FILTER)
+          .filter(([, v]) => v.code === parentCode || (v.type === 'sub' && MOCK_PARENT_MAP[v.code] === parentCode))
+          .map(([label]) => label);
+        mock = MOCK_COMPANIES.filter(c => matchingLabels.includes(c.linea));
+      } else {
+        // sub-line or unknown: exact label match
+        mock = MOCK_COMPANIES.filter(c => c.linea === lineaParam);
+      }
+    }
     if (q) mock = mock.filter(c => c.name.toLowerCase().includes(q));
     return NextResponse.json(mock.map(({ linea: _l, ...rest }) => rest));
   }
@@ -130,8 +161,10 @@ export async function GET(req: NextRequest) {
       linea:   r.linea_negocio ?? '',
     })));
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err);
-    console.error('[/api/comercial/companies] Error:', msg);
+    const msg   = err instanceof Error ? err.message : String(err);
+    const stack = err instanceof Error ? (err.stack ?? '') : '';
+    console.error('[/api/comercial/companies] DB query failed:', msg);
+    if (stack) console.error('[/api/comercial/companies] Stack:', stack);
     return NextResponse.json({ error: 'Error fetching companies' }, { status: 500 });
   }
 }
