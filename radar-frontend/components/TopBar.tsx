@@ -23,6 +23,7 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
   const { theme, setTheme } = useTheme()
   // next-themes: avoid hydration mismatch — only render theme icon after mount
   const [mounted, setMounted] = useState(false)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => setMounted(true), [])
 
   return (

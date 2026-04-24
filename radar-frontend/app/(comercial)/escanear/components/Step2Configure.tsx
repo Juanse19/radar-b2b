@@ -38,6 +38,7 @@ interface EstimateResponse {
 function useCostEstimate(line: string, count: number) {
   const [cost, setCost] = useState<number | null>(null);
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!line || count < 1) { setCost(null); return; }
     let cancelled = false;
     fetch('/api/comercial/estimate', {

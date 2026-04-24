@@ -17,6 +17,15 @@ import type {
   SSEEmitter,
   SupportedFeature,
 } from './types';
+import {
+  CALIFICADOR_SYSTEM_PROMPT,
+  buildCalificadorUserPrompt,
+} from '@/lib/comercial/calificador/prompts';
+import { CALIFICACION_JSON_SCHEMA } from '@/lib/comercial/calificador/schema';
+import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/calificador/types';
+
+const CALIFICACION_PRICE_PER_EMPRESA_IN  = 2500; // tokens estimated per empresa
+const CALIFICACION_PRICE_PER_EMPRESA_OUT = 600;
 
 const CLAUDE_MODEL       = 'claude-sonnet-4-6';
 const PRICE_INPUT_PER_M  = 3.0;
@@ -452,6 +461,115 @@ function createClaudeProvider(): AIProvider {
         default:
           return false;
       }
+    },
+
+    async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
+      const apiKey = process.env.CLAUDE_API_KEY;
+      if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
+      const model = CLAUDE_MODEL;
+
+      emit?.emit('thinking', { empresa: params.empresa, chunk: 'Iniciando calificación con Claude…' });
+
+      const userMsg = buildCalificadorUserPrompt(params, params.ragContext);
+
+      const body = {
+        model,
+        max_tokens: 2048,
+        system: [
+          { type: 'text', text: CALIFICADOR_SYSTEM_PROMPT, cache_control: { type: 'ephemeral' } },
+        ],
+        tools: [{ type: 'web_search_20250305', name: 'web_search' }],
+        messages: [{ role: 'user', content: userMsg }],
+      };
+
+      type Block = { type: string; text?: string; id?: string; name?: string; input?: { query?: string }; content?: Array<{ url?: string; title?: string }> };
+      type TurnData = { content: Block[]; stop_reason: string; usage?: { input_tokens: number; output_tokens: number } };
+
+      const messages: Array<{ role: string; content: unknown }> = [{ role: 'user', content: userMsg }];
+      let lastData: TurnData = { content: [], stop_reason: '' };
+      let totalInput = 0;
+      let totalOutput = 0;
+
+      for (let turn = 0; turn < 10; turn++) {
+        const resp = await claudeFetchWithRetry(
+          'https://api.anthropic.com/v1/messages',
+          {
+            method: 'POST',
+            headers: {
+              'x-api-key': apiKey,
+              'anthropic-version': '2023-06-01',
+              'anthropic-beta': 'web-search-2025-03-05,prompt-caching-2024-07-31',
+              'content-type': 'application/json',
+            },
+            body: JSON.stringify({ ...body, messages }),
+          },
+          emit,
+          params.empresa,
+        );
+
+        if (!resp.ok) {
+          const err = await resp.text();
+          throw new Error(`Claude calificar ${resp.status}: ${err.slice(0, 300)}`);
+        }
+
+        lastData = await resp.json() as TurnData;
+        totalInput  += lastData.usage?.input_tokens  ?? 0;
+        totalOutput += lastData.usage?.output_tokens ?? 0;
+
+        if (lastData.stop_reason === 'end_turn') break;
+
+        if (lastData.stop_reason === 'tool_use') {
+          for (const block of lastData.content) {
+            if ((block.type === 'server_tool_use' || block.type === 'tool_use') && block.name === 'web_search') {
+              const q = block.input?.query;
+              if (q) emit?.emit('profiling_web', { empresa: params.empresa, query: q });
+            }
+          }
+          messages.push({ role: 'assistant', content: lastData.content });
+          const toolResults = lastData.content
+            .filter(b => b.type === 'tool_use')
+            .map(b => ({ type: 'tool_result', tool_use_id: b.id, content: [] }));
+          messages.push({ role: 'user', content: toolResults });
+        } else {
+          break;
+        }
+      }
+
+      const textBlock = [...(lastData.content ?? [])].reverse().find(b => b.type === 'text');
+      if (!textBlock?.text) throw new Error(`No text in Claude calificar response for ${params.empresa}`);
+
+      let rawJson: unknown;
+      try {
+        const cleaned = textBlock.text.replace(/^```json\s*/i, '').replace(/```\s*$/, '').trim();
+        rawJson = JSON.parse(cleaned);
+      } catch {
+        throw new Error(`Claude calificar returned non-JSON for ${params.empresa}`);
+      }
+
+      const cost = (totalInput * PRICE_INPUT_PER_M + totalOutput * PRICE_OUTPUT_PER_M) / 1_000_000;
+
+      // Emit streaming chunks for thinking panel
+      emit?.emit('thinking', { empresa: params.empresa, chunk: textBlock.text.slice(0, 100) });
+
+      return {
+        scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        scoreTotal: 0,    // calculated by engine.ts after validation
+        tier: 'C',         // placeholder — engine.ts recalculates
+        razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',
+        perfilWeb: (rawJson as { perfilWeb?: CalificacionOutput['perfilWeb'] }).perfilWeb ?? { summary: '', sources: [] },
+        rawJson,
+        tokensInput: totalInput,
+        tokensOutput: totalOutput,
+        costUsd: cost,
+        model,
+      };
+    },
+
+    estimateCalificacion(empresas_count: number): CostEstimate {
+      const tokens_in_est  = empresas_count * CALIFICACION_PRICE_PER_EMPRESA_IN;
+      const tokens_out_est = empresas_count * CALIFICACION_PRICE_PER_EMPRESA_OUT;
+      const cost_usd_est   = (tokens_in_est * PRICE_INPUT_PER_M + tokens_out_est * PRICE_OUTPUT_PER_M) / 1_000_000;
+      return { tokens_in_est, tokens_out_est, cost_usd_est, cached_percentage: 0.3 };
     },
   };
 }
