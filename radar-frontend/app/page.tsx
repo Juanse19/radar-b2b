@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -8,11 +9,27 @@ import { Button } from '@/components/ui/button';
 import { Radar } from 'lucide-react';
 import { ExecutionStatusBadge } from '@/components/ExecutionStatus';
 import { KPIGrid } from '@/components/dashboard/KPIGrid';
-import { SignalsByLineChart } from '@/components/dashboard/SignalsByLineChart';
-import { ScoreDistributionChart } from '@/components/dashboard/ScoreDistributionChart';
-import { RecentGoldSignals } from '@/components/dashboard/RecentGoldSignals';
 import { SystemStatus } from '@/components/dashboard/SystemStatus';
 import type { ResultadoRadar } from '@/lib/types';
+import { fetchJsonSafe } from '@/lib/fetcher';
+
+// Charts pesados con Recharts (~150KB) → lazy.
+// Skeleton mientras cargan: una caja con la altura final para evitar layout shift.
+const ChartFallback = ({ h = 200 }: { h?: number }) => (
+  <div className="animate-pulse rounded-lg bg-surface-muted/40" style={{ height: h }} />
+);
+const SignalsByLineChart = dynamic(
+  () => import('@/components/dashboard/SignalsByLineChart').then(m => m.SignalsByLineChart),
+  { ssr: false, loading: () => <ChartFallback h={200} /> },
+);
+const ScoreDistributionChart = dynamic(
+  () => import('@/components/dashboard/ScoreDistributionChart').then(m => m.ScoreDistributionChart),
+  { ssr: false, loading: () => <ChartFallback h={200} /> },
+);
+const RecentGoldSignals = dynamic(
+  () => import('@/components/dashboard/RecentGoldSignals').then(m => m.RecentGoldSignals),
+  { ssr: false, loading: () => <ChartFallback h={240} /> },
+);
 
 interface SignalStats {
   total: number;
@@ -26,24 +43,35 @@ export default function DashboardPage() {
   const [activeExecution, setActiveExecution] = useState<string | null>(null);
   const queryClient = useQueryClient();
 
-  // Señales ORO recientes
+  // Señales ORO recientes — fetchJsonSafe para que un 500 no rompa el dashboard
   const { data: oroSignals = [], isLoading: loadingSignals } = useQuery<ResultadoRadar[]>({
     queryKey: ['signals', 'ORO', 10],
-    queryFn: () => fetch('/api/signals?tier=ORO&limit=10&activos=true').then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJsonSafe<unknown>('/api/signals?tier=ORO&limit=10&activos=true', []);
+      return Array.isArray(data) ? (data as ResultadoRadar[]) : [];
+    },
     refetchInterval: activeExecution ? false : 5 * 60 * 1000,
   });
 
   // Estadísticas para charts
   const { data: stats, isLoading: loadingStats } = useQuery<SignalStats>({
     queryKey: ['signals', 'stats'],
-    queryFn: () => fetch('/api/signals/stats').then(r => r.json()),
+    queryFn: () => fetchJsonSafe<SignalStats>('/api/signals/stats', {
+      total: 0, activos: 0, oroHoy: 0,
+      tierCounts: { ORO: 0, Monitoreo: 0, Contexto: 0, 'Sin Señal': 0 },
+      lineaCounts: {},
+    }),
     staleTime: 2 * 60 * 1000,
   });
 
-  // Conteo de contactos
+  // Conteo de contactos — silencioso si falla
   const { data: contactosCount = 0 } = useQuery<number>({
     queryKey: ['contactos', 'count'],
-    queryFn: () => fetch('/api/contacts?count=true').then(r => r.json()).then(d => d.total ?? 0).catch(() => 0),
+    queryFn: async () => {
+      const d = await fetchJsonSafe<{ total?: number }>('/api/contacts?count=true', { total: 0 });
+      const val = (d as Record<string, unknown>)?.total;
+      return typeof val === 'number' ? val : 0;
+    },
     staleTime: 5 * 60 * 1000,
   });
 

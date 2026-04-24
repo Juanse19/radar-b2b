@@ -13,14 +13,17 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { TablePagination } from '@/components/ui/table-pagination';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { EmptyState } from '@/components/EmptyState';
 import {
-  Users, ChevronLeft, ChevronRight, Send, Loader2,
+  Users, Send, Loader2,
   Plane, Package, Warehouse, Minus, Plus,
   CheckCircle, AlertCircle, Database, Search, ClipboardList,
 } from 'lucide-react';
 import type { Contacto, LineaNegocio, ProspeccionLog, Empresa } from '@/lib/types';
+import { fetchJson } from '@/lib/fetcher';
+import { useInflightExecutions } from '@/hooks/useInflightExecutions';
 
 // ── Líneas disponibles ────────────────────────────────────────────────────────
 
@@ -66,7 +69,7 @@ const LINEA_OPTIONS: {
   },
 ];
 
-const POR_PAGINA = 50;
+const DEFAULT_PAGE_SIZE = 50;
 const AVAILABLE_TOKENS = 2540;
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -107,11 +110,17 @@ export default function ContactosPage() {
 
   // ── Dialog / execution state ──────────────────────────────────────────────
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [executionId, setExecutionId] = useState<string | null>(null);
+  const [executionId, setExecutionId] = useState<string | null>(null); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [executionRunning, setExecutionRunning] = useState(false);
-  const [logIds, setLogIds] = useState<number[]>([]);
+  const [logIds, setLogIds] = useState<number[]>([]); // eslint-disable-line @typescript-eslint/no-unused-vars
   const [processingEmpresas, setProcessingEmpresas] = useState<string[]>([]);
   const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Conexión con el tracker global — sabemos si OTRO origen del mismo agente
+  // (otra tab del navegador, otro usuario) ya tiene una prospección corriendo,
+  // y la invalidación tras disparar hace que el tray flotante se actualice.
+  const { anyRunningOfAgent, invalidate: invalidateInflight } = useInflightExecutions();
+  const hasInflightProspector = anyRunningOfAgent('prospector');
 
   // ── Tabla state ───────────────────────────────────────────────────────────
   const [busqueda, setBusqueda] = useState('');
@@ -119,16 +128,17 @@ export default function ContactosPage() {
   const [lineaFiltro, setLineaFiltro] = useState('ALL');
   const [statusFiltro, setStatusFiltro] = useState('ALL');
   const [pagina, setPagina] = useState(0);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
   const [sorting, setSorting] = useState<SortingState>([{ id: 'createdAt', desc: true }]);
   const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
 
   // ── Company Selector Query ────────────────────────────────────────────────
   const { data: companiesData = [] } = useQuery<Empresa[]>({
     queryKey: ['companiesSelector', lineaSeleccionada],
-    queryFn: () =>
-      fetch(`/api/companies?linea=${lineaSeleccionada}&limit=500`)
-        .then(r => r.json())
-        .then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/companies?linea=${lineaSeleccionada}&limit=500`);
+      return Array.isArray(data) ? (data as Empresa[]) : [];
+    },
     enabled: modo === 'manual',
     staleTime: 5 * 60 * 1000,
   });
@@ -162,28 +172,31 @@ export default function ContactosPage() {
 
   const { data: rawContactos = [], isLoading } = useQuery<Contacto[]>({
     queryKey: ['contactos', lineaFiltro, statusFiltro, busqueda],
-    queryFn: () =>
-      fetch(`/api/contacts?${queryParams}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []),
+    queryFn: async () => {
+      const data = await fetchJson<unknown>(`/api/contacts?${queryParams}`);
+      return Array.isArray(data) ? (data as Contacto[]) : [];
+    },
   });
 
   const { data: countData } = useQuery<{ total: number }>({
     queryKey: ['contactos', 'count'],
-    queryFn: () => fetch('/api/contacts?count=true').then(r => r.json()),
+    queryFn: () => fetchJson<{ total: number }>('/api/contacts?count=true'),
     staleTime: 2 * 60 * 1000,
   });
 
   // ── Prospection Logs Query ────────────────────────────────────────────────
   const { data: prospeccionLogs = [], isLoading: logsLoading } = useQuery<ProspeccionLog[]>({
     queryKey: ['prospeccionLogs', lineaFiltro],
-    queryFn: () => {
+    queryFn: async () => {
       const params = new URLSearchParams({ limit: '100' });
       if (lineaFiltro !== 'ALL') params.set('linea', lineaFiltro);
-      return fetch(`/api/prospect/logs?${params}`).then(r => r.json()).then(d => Array.isArray(d) ? d : []);
+      const data = await fetchJson<unknown>(`/api/prospect/logs?${params}`);
+      return Array.isArray(data) ? (data as ProspeccionLog[]) : [];
     },
     refetchInterval: (query) => {
       const data = query.state.data;
       if (Array.isArray(data) && data.some((l: ProspeccionLog) => l.estado === 'running')) {
-        return 10_000;
+        return 15_000; // 10s → 15s, menos presión en main thread
       }
       return false;
     },
@@ -218,10 +231,10 @@ export default function ContactosPage() {
     return rawContactos.filter(c => (c.empresaNombre ?? '').toLowerCase().includes(q));
   }, [rawContactos, busquedaEmpresa]);
 
-  const totalPaginas = Math.ceil(contactosFiltrados.length / POR_PAGINA);
+  const totalPaginas = Math.ceil(contactosFiltrados.length / pageSize);
   const paginados = useMemo(
-    () => contactosFiltrados.slice(pagina * POR_PAGINA, (pagina + 1) * POR_PAGINA),
-    [contactosFiltrados, pagina],
+    () => contactosFiltrados.slice(pagina * pageSize, (pagina + 1) * pageSize),
+    [contactosFiltrados, pagina, pageSize],
   );
 
   const columns = useMemo(() => createContactsColumns(), []);
@@ -326,39 +339,50 @@ export default function ContactosPage() {
       toast.error('Selecciona al menos una empresa para prospectar');
       return;
     }
+    if (hasInflightProspector) {
+      toast.error('Ya hay una prospección corriendo. Espera a que termine.');
+      return;
+    }
     setProspectando(true);
     setProspectError(null);
     setProspectSuccess(false);
     try {
-      const res = await fetch('/api/prospect', {
+      // Usamos `/api/agent` (en lugar del legacy `/api/prospect`) para que el
+      // tracker global capture la ejecución con agent_type=prospector y un
+      // pipeline_id correlacionable.
+      const empresasManualPayload = modo === 'manual'
+        ? companiesData
+            .filter(e => selectedEmpresaIds.has(e.id))
+            .map(e => ({ nombre: e.nombre, dominio: e.dominio, pais: e.pais, linea: e.linea }))
+        : [];
+
+      const data = await fetchJson<{ execution_id: string; pipeline_id: string }>('/api/agent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          linea: lineaSeleccionada,
-          empresas: modo === 'manual' ? empresasManualList : [],
+          agent:    'prospector',
+          linea:    lineaSeleccionada,
+          empresas: empresasManualPayload,
           batchSize,
-          contactosPorEmpresa,
+          options: { contactosPorEmpresa, tier: 'ORO' },
         }),
       });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error lanzando prospección');
 
-      const execId: string = data.executionId ?? '';
-      const capturedLogIds: number[] = Array.isArray(data.logIds) ? data.logIds : [];
-      const empresasEnviadas: string[] = Array.isArray(data.empresasEnviadas)
-        ? data.empresasEnviadas
-        : modo === 'manual'
+      const execId = data.execution_id;
+      const empresasEnviadas: string[] = modo === 'manual'
         ? empresasManualList
         : [];
 
       setExecutionId(execId);
-      setLogIds(capturedLogIds);
+      setLogIds([]);
       setProcessingEmpresas(empresasEnviadas);
       setExecutionRunning(true);
       setDialogOpen(true);
       setProspectSuccess(true);
 
-      startPolling(execId, capturedLogIds);
+      // Hacer que el tray flotante recoja la nueva ejecución de inmediato.
+      invalidateInflight();
+      startPolling(execId, []);
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Error desconocido';
       setProspectError(msg);
@@ -390,8 +414,7 @@ export default function ContactosPage() {
   }
 
   return (
-    <div className="min-h-screen bg-background px-4 py-8 lg:px-8">
-      <div className="max-w-6xl mx-auto space-y-8">
+    <div className="space-y-6">
 
         {/* ── Header ─────────────────────────────────────────────────────── */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -673,18 +696,32 @@ export default function ContactosPage() {
               </CardContent>
             </Card>
 
-            {/* Botón trigger */}
+            {/* Botón trigger — deshabilitado si hay otra prospección viva globalmente */}
             <Button
               onClick={lanzarProspeccion}
-              disabled={prospectando || dialogOpen || empresasCount === 0 || !tokenOk}
+              disabled={
+                prospectando
+                || dialogOpen
+                || empresasCount === 0
+                || !tokenOk
+                || hasInflightProspector
+              }
               className="w-full h-12 bg-blue-700 hover:bg-blue-600 gap-2 text-base font-semibold shadow-lg shadow-blue-900/30 disabled:opacity-50"
+              data-testid="prospect-fire"
             >
               {prospectando ? (
                 <><Loader2 size={18} className="animate-spin" /> Iniciando...</>
+              ) : hasInflightProspector ? (
+                <><Loader2 size={18} className="animate-spin" /> Prospección en curso…</>
               ) : (
                 <><Search size={18} /> Prospectar contactos</>
               )}
             </Button>
+            {hasInflightProspector && (
+              <p className="text-xs text-amber-400 -mt-1">
+                Ya hay un prospector corriendo. Mira el indicador flotante abajo a la derecha.
+              </p>
+            )}
 
             {/* Estado */}
             {prospectSuccess && !prospectando && !dialogOpen && (
@@ -760,10 +797,10 @@ export default function ContactosPage() {
         <div className="border-t border-border pt-6">
           <Tabs defaultValue="contactos">
             <TabsList className="bg-surface border border-border mb-5 h-9">
-              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-white text-sm px-5">
+              <TabsTrigger value="contactos" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Contactos
               </TabsTrigger>
-              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-white text-sm px-5">
+              <TabsTrigger value="logs" className="text-muted-foreground data-active:text-foreground text-sm px-5">
                 Log de Prospección
               </TabsTrigger>
             </TabsList>
@@ -888,29 +925,13 @@ export default function ContactosPage() {
 
               {/* Paginación */}
               {totalPaginas > 1 && (
-                <div className="flex items-center justify-between mt-4">
-                  <span className="text-xs text-muted-foreground">
-                    Página {pagina + 1} de {totalPaginas} · {contactosFiltrados.length} contactos
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.max(0, p - 1)); setRowSelection({}); }}
-                      disabled={pagina === 0}
-                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                    >
-                      <ChevronLeft size={14} /> Anterior
-                    </Button>
-                    <Button
-                      variant="outline" size="sm"
-                      onClick={() => { setPagina(p => Math.min(totalPaginas - 1, p + 1)); setRowSelection({}); }}
-                      disabled={pagina >= totalPaginas - 1}
-                      className="border-border text-muted-foreground hover:bg-surface-muted gap-1"
-                    >
-                      Siguiente <ChevronRight size={14} />
-                    </Button>
-                  </div>
-                </div>
+                <TablePagination
+                  page={pagina + 1}
+                  pageSize={pageSize}
+                  totalRows={contactosFiltrados.length}
+                  onPageChange={(p) => { setPagina(p - 1); setRowSelection({}); }}
+                  onPageSizeChange={(s) => { setPageSize(s); setPagina(0); setRowSelection({}); }}
+                />
               )}
             </TabsContent>
 
@@ -1012,7 +1033,6 @@ export default function ContactosPage() {
             </TabsContent>
           </Tabs>
         </div>
-      </div>
     </div>
   );
 }

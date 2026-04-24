@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { triggerProspect } from '@/lib/n8n';
-import { getEmpresasParaEscaneo, crearProspeccionLogs } from '@/lib/db';
+import { getEmpresasParaEscaneo, crearProspeccionLogs, registrarEjecucion } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -43,7 +43,28 @@ export async function POST(req: NextRequest) {
       paises,
     });
 
+    // Track this run in `ejecuciones` so the global tracker tray sees it.
+    let pipeline_id: string | null = null;
+    try {
+      const ejecucion = await registrarEjecucion({
+        n8n_execution_id: result.executionId,
+        linea_negocio:    linea,
+        batch_size:       empresasParaN8N.length,
+        trigger_type:     'manual',
+        agent_type:       'prospector',
+        parametros: {
+          contactosPorEmpresa,
+          tier,
+          paises,
+          empresasEnviadas: empresasParaN8N.length,
+        },
+      });
+      pipeline_id = ejecucion.pipeline_id;
+    } catch { /* tracker es best-effort */ }
+
     // Crear entradas de log para cada empresa — estado inicial "running"
+    // crearProspeccionLogs returns void (best-effort inserts), so guard against
+    // calling .map on a non-array value.
     await crearProspeccionLogs(
       empresasParaN8N.map(nombre => ({
         empresa_nombre:   nombre,
@@ -52,9 +73,13 @@ export async function POST(req: NextRequest) {
       })),
     );
 
+    const logIds: number[] = [];
+
     return NextResponse.json({
       ...result,
       empresasEnviadas: empresasParaN8N.length,
+      logIds,
+      pipeline_id,
     });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

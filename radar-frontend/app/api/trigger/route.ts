@@ -3,8 +3,12 @@ import { triggerScan } from '@/lib/n8n';
 import { getEmpresasParaEscaneo, registrarEjecucion } from '@/lib/db';
 import type { TriggerParams } from '@/lib/types';
 import type { EmpresaPayload } from '@/lib/n8n';
+import { getCurrentSession } from '@/lib/auth/session';
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = await req.json() as TriggerParams & {
       empresas?: { nombre: string; dominio?: string; pais?: string; linea?: string }[];
@@ -47,24 +51,27 @@ export async function POST(req: NextRequest) {
       empresas: empresasParaN8N,
     });
 
-    // ── Registrar ejecución en Supabase ───────────────────────────────────────
+    // ── Registrar ejecución en BD local con tracking de pipeline ──────────────
+    let pipeline_id: string | null = null;
     try {
-      await registrarEjecucion({
+      const ejecucion = await registrarEjecucion({
         n8n_execution_id: result.executionId,
         linea_negocio:    body.linea,
         batch_size:       batchSize,
         trigger_type:     'manual',
+        agent_type:       'calificador',
         parametros: {
           dateFilterFrom:    n8nParams.dateFilterFrom,
           empresasEnviadas:  empresasParaN8N.length,
           origenEmpresas:    body.empresas ? 'frontend' : 'db',
         },
       });
+      pipeline_id = ejecucion.pipeline_id;
     } catch {
       // No bloquear la respuesta si el log falla
     }
 
-    return NextResponse.json(result);
+    return NextResponse.json({ ...result, pipeline_id });
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
 

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { getSenalesSlim, countSenalesOroHoy } from '@/lib/db';
 import { getResults } from '@/lib/sheets';
 import { getScoreTier } from '@/components/ScoreBadge';
+import { LINEAS_ACTIVAS } from '@/lib/lineas';
 
 export async function GET() {
   try {
@@ -32,10 +33,13 @@ export async function GET() {
       tierCounts[tier]++;
     }
 
-    // Distribución por línea (solo señales activas)
-    const lineaCounts: Record<string, number> = {};
+    // Distribución por línea (solo señales activas y solo líneas activas en UI).
+    const lineasActivas = LINEAS_ACTIVAS as readonly string[];
+    const lineaCounts: Record<string, number> = Object.fromEntries(
+      lineasActivas.map(l => [l, 0]),
+    );
     for (const s of senales) {
-      if (s.radar_activo) {
+      if (s.radar_activo && lineasActivas.includes(s.linea_negocio)) {
         lineaCounts[s.linea_negocio] = (lineaCounts[s.linea_negocio] ?? 0) + 1;
       }
     }
@@ -53,6 +57,15 @@ export async function GET() {
       lineaCounts,
     });
   } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    if (msg.includes('does not exist') || msg.includes('ECONNREFUSED') || msg.includes('fetch failed')) {
+      return NextResponse.json({
+        total: 0, activos: 0, oroHoy: 0,
+        tierCounts: { ORO: 0, Monitoreo: 0, Contexto: 0, 'Sin Señal': 0 },
+        lineaCounts: {},
+        _warning: 'Tabla senales no disponible',
+      });
+    }
     console.error('[/api/signals/stats] Error:', err);
     return NextResponse.json({ error: 'Error al calcular estadísticas' }, { status: 500 });
   }

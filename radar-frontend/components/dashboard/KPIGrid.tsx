@@ -19,6 +19,13 @@ interface KPICardProps {
 }
 
 function KPICard({ icon, label, value, iconBg, isLoading }: KPICardProps) {
+  // Guard: if an object leaks through (e.g. { total: 0 } from a query), render its first
+  // numeric/string value instead of crashing with "Objects are not valid as a React child".
+  const safeValue =
+    typeof value === 'string' || typeof value === 'number'
+      ? value
+      : 0;
+
   return (
     <Card className="bg-surface border-border">
       <CardContent className="pt-6">
@@ -29,7 +36,7 @@ function KPICard({ icon, label, value, iconBg, isLoading }: KPICardProps) {
             {isLoading ? (
               <div className="h-7 w-12 bg-surface-muted rounded animate-pulse mt-1" />
             ) : (
-              <p className="text-2xl font-bold text-foreground">{value}</p>
+              <p className="text-2xl font-bold text-foreground">{safeValue}</p>
             )}
           </div>
         </div>

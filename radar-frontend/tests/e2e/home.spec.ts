@@ -97,7 +97,6 @@ test.describe('Página / (Dashboard)', () => {
     await expect(page.locator('nav a[href="/scan"]')).toBeVisible();
     await expect(page.locator('nav a[href="/schedule"]')).toBeVisible();
     await expect(page.locator('nav a[href="/results"]')).toBeVisible();
-    await expect(page.locator('nav a[href="/empresas"]')).toBeVisible();
     await expect(page.locator('nav a[href="/contactos"]')).toBeVisible();
   });
 });

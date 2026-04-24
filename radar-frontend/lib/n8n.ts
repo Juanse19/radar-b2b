@@ -1,5 +1,6 @@
 // lib/n8n.ts
 import type { TriggerParams, ExecutionStatus } from './types';
+import { stepLabelForNode } from './constants/agentSteps';
 
 const N8N_HOST = process.env.N8N_HOST || 'https://n8n.event2flow.com';
 const N8N_API_KEY = process.env.N8N_API_KEY || '';
@@ -50,34 +51,30 @@ export async function triggerScan(params: TriggerScanParams): Promise<{ executio
     trigger_type: 'manual',
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000); // 12s timeout
-
-  let res: Response;
+  // Use a 10s timeout only to detect hard failures (network error, 404, 5xx).
+  // If n8n is in responseMode:lastNode the request will run longer than 10s —
+  // we treat that as "workflow started" and fall through to the REST API fallback.
+  let data: Record<string, unknown> = {};
   try {
-    res = await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if ((err as Error)?.name === 'AbortError') {
-      throw new Error('N8N webhook timeout después de 12s. Verifica que el workflow esté activo.');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
     }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    // AbortError / TimeoutError = workflow is running (lastNode mode) — non-fatal.
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
   }
 
   // N8N responseMode 'onReceived' returns {"message":"Workflow was started"} — no executionId.
   // Try body first, then fall back to the executions API, then to a timestamp.
-  const data = await res.json().catch(() => ({}));
   if (data.executionId || data.id) {
     return { executionId: String(data.executionId || data.id) };
   }
@@ -98,6 +95,81 @@ export async function triggerScan(params: TriggerScanParams): Promise<{ executio
   } catch {
     // Silently fall through to timestamp fallback
   }
+
+  return { executionId: String(Date.now()) };
+}
+
+export interface TriggerRadarParams {
+  empresa: string;
+  pais?: string;
+  linea_negocio?: string;
+  tier?: string;
+  company_domain?: string;
+  /** Score from WF01. Defaults to 5 (mid Monitoreo). */
+  score_calificacion?: number;
+  /** ID of the session user who triggered the scan — forwarded to n8n for audit. */
+  ejecutado_por_id?:     string;
+  /** Display name of the session user who triggered the scan. */
+  ejecutado_por_nombre?: string;
+}
+
+/**
+ * Disparador del Agente 02 — Radar de Inversión.
+ *
+ * A diferencia de WF01, WF02 normalmente recibe UNA empresa por ejecución
+ * (porque su trabajo es buscar señales de inversión específicas para esa
+ * empresa). Lo usamos en modo manual desde `/scan` cuando el equipo comercial
+ * quiere correr radar sobre una empresa específica.
+ */
+export async function triggerRadar(params: TriggerRadarParams): Promise<{ executionId: string }> {
+  const webhookUrl = `${N8N_HOST}/webhook/${N8N_RADAR_WEBHOOK_PATH}`;
+
+  const body = {
+    empresa:              params.empresa,
+    pais:                 params.pais ?? 'Colombia',
+    linea_negocio:        params.linea_negocio ?? '',
+    tier:                 params.tier ?? 'MONITOREO',
+    company_domain:       params.company_domain ?? '',
+    score_calificacion:   params.score_calificacion ?? 5,
+    ejecutado_por_id:     params.ejecutado_por_id,
+    ejecutado_por_nombre: params.ejecutado_por_nombre,
+    trigger_type:         'manual_radar',
+  };
+
+  let data: Record<string, unknown> = {};
+  try {
+    const res = await fetch(webhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    }
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
+  }
+
+  if (data.executionId || data.id) {
+    return { executionId: String(data.executionId || data.id) };
+  }
+
+  // Fallback: query the n8n REST API for the latest execution of WF02.
+  try {
+    const execRes = await fetch(
+      `${N8N_HOST}/api/v1/executions?workflowId=${N8N_RADAR_WORKFLOW_ID}&limit=1`,
+      { headers: { 'X-N8N-API-KEY': N8N_API_KEY } },
+    );
+    if (execRes.ok) {
+      const execData = await execRes.json();
+      const first = execData?.data?.[0];
+      if (first?.id) return { executionId: String(first.id) };
+    }
+  } catch { /* fall through */ }
 
   return { executionId: String(Date.now()) };
 }
@@ -124,40 +196,58 @@ export async function triggerProspect(params: {
     trigger_type: 'manual',
   };
 
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-  let res: Response;
+  let data: Record<string, unknown> = {};
   try {
-    res = await fetch(webhookUrl, {
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
-      signal: controller.signal,
+      signal: AbortSignal.timeout(10000),
     });
-  } catch (err: unknown) {
-    clearTimeout(timeoutId);
-    if ((err as Error)?.name === 'AbortError') {
-      throw new Error('N8N webhook timeout. Verifica que WF03 esté activo.');
+    if (!res.ok) {
+      const text = await res.text();
+      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
     }
-    throw err;
-  }
-  clearTimeout(timeoutId);
-
-  if (!res.ok) {
-    const text = await res.text();
-    throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
+    data = await res.json().catch(() => ({}));
+  } catch (err: unknown) {
+    const name = (err as Error)?.name;
+    if (name !== 'AbortError' && name !== 'TimeoutError') throw err;
   }
 
-  const data = await res.json().catch(() => ({}));
   if (data.executionId || data.id) {
     return { executionId: String(data.executionId || data.id) };
   }
+
+  // Fallback: query the n8n REST API for the latest execution of WF03.
+  try {
+    const execRes = await fetch(
+      `${N8N_HOST}/api/v1/executions?workflowId=${N8N_PROSPECT_WORKFLOW_ID}&limit=1`,
+      { headers: { 'X-N8N-API-KEY': N8N_API_KEY } },
+    );
+    if (execRes.ok) {
+      const execData = await execRes.json();
+      const first = execData?.data?.[0];
+      if (first?.id) return { executionId: String(first.id) };
+    }
+  } catch { /* fall through */ }
+
   return { executionId: String(Date.now()) };
 }
 
+/** Returns true for fallback timestamp IDs — they are NOT real n8n execution IDs. */
+function isTimestampId(id: string) {
+  return /^\d{11,}$/.test(id);
+}
+
 export async function getExecutionStatus(executionId: string): Promise<ExecutionStatus> {
-  const url = `${N8N_HOST}/api/v1/executions/${executionId}`;
+  // Skip the n8n API call when we know it won't work:
+  // 1. API key is not configured
+  // 2. The executionId is a local timestamp fallback (not a real n8n id)
+  if (!N8N_API_KEY || isTimestampId(executionId)) {
+    return { id: executionId, status: 'running' };
+  }
+
+  const url = `${N8N_HOST}/api/v1/executions/${executionId}?includeData=true`;
 
   const res = await fetch(url, {
     headers: {
@@ -167,7 +257,10 @@ export async function getExecutionStatus(executionId: string): Promise<Execution
   });
 
   if (!res.ok) {
-    if (res.status === 404) {
+    // 404 → execution not yet indexed (still starting) — keep polling.
+    // 401/403 → API key missing or expired — treat as "running" so the
+    //            UI doesn't error out; the 30-min auto-timeout will resolve it.
+    if (res.status === 404 || res.status === 401 || res.status === 403) {
       return { id: executionId, status: 'running' };
     }
     throw new Error(`N8N API error ${res.status}`);
@@ -183,12 +276,34 @@ export async function getExecutionStatus(executionId: string): Promise<Execution
   else if (finished && hasError) status = 'error';
   else if (exec.status === 'waiting') status = 'waiting';
 
+  // Derive `currentStep` from the most recently executed n8n node.
+  // runData is { nodeName: [{ startTime, executionTime, ... }] }; we pick the
+  // node with the latest startTime that has data, then translate it to a
+  // human-readable label via stepLabelForNode().
+  const runData = exec.data?.resultData?.runData as
+    | Record<string, Array<{ startTime?: number }>>
+    | undefined;
+  let currentStep: string | undefined;
+  if (runData) {
+    let latestNode: string | undefined;
+    let latestTime = -Infinity;
+    for (const [nodeName, runs] of Object.entries(runData)) {
+      const t = runs?.[runs.length - 1]?.startTime ?? 0;
+      if (t > latestTime) {
+        latestTime = t;
+        latestNode = nodeName;
+      }
+    }
+    if (latestNode) currentStep = stepLabelForNode(latestNode);
+  }
+
   return {
     id: executionId,
     status,
-    startedAt: exec.startedAt,
-    finishedAt: exec.stoppedAt,
+    startedAt:          exec.startedAt,
+    finishedAt:         exec.stoppedAt,
     empresasProcesadas: exec.data?.resultData?.runData?.['Loop Over Items1']?.[0]?.data?.main?.[0]?.length,
+    currentStep,
   };
 }
 

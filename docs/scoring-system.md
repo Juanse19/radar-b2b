@@ -22,7 +22,7 @@ score = (impacto×0.25) + (año×0.15) + (recurrencia×0.15) + (multiplanta×0.1
 
 **Asignación de Tier:**
 - **ORO:** score ≥ 8 → prospección completa (5 contactos Apollo)
-- **MONITOREO:** score 5–7 → seguimiento (2 contactos Apollo)
+- **MONITOREO:** score 5–7 → seguimiento (3 contactos Apollo)
 - **ARCHIVO:** score < 5 → sin prospección activa
 
 ---
@@ -52,7 +52,7 @@ composite = (score_calificacion / 10 × 40) + (score_radar / 100 × 60)
 | Composite | Acción |
 |-----------|--------|
 | ≥ 70 | **ORO** → Prospección Apollo 5 contactos |
-| 40–69 | **MONITOREO** → Prospección Apollo 2 contactos |
+| 40–69 | **MONITOREO** → Prospección Apollo 3 contactos |
 | < 40 | **ARCHIVO** → Sin prospección, solo email automático |
 
 ---

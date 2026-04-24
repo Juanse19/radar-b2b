@@ -518,39 +518,6 @@ export default function EmpresasPage() {
           </Button>
         </div>
 
-        {/* ── Stats bar ──────────────────────────────────────────────────── */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          {LINEA_OPTIONS.map(opt => {
-            const cnt = opt.value === 'ALL'
-              ? Object.values(counts).reduce((a, b) => a + b, 0)
-              : (counts[opt.value] ?? 0);
-            const isActive = lineaFiltro === opt.value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                onClick={() => handleLineaChange(opt.value)}
-                className={`
-                  text-left p-4 rounded-xl border-2 transition-all duration-150
-                  ${isActive
-                    ? `${opt.activeBg} ${opt.activeBorder} shadow-lg`
-                    : 'bg-surface border-border hover:border-border hover:bg-surface-muted/60'}
-                `}
-              >
-                <div className={`mb-2 transition-colors ${isActive ? opt.color : 'text-muted-foreground'}`}>
-                  <opt.Icon size={20} />
-                </div>
-                <p className={`text-2xl font-bold font-mono ${isActive ? 'text-foreground' : 'text-muted-foreground'}`}>
-                  {cnt}
-                </p>
-                <p className={`text-xs mt-0.5 ${isActive ? 'text-muted-foreground' : 'text-muted-foreground'}`}>
-                  {opt.label}
-                </p>
-              </button>
-            );
-          })}
-        </div>
-
         {/* ── Line selector cards ─────────────────────────────────────────── */}
         <div>
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
