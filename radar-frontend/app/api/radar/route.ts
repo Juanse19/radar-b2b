@@ -1,9 +1,13 @@
-import { NextRequest, NextResponse } from 'next/server';
+// app/api/radar/route.ts
+//
+// Legacy compatibility wrapper. The unified `/api/agent` endpoint is the
+// preferred entry point — this route delegates to the same `triggerRadar()`
+// helper plus `registrarEjecucion()` so the tracker tray sees radar fires
+// regardless of which route the caller used.
 
-const N8N_HOST = process.env.N8N_HOST || 'https://n8n.event2flow.com';
-const N8N_API_KEY = process.env.N8N_API_KEY || '';
-const N8N_RADAR_WEBHOOK_PATH = process.env.N8N_RADAR_WEBHOOK_PATH || 'radar-scan';
-const N8N_RADAR_WORKFLOW_ID = process.env.N8N_RADAR_WORKFLOW_ID || 'fko0zXYYl5X4PtHz';
+import { NextRequest, NextResponse } from 'next/server';
+import { triggerRadar } from '@/lib/n8n';
+import { registrarEjecucion } from '@/lib/db';
 
 export async function POST(req: NextRequest) {
   try {
@@ -14,61 +18,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'El campo "empresa" es requerido' }, { status: 400 });
     }
 
-    const webhookUrl = `${N8N_HOST}/webhook/${N8N_RADAR_WEBHOOK_PATH}`;
-    const payload = {
-      empresa:            empresa,
-      pais:               pais || 'Colombia',
-      linea_negocio:      linea_negocio || '',
-      tier:               tier || 'MONITOREO',
-      company_domain:     company_domain || '',
-      score_calificacion: score_calificacion ?? 5,
-      trigger_type:       'manual_radar',
-    };
+    const result = await triggerRadar({
+      empresa,
+      pais,
+      linea_negocio,
+      tier,
+      company_domain,
+      score_calificacion,
+    });
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 12000);
-
-    let res: Response;
+    let pipeline_id: string | null = null;
     try {
-      res = await fetch(webhookUrl, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
+      const ejecucion = await registrarEjecucion({
+        n8n_execution_id: result.executionId,
+        linea_negocio:    linea_negocio || undefined,
+        batch_size:       1,
+        trigger_type:     'manual',
+        agent_type:       'radar',
+        parametros: { empresa, pais, tier, score_calificacion },
       });
-    } catch (err: unknown) {
-      clearTimeout(timeoutId);
-      if ((err as Error)?.name === 'AbortError') {
-        throw new Error('WF02 timeout. Verifica que el workflow Radar esté activo.');
-      }
-      throw err;
-    }
-    clearTimeout(timeoutId);
+      pipeline_id = ejecucion.pipeline_id;
+    } catch { /* swallow */ }
 
-    if (!res.ok) {
-      const text = await res.text();
-      throw new Error(`N8N webhook error ${res.status}: ${text.substring(0, 200)}`);
-    }
-
-    // Try to get executionId from response or from N8N executions API
-    const data = await res.json().catch(() => ({}));
-    if (data.executionId || data.id) {
-      return NextResponse.json({ executionId: String(data.executionId || data.id) });
-    }
-
-    try {
-      const execRes = await fetch(
-        `${N8N_HOST}/api/v1/executions?workflowId=${N8N_RADAR_WORKFLOW_ID}&limit=1`,
-        { headers: { 'X-N8N-API-KEY': N8N_API_KEY } },
-      );
-      if (execRes.ok) {
-        const execData = await execRes.json();
-        const first = execData?.data?.[0];
-        if (first?.id) return NextResponse.json({ executionId: String(first.id) });
-      }
-    } catch { /* fallthrough */ }
-
-    return NextResponse.json({ executionId: String(Date.now()) });
+    return NextResponse.json({ ...result, pipeline_id });
 
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';

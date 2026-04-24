@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getContactos, getContactosCount, crearContacto } from '@/lib/contacts';
 import type { HubSpotStatus } from '@/lib/types';
+import { getCurrentSession } from '@/lib/auth/session';
 
 export async function GET(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const { searchParams } = req.nextUrl;
   const count   = searchParams.get('count') === 'true';
   const linea   = searchParams.get('linea') ?? undefined;
@@ -23,14 +27,14 @@ export async function GET(req: NextRequest) {
     const rows = await getContactos({ linea, hubspotStatus: status, busqueda, empresaId, limit, offset });
     return NextResponse.json(rows.map(c => ({
       id:             c.id,
-      nombre:         c.nombre,
+      nombre:         c.nombre ?? '',
       cargo:          c.cargo ?? '',
       email:          c.email ?? '',
       telefono:       c.telefono ?? '',
       linkedinUrl:    c.linkedin_url ?? '',
       empresaNombre:  c.empresa_nombre ?? '',
       lineaNegocio:   c.linea_negocio ?? '',
-      fuente:         c.fuente,
+      fuente:         c.fuente ?? 'apollo',
       hubspotStatus:  c.hubspot_status,
       hubspotId:      c.hubspot_id ?? '',
       apolloId:       c.apollo_id ?? '',
@@ -43,10 +47,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const session = await getCurrentSession();
+  if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  if (!['ADMIN', 'COMERCIAL'].includes(session.role)) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+
   try {
     const body = await req.json();
-    if (!body.nombre) {
-      return NextResponse.json({ error: 'El campo nombre es obligatorio' }, { status: 400 });
+    if (!body.empresa_id) {
+      return NextResponse.json({ error: 'El campo empresa_id es obligatorio' }, { status: 400 });
     }
     const contacto = await crearContacto(body);
     return NextResponse.json(contacto, { status: 201 });

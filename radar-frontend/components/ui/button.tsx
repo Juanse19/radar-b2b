@@ -7,7 +7,7 @@ import type { ButtonHTMLAttributes } from "react";
 import { cn } from "@/lib/utils";
 
 export type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "outline" | "default";
-export type ButtonSize = "sm" | "default" | "lg" | "icon";
+export type ButtonSize = "sm" | "default" | "lg" | "icon" | "icon-sm" | "icon-xs" | "icon-lg" | "xs";
 
 const variantStyles: Record<ButtonVariant, string> = {
   primary:   "bg-primary text-primary-foreground hover:bg-primary/90 focus-visible:ring-2 focus-visible:ring-secondary",
@@ -19,10 +19,14 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const sizeStyles: Record<ButtonSize, string> = {
-  sm:      "h-8 px-3 text-xs rounded-xl",
-  default: "min-h-11 px-4 py-2 text-sm rounded-2xl",
-  lg:      "h-12 px-5 text-base rounded-2xl",
-  icon:    "h-10 w-10 rounded-2xl",
+  xs:       "h-6 px-2 text-xs rounded-lg",
+  sm:       "h-8 px-3 text-xs rounded-xl",
+  default:  "min-h-11 px-4 py-2 text-sm rounded-2xl",
+  lg:       "h-12 px-5 text-base rounded-2xl",
+  icon:     "h-10 w-10 rounded-2xl",
+  "icon-xs": "h-6 w-6 rounded-lg",
+  "icon-sm": "h-8 w-8 rounded-xl",
+  "icon-lg": "h-11 w-11 rounded-2xl",
 };
 
 export function Button({

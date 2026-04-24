@@ -21,8 +21,8 @@ export default function Error({ error, reset }: ErrorPageProps) {
           <AlertTriangle size={28} className="text-red-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-white mb-1">Algo salió mal</h2>
-          <p className="text-sm text-gray-400">
+          <h2 className="text-lg font-semibold text-foreground mb-1">Algo salió mal</h2>
+          <p className="text-sm text-muted-foreground">
             {error.message || 'Ocurrió un error inesperado. Por favor intenta de nuevo.'}
           </p>
         </div>
