@@ -1,0 +1,403 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Radar B2B — Preview MATEC</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@500;600;700&family=Public+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --background:    #f3f6f8;
+  --surface:       #ffffff;
+  --surface-muted: #e8eef3;
+  --foreground:    #142e47;
+  --border:        #d2dce4;
+  --primary:       #142e47;
+  --primary-fg:    #f7fbff;
+  --secondary:     #71acd2;
+  --secondary-fg:  #10263a;
+  --success:       #19816a;
+  --warning:       #9a3d2d;
+  --danger:        #941941;
+  --muted-fg:      #60758a;
+  --sidebar:       #142e47;
+  --sidebar-fg:    #f8fbfd;
+  --shadow-sm: 0 1px 3px rgba(20,46,71,0.08);
+  --shadow-md: 0 12px 36px rgba(20,46,71,0.10);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { height: 100%; overflow: hidden; background: var(--background); }
+body {
+  height: 100%; min-height: 100vh; overflow: hidden;
+  font-family: 'Public Sans', Arial, sans-serif;
+  color: var(--foreground);
+  background:
+    radial-gradient(circle at top left, rgba(113,172,210,0.16), transparent 28%),
+    linear-gradient(180deg, #eef4f8 0%, #f7fafc 25%, #f3f6f8 100%);
+}
+/* ── Layout ── */
+.app-shell { display: grid; grid-template-columns: 260px minmax(0,1fr); min-height: 100vh; }
+/* ── Sidebar ── */
+.sidebar {
+  background: var(--sidebar); color: var(--sidebar-fg);
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 16px 12px;
+}
+.sidebar-brand {
+  border: 1px solid rgba(255,255,255,0.10); background: rgba(255,255,255,0.06);
+  border-radius: 14px; padding: 12px; margin-bottom: 24px;
+}
+.sidebar-brand .super { font-size:10px; letter-spacing:.3em; color:rgba(255,255,255,.5); text-transform:uppercase; }
+.sidebar-brand h1 { font-family:'Barlow',Arial,sans-serif; font-size:20px; font-weight:700; color:#fff; letter-spacing:-0.02em; margin-top:4px; }
+.sidebar-brand p { font-size:11px; color:rgba(255,255,255,.6); margin-top:4px; }
+.nav-item {
+  display:flex; align-items:center; gap:12px; padding:10px 12px;
+  border-radius:12px; text-decoration:none; font-size:13px; font-weight:500;
+  color:rgba(255,255,255,.65); transition:.15s;
+  margin-bottom:2px; cursor:pointer;
+}
+.nav-item:hover { background:rgba(255,255,255,.08); color:#fff; }
+.nav-item.active { background:rgba(255,255,255,.14); color:#fff; }
+.nav-icon { width:18px; height:18px; flex-shrink:0; }
+.sidebar-footer {
+  border: 1px solid rgba(255,255,255,.10); background: rgba(255,255,255,.05);
+  border-radius:14px; padding:12px;
+}
+.sidebar-footer .label { font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:rgba(255,255,255,.45); }
+.sidebar-footer .name { font-size:12px; font-weight:600; color:#fff; margin-top:4px; }
+.sidebar-footer .version { font-size:11px; color:rgba(255,255,255,.5); }
+/* ── Main ── */
+.main { padding: 20px 24px; overflow: auto; display: flex; flex-direction: column; gap: 24px; }
+/* ── Header ── */
+.page-header {
+  border: 1px solid rgba(210,220,228,0.8); background: rgba(255,255,255,.92);
+  box-shadow: var(--shadow-sm); backdrop-filter: blur(8px);
+  border-radius: 20px; padding: 16px 20px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.page-header .super { font-size:10px; letter-spacing:.22em; text-transform:uppercase; color:var(--muted-fg); }
+.page-header h2 { font-family:'Barlow',Arial,sans-serif; font-size:20px; font-weight:600; color:var(--primary); letter-spacing:-0.03em; margin-top:3px; }
+.role-chip { background: rgba(113,172,210,.15); color:var(--primary); font-size:12px; font-weight:500; padding:4px 12px; border-radius:999px; }
+/* ── KPI Grid ── */
+.kpi-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; }
+.kpi-card {
+  border: 1px solid rgba(210,220,228,0.8); background: rgba(255,255,255,.92);
+  box-shadow: var(--shadow-sm); backdrop-filter: blur(8px);
+  border-radius: 24px; padding: 20px;
+}
+.kpi-card .kpi-label { font-size:11px; font-weight:600; text-transform:uppercase; letter-spacing:.1em; color:var(--muted-fg); }
+.kpi-card .kpi-value { font-family:'Barlow',Arial,sans-serif; font-size:30px; font-weight:700; color:var(--primary); margin-top:6px; letter-spacing:-0.03em; }
+.kpi-card .kpi-delta { font-size:12px; margin-top:4px; }
+.kpi-card .kpi-delta.pos { color: var(--success); }
+.kpi-card .kpi-delta.neg { color: var(--danger); }
+/* ── Cards ── */
+.panel { border: 1px solid rgba(210,220,228,0.8); background: rgba(255,255,255,.92); box-shadow: var(--shadow-sm); backdrop-filter: blur(8px); }
+.card { border-radius: 24px; padding: 20px; }
+.card-title { font-family:'Barlow',Arial,sans-serif; font-size:15px; font-weight:600; color:var(--primary); letter-spacing:-0.02em; margin-bottom:14px; }
+/* ── Badges ── */
+.badge { display:inline-flex; align-items:center; border-radius:999px; padding:4px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.18em; }
+.badge-neutral { background:var(--surface-muted); color:var(--primary); }
+.badge-info    { background:rgba(113,172,210,.16); color:var(--primary); }
+.badge-success { background:rgba(25,129,106,.14); color:var(--success); }
+.badge-danger  { background:rgba(148,25,65,.12); color:var(--danger); }
+.badge-warning { background:rgba(154,61,45,.12); color:var(--warning); }
+/* ── Buttons ── */
+.btn {
+  display:inline-flex; align-items:center; justify-content:center; gap:8px;
+  font-family:'Public Sans',Arial,sans-serif; font-size:13px; font-weight:600;
+  min-height:44px; padding:8px 16px; border-radius:16px; border:none; cursor:pointer; transition:.15s;
+}
+.btn-primary { background:var(--primary); color:var(--primary-fg); }
+.btn-primary:hover { background: #1a3a59; }
+.btn-secondary { background:var(--secondary); color:var(--secondary-fg); }
+.btn-ghost { background:transparent; color:var(--primary); }
+.btn-ghost:hover { background:var(--surface-muted); }
+.btn-danger { background:var(--danger); color:#fff; }
+/* ── Input ── */
+.input {
+  min-height:44px; width:100%; border-radius:16px;
+  border:1px solid var(--border); background:#fff;
+  padding:8px 16px; font-size:13px; color:var(--primary); outline:none;
+  font-family:'Public Sans',Arial,sans-serif;
+  transition:.15s;
+}
+.input:focus { border-color:var(--secondary); box-shadow:0 0 0 2px rgba(113,172,210,.25); }
+/* ── Scan Lines ── */
+.lineas-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; }
+.linea-card {
+  border-radius:16px; padding:14px; cursor:pointer; transition:.2s;
+  border: 2px solid transparent;
+}
+.linea-bhs     { background:rgba(59,130,246,.10); border-color:rgba(59,130,246,.3); }
+.linea-carton  { background:rgba(245,158,11,.10); border-color:rgba(245,158,11,.3); }
+.linea-intra   { background:rgba(16,185,129,.10); border-color:rgba(16,185,129,.3); }
+.linea-final   { background:rgba(249,115,22,.10); border-color:rgba(249,115,22,.3); }
+.linea-motos   { background:rgba(244,63,94,.10);  border-color:rgba(244,63,94,.3); }
+.linea-solumat { background:rgba(139,92,246,.10); border-color:rgba(139,92,246,.3); }
+.linea-all     { background:rgba(99,102,241,.10); border-color:rgba(99,102,241,.3); }
+.linea-label   { font-size:12px; font-weight:700; margin-bottom:3px; }
+.linea-desc    { font-size:10px; color:var(--muted-fg); }
+/* ── Table ── */
+.table { width:100%; border-collapse:collapse; font-size:13px; }
+.table th { text-align:left; padding:10px 12px; font-size:11px; font-weight:700; text-transform:uppercase; letter-spacing:.08em; color:var(--muted-fg); border-bottom:1px solid var(--border); }
+.table td { padding:10px 12px; border-bottom:1px solid rgba(210,220,228,.5); color:var(--foreground); }
+.table tr:last-child td { border-bottom:none; }
+.table tr:hover td { background:rgba(113,172,210,.05); }
+/* ── Tier badges ── */
+.tier-oro  { background:rgba(245,158,11,.15); color:#b45309; }
+.tier-mon  { background:rgba(113,172,210,.15); color:var(--primary); }
+.tier-arch { background:var(--surface-muted); color:var(--muted-fg); }
+</style>
+</head>
+<body>
+<div class="app-shell">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div>
+      <div class="sidebar-brand">
+        <p class="super">MATEC</p>
+        <h1>Radar B2B</h1>
+        <p>Inteligencia Comercial LATAM</p>
+      </div>
+      <nav>
+        <a class="nav-item active" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+          Dashboard
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg>
+          Escanear
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Cronograma
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3h7v7H3zM14 3h7v7h-7zM14 14h7v7h-7zM3 14h7v7H3z"/></svg>
+          Resultados
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
+          Empresas
+        </a>
+        <a class="nav-item" href="#">
+          <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          Contactos
+        </a>
+      </nav>
+    </div>
+    <div class="sidebar-footer">
+      <p class="label">Sistema</p>
+      <p class="name">Matec LATAM</p>
+      <p class="version">v2.0 · Agentes IA</p>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="main">
+
+    <!-- Header -->
+    <div class="page-header">
+      <div>
+        <p class="super">Proyecto Radar de Inversión</p>
+        <h2>Dashboard</h2>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="role-chip">COMERCIAL</span>
+        <span class="badge badge-success">Activo</span>
+      </div>
+    </div>
+
+    <!-- KPI Grid -->
+    <div class="kpi-grid">
+      <div class="kpi-card panel">
+        <p class="kpi-label">Empresas escaneadas</p>
+        <p class="kpi-value">247</p>
+        <p class="kpi-delta pos">↑ +18 esta semana</p>
+      </div>
+      <div class="kpi-card panel">
+        <p class="kpi-label">Señales ORO</p>
+        <p class="kpi-value">34</p>
+        <p class="kpi-delta pos">↑ +6 vs. semana ant.</p>
+      </div>
+      <div class="kpi-card panel">
+        <p class="kpi-label">Contactos encontrados</p>
+        <p class="kpi-value">312</p>
+        <p class="kpi-delta pos">↑ +41 nuevos</p>
+      </div>
+      <div class="kpi-card panel">
+        <p class="kpi-label">Score promedio</p>
+        <p class="kpi-value">71.4</p>
+        <p class="kpi-delta neg">↓ -2.1 vs. sem. ant.</p>
+      </div>
+    </div>
+
+    <!-- Row: Scan + Tokens -->
+    <div style="display:grid;grid-template-columns:1.6fr 1fr;gap:14px">
+
+      <!-- Escanear por línea -->
+      <div class="panel card">
+        <p class="card-title">Seleccionar Línea de Negocio</p>
+        <div class="lineas-grid">
+          <div class="linea-card linea-bhs">
+            <p class="linea-label" style="color:#3b82f6">✈ BHS / Aeropuertos</p>
+            <p class="linea-desc">Terminales, carruseles</p>
+          </div>
+          <div class="linea-card linea-carton">
+            <p class="linea-label" style="color:#d97706">📦 Cartón / Corrugado</p>
+            <p class="linea-desc">Plantas corrugadoras</p>
+          </div>
+          <div class="linea-card linea-intra">
+            <p class="linea-label" style="color:#059669">🏭 Intralogística</p>
+            <p class="linea-desc">CEDI, WMS, ASRS</p>
+          </div>
+          <div class="linea-card linea-final" style="border-width:2px;border-style:solid">
+            <p class="linea-label" style="color:#ea580c">🏭 Final de Línea</p>
+            <p class="linea-desc">Alimentos, bebidas</p>
+          </div>
+          <div class="linea-card linea-motos">
+            <p class="linea-label" style="color:#e11d48">🏍 Motos</p>
+            <p class="linea-desc">Ensambladoras</p>
+          </div>
+          <div class="linea-card linea-solumat">
+            <p class="linea-label" style="color:#7c3aed">🔧 Solumat</p>
+            <p class="linea-desc">Plásticos, materiales</p>
+          </div>
+          <div class="linea-card linea-all" style="grid-column:span 2">
+            <p class="linea-label" style="color:#4f46e5">🌐 Todas las líneas</p>
+            <p class="linea-desc">Escaneo global completo</p>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:flex;gap:10px;align-items:center">
+          <input class="input" placeholder="Buscar empresa o dominio..." style="max-width:280px" />
+          <button class="btn btn-primary">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/></svg>
+            Iniciar Scan
+          </button>
+          <button class="btn btn-ghost">Reset</button>
+        </div>
+      </div>
+
+      <!-- Design Tokens -->
+      <div class="panel card">
+        <p class="card-title">Design Tokens MATEC</p>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <!-- Colores -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap">
+            <div style="text-align:center">
+              <div style="width:40px;height:40px;border-radius:10px;background:#142e47;box-shadow:var(--shadow-sm)"></div>
+              <p style="font-size:9px;color:var(--muted-fg);margin-top:3px">primary</p>
+            </div>
+            <div style="text-align:center">
+              <div style="width:40px;height:40px;border-radius:10px;background:#71acd2;box-shadow:var(--shadow-sm)"></div>
+              <p style="font-size:9px;color:var(--muted-fg);margin-top:3px">secondary</p>
+            </div>
+            <div style="text-align:center">
+              <div style="width:40px;height:40px;border-radius:10px;background:#19816a;box-shadow:var(--shadow-sm)"></div>
+              <p style="font-size:9px;color:var(--muted-fg);margin-top:3px">success</p>
+            </div>
+            <div style="text-align:center">
+              <div style="width:40px;height:40px;border-radius:10px;background:#941941;box-shadow:var(--shadow-sm)"></div>
+              <p style="font-size:9px;color:var(--muted-fg);margin-top:3px">danger</p>
+            </div>
+            <div style="text-align:center">
+              <div style="width:40px;height:40px;border-radius:10px;background:#9a3d2d;box-shadow:var(--shadow-sm)"></div>
+              <p style="font-size:9px;color:var(--muted-fg);margin-top:3px">warning</p>
+            </div>
+          </div>
+          <!-- Badges -->
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <span class="badge badge-neutral">Neutral</span>
+            <span class="badge badge-info">Info</span>
+            <span class="badge badge-success">ORO ✓</span>
+            <span class="badge badge-danger">Crítico</span>
+            <span class="badge badge-warning">Alerta</span>
+          </div>
+          <!-- Buttons -->
+          <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+            <button class="btn btn-primary" style="min-height:36px;font-size:12px;padding:6px 14px">Primary</button>
+            <button class="btn btn-secondary" style="min-height:36px;font-size:12px;padding:6px 14px">Secondary</button>
+            <button class="btn btn-ghost" style="min-height:36px;font-size:12px;padding:6px 14px">Ghost</button>
+            <button class="btn btn-danger" style="min-height:36px;font-size:12px;padding:6px 14px">Danger</button>
+          </div>
+          <!-- Tipografía -->
+          <div style="margin-top:4px">
+            <p style="font-family:'Barlow',Arial,sans-serif;font-size:17px;font-weight:700;color:var(--primary);letter-spacing:-0.03em">Barlow — Títulos</p>
+            <p style="font-size:13px;color:var(--muted-fg);margin-top:2px">Public Sans — Texto operativo de la UI</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Señales recientes -->
+    <div class="panel card">
+      <p class="card-title">Señales Recientes</p>
+      <table class="table">
+        <thead>
+          <tr>
+            <th>Empresa</th>
+            <th>País</th>
+            <th>Línea</th>
+            <th>Score</th>
+            <th>Tier</th>
+            <th>Señal</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><strong>Grupo Nutresa</strong></td>
+            <td>Colombia</td>
+            <td><span class="badge badge-neutral" style="font-size:10px">Final Línea</span></td>
+            <td><strong style="color:var(--success)">83</strong></td>
+            <td><span class="badge tier-oro">ORO</span></td>
+            <td>Expansión planta Medellín 2026</td>
+            <td><span class="badge badge-success">Prospectado</span></td>
+          </tr>
+          <tr>
+            <td><strong>Smurfit Kappa</strong></td>
+            <td>Colombia · México · Chile</td>
+            <td><span class="badge badge-neutral" style="font-size:10px">Cartón</span></td>
+            <td><strong style="color:var(--success)">77</strong></td>
+            <td><span class="badge tier-oro">ORO</span></td>
+            <td>Licitación corrugadora CAPEX $8M</td>
+            <td><span class="badge badge-info">En proceso</span></td>
+          </tr>
+          <tr>
+            <td><strong>LATAM Airlines</strong></td>
+            <td>Chile</td>
+            <td><span class="badge badge-neutral" style="font-size:10px">BHS</span></td>
+            <td><strong style="color:var(--secondary)">61</strong></td>
+            <td><span class="badge tier-mon">MONITOREO</span></td>
+            <td>Renovación sistema BHS SCL</td>
+            <td><span class="badge badge-info">En proceso</span></td>
+          </tr>
+          <tr>
+            <td><strong>Alpina Productos</strong></td>
+            <td>Colombia</td>
+            <td><span class="badge badge-neutral" style="font-size:10px">Intralogística</span></td>
+            <td><strong style="color:var(--secondary)">55</strong></td>
+            <td><span class="badge tier-mon">MONITOREO</span></td>
+            <td>Automatización CEDI Sopó</td>
+            <td><span class="badge badge-warning">Pendiente</span></td>
+          </tr>
+          <tr>
+            <td><strong>Taller Mecánico López</strong></td>
+            <td>Colombia</td>
+            <td><span class="badge badge-neutral" style="font-size:10px">Motos</span></td>
+            <td><strong style="color:var(--muted-fg)">22</strong></td>
+            <td><span class="badge tier-arch">ARCHIVO</span></td>
+            <td>—</td>
+            <td><span class="badge badge-neutral">Archivado</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+  </main>
+</div>
+</body>
+</html>

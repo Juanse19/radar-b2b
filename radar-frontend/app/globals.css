@@ -146,6 +146,69 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
+/* ═══════════════════════════════════════════
+   Dark mode — Matec Navy Dark Theme
+═══════════════════════════════════════════ */
+.dark {
+  /* Base */
+  --background:    #0c1e30;
+  --surface:       #142e47;
+  --surface-muted: #1a3450;
+  --foreground:    #ddeaf4;
+  --border:        #2a4a63;
+
+  /* Cards */
+  --card:            #142e47;
+  --card-foreground: #ddeaf4;
+
+  /* Popover */
+  --popover:            #1a3450;
+  --popover-foreground: #ddeaf4;
+
+  /* Primary — in dark mode the light blue becomes primary */
+  --primary:            #71acd2;
+  --primary-foreground: #0c1e30;
+
+  /* Secondary */
+  --secondary:            #2a5a7e;
+  --secondary-foreground: #ddeaf4;
+
+  /* Muted */
+  --muted:            #1a3450;
+  --muted-foreground: #7fa8c2;
+
+  /* Accent */
+  --accent:            #1e3d58;
+  --accent-foreground: #ddeaf4;
+
+  /* Inputs */
+  --input: #2a4a63;
+  --ring:  #71acd2;
+
+  /* Sidebar — slightly darker than content in dark mode */
+  --sidebar:                    #0a1929;
+  --sidebar-foreground:         #e8f4fc;
+  --sidebar-primary:            #71acd2;
+  --sidebar-primary-foreground: #0a1929;
+  --sidebar-accent:             #142e47;
+  --sidebar-accent-foreground:  #e8f4fc;
+  --sidebar-border:             #1e3d58;
+  --sidebar-ring:               #71acd2;
+
+  /* Semantic */
+  --success:     #22a98a;
+  --warning:     #e07d55;
+  --danger:      #e05577;
+  --destructive: #e05577;
+
+  /* Chart colors for dark mode */
+  --chart-1: #71acd2;
+  --chart-2: #22a98a;
+  --chart-3: #e07d55;
+  --chart-4: #a78bfa;
+  --chart-5: #e05577;
+}
+
 /* ═══════════════════════
    Base
 ═══════════════════════ */
@@ -160,6 +223,9 @@ html {
 body {
   height: 100%;
   min-height: 100vh;
+  font-size: 0.9375rem;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
   /* Gradiente atmosférico MATEC — luz azul sutil en esquina superior */
   background:
     radial-gradient(circle at top left, rgba(113, 172, 210, 0.16), transparent 28%),
@@ -168,6 +234,48 @@ body {
   font-family: var(--font-ui), Arial, sans-serif;
   overflow: hidden;
 }
+
+.dark body {
+  background:
+    radial-gradient(circle at top left, rgba(113, 172, 210, 0.08), transparent 28%),
+    linear-gradient(180deg, #0e2236 0%, #0c1e30 25%, #0a1929 100%);
+}
+
+/* ═══════════════════════════════════
+   Fluid typography scale
+═══════════════════════════════════ */
+h1 {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 700;
+}
+
+h2 {
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 600;
+}
+
+h4 {
+  font-size: 1.1rem;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 600;
+}
+
+p { line-height: 1.65; }
 
 a { color: inherit; text-decoration: none; }
 button, input, select, textarea { font: inherit; }
@@ -205,10 +313,51 @@ button, input, select, textarea { font: inherit; }
   backdrop-filter: blur(8px);
 }
 
+.dark .panel {
+  border: 1px solid rgba(42, 74, 99, 0.8);
+  background: rgba(20, 46, 71, 0.92);
+}
+
 /* Tipografía display con tracking ajustado */
 .page-heading {
   font-family: var(--font-display), Arial, sans-serif;
   letter-spacing: -0.03em;
+}
+
+/* ═══════════════════════════════════
+   Utility typography classes
+═══════════════════════════════════ */
+.text-balance { text-wrap: balance; }
+
+.heading-xl {
+  font-size: clamp(1.5rem, 3vw, 2.25rem);
+  line-height: 1.15;
+  letter-spacing: -0.03em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 700;
+}
+
+.heading-lg {
+  font-size: clamp(1.25rem, 2.5vw, 1.75rem);
+  line-height: 1.2;
+  letter-spacing: -0.025em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 600;
+}
+
+.heading-md {
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  line-height: 1.3;
+  letter-spacing: -0.02em;
+  font-family: var(--font-display), Arial, sans-serif;
+  font-weight: 600;
+}
+
+.heading-sm {
+  font-size: 1.1rem;
+  line-height: 1.4;
+  letter-spacing: -0.015em;
+  font-weight: 600;
 }
 
 /* Scrollbar invisible */
@@ -217,3 +366,65 @@ button, input, select, textarea { font: inherit; }
   -ms-overflow-style: none;
 }
 .scroll-area-no-bar::-webkit-scrollbar { display: none; }
+
+/* ═══════════════════════════════════════════
+   Badge tokens — tema claro (light theme)
+═══════════════════════════════════════════ */
+
+/* Líneas de negocio */
+.badge-bhs            { @apply bg-blue-50   text-blue-700   border border-blue-200;   }
+.badge-carton         { @apply bg-amber-50  text-amber-700  border border-amber-200;  }
+.badge-intralogistica { @apply bg-emerald-50 text-emerald-700 border border-emerald-200; }
+.badge-final-linea    { @apply bg-violet-50 text-violet-700 border border-violet-200; }
+.badge-motos          { @apply bg-orange-50 text-orange-700 border border-orange-200; }
+.badge-solumat        { @apply bg-cyan-50   text-cyan-700   border border-cyan-200;   }
+
+/* Tiers de señal */
+.badge-oro            { @apply bg-yellow-50 text-yellow-700 border border-yellow-300; }
+.badge-monitoreo      { @apply bg-blue-50   text-blue-700   border border-blue-200;   }
+.badge-contexto       { @apply bg-muted     text-muted-foreground border border-border; }
+
+/* ═══════════════════════════════════════════
+   KPI Card — icon containers
+═══════════════════════════════════════════ */
+.kpi-icon-gold    { @apply p-2.5 rounded-xl bg-yellow-50 border border-yellow-100; }
+.kpi-icon-blue    { @apply p-2.5 rounded-xl bg-blue-50   border border-blue-100;   }
+.kpi-icon-emerald { @apply p-2.5 rounded-xl bg-emerald-50 border border-emerald-100; }
+.kpi-icon-violet  { @apply p-2.5 rounded-xl bg-violet-50 border border-violet-100; }
+
+/* ═══════════════════════════════════════════
+   Status indicators — tema claro
+═══════════════════════════════════════════ */
+.status-success { @apply text-emerald-600; }
+.status-error   { @apply text-red-600;     }
+.status-running { @apply text-blue-600;    }
+.status-warning { @apply text-amber-600;   }
+
+/* ═══════════════════════════════════════════
+   Línea selector card (Scan page)
+═══════════════════════════════════════════ */
+.linea-card-base {
+  @apply rounded-xl border-2 p-3 cursor-pointer transition-all duration-150;
+  @apply border-border bg-surface hover:border-secondary hover:bg-surface-muted;
+}
+.linea-card-active {
+  @apply shadow-sm;
+}
+
+/* ═══════════════════════════════════════════
+   Animaciones de entrada
+═══════════════════════════════════════════ */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.25s ease-out both;
+}
+
+/* Stagger delay helpers */
+.delay-75  { animation-delay: 75ms;  }
+.delay-150 { animation-delay: 150ms; }
+.delay-225 { animation-delay: 225ms; }
+.delay-300 { animation-delay: 300ms; }

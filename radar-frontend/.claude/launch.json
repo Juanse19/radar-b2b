@@ -1,0 +1,12 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "radar-frontend",
+      "runtimeExecutable": "C:\\Windows\\System32\\cmd.exe",
+      "runtimeArgs": ["/c", "C:\\Users\\Juan\\AppData\\Roaming\\nvm\\v20.18.0\\npm.cmd", "run", "dev"],
+      "port": 3002,
+      "cwd": "C:\\Users\\Juan\\Documents\\Agentic Workflows\\clients\\.claude\\worktrees\\romantic-tereshkova-ce8d4d\\radar-frontend"
+    }
+  ]
+}

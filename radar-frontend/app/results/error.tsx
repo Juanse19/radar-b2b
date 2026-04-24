@@ -12,8 +12,8 @@ export default function ResultsError({ error, reset }: { error: Error; reset: ()
           <AlertTriangle size={24} className="text-red-400" />
         </div>
         <div>
-          <h2 className="text-lg font-semibold text-white mb-1">Error cargando resultados</h2>
-          <p className="text-sm text-gray-400">{error.message || 'Intenta de nuevo.'}</p>
+          <h2 className="text-lg font-semibold text-foreground mb-1">Error cargando resultados</h2>
+          <p className="text-sm text-muted-foreground">{error.message || 'Intenta de nuevo.'}</p>
         </div>
         <Button onClick={reset} className="bg-blue-600 hover:bg-blue-700 gap-2">
           <RotateCcw size={14} /> Reintentar

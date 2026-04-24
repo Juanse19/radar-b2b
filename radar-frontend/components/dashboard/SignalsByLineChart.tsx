@@ -23,7 +23,7 @@ export function SignalsByLineChart({ data }: SignalsByLineChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex items-center justify-center h-40 text-gray-600 text-sm">
+      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
         Sin datos — lanza un escaneo para ver señales
       </div>
     );
@@ -32,18 +32,23 @@ export function SignalsByLineChart({ data }: SignalsByLineChartProps) {
   return (
     <ResponsiveContainer width="100%" height={160}>
       <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="#374151" vertical={false} />
-        <XAxis dataKey="linea" tick={{ fill: '#9ca3af', fontSize: 12 }} axisLine={false} tickLine={false} />
-        <YAxis tick={{ fill: '#9ca3af', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+        <XAxis dataKey="linea" tick={{ fill: '#60758a', fontSize: 11 }} axisLine={false} tickLine={false} />
+        <YAxis tick={{ fill: '#60758a', fontSize: 11 }} axisLine={false} tickLine={false} allowDecimals={false} />
         <Tooltip
-          contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
-          labelStyle={{ color: '#f3f4f6', fontWeight: 600 }}
-          itemStyle={{ color: '#d1d5db' }}
-          cursor={{ fill: 'rgba(55,65,81,0.4)' }}
+          contentStyle={{
+            background: '#ffffff',
+            border: '1px solid #d2dce4',
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(20,46,71,0.08)',
+          }}
+          labelStyle={{ color: '#142e47', fontWeight: 600, fontSize: 13 }}
+          itemStyle={{ color: '#60758a', fontSize: 12 }}
+          cursor={{ fill: 'rgba(113,172,210,0.08)' }}
         />
         <Bar dataKey="count" name="Señales activas" radius={[4, 4, 0, 0]}>
           {chartData.map(({ linea }) => (
-            <Cell key={linea} fill={lineaColors[linea] ?? '#6b7280'} />
+            <Cell key={linea} fill={lineaColors[linea] ?? '#71acd2'} />
           ))}
         </Bar>
       </BarChart>

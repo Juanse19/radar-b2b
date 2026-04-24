@@ -4,7 +4,7 @@
 
 ## Stack
 
-Next.js 14 (App Router) · TypeScript · Tailwind CSS · Shadcn/ui · TanStack Query · Supabase · Prisma (SQLite dev fallback) · Playwright (e2e) · Vitest (unit/integration)
+Next.js 14 (App Router) · TypeScript · Tailwind CSS · Shadcn/ui · TanStack Query · Supabase · Playwright (e2e) · Vitest (unit/integration)
 
 ---
 
@@ -40,33 +40,24 @@ N8N_RADAR_WEBHOOK_PATH=radar-scan
 N8N_PROSPECT_WORKFLOW_ID=RLUDpi3O5Rb6WEYJ
 N8N_PROSPECT_WEBHOOK_PATH=prospector
 
-# ── Supabase ── (self-hosted: supabase.valparaiso.cafe)
-SUPABASE_URL=https://supabase.valparaiso.cafe
-SUPABASE_SERVICE_ROLE_KEY=<service-role-key>    ← FALTA CONFIGURAR
-SUPABASE_DB_SCHEMA=public
+# ── Supabase ── (self-hosted)
+SUPABASE_URL=<supabase-url>
+SUPABASE_SERVICE_ROLE_KEY=<service-role-key>
+SUPABASE_DB_SCHEMA=matec_radar
 
-NEXT_PUBLIC_SUPABASE_URL=https://supabase.valparaiso.cafe
-NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>         ← FALTA CONFIGURAR
-
-# ── Driver de base de datos ────────────────────────────────
-# 'prisma' = SQLite local (dev)
-# 'supabase' = PostgreSQL en producción ← CAMBIAR cuando Supabase esté listo
-DB_DRIVER=prisma
-
-# ── Base de datos local (SQLite) ──────────────────────────
-DATABASE_URL="file:./prisma/dev.db"
+NEXT_PUBLIC_SUPABASE_URL=<supabase-url>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<anon-key>
 
 # ── Google Sheets (lectura) ───────────────────────────────
 BASE_DE_DATOS_SHEET_ID=13C6RJPORu6CPqr1iL0zXU-gUi3eTV-eYo8i-IV9K818
 LOG_SHEET_ID=1rtFoTi3ZwNHi9RBidFGcxOHtK6lOvCuhebUB1eS-MGo
 ```
 
-**Para activar Supabase:**
+**Para configurar Supabase:**
 1. Ejecutar `supabase/migrations/20260408_001_public_schema.sql` en el SQL Editor de Supabase
 2. Copiar `service_role` y `anon` keys desde Settings → API
 3. Llenar las variables `SUPABASE_SERVICE_ROLE_KEY` y `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-4. Cambiar `DB_DRIVER=supabase`
-5. Correr: `npx tsx scripts/verify_supabase.ts`
+4. Correr: `npx tsx scripts/verify_supabase.ts`
 
 ---
 
@@ -91,9 +82,7 @@ app/
 
 lib/
 ├── db/
-│   ├── driver.ts          ← Lee DB_DRIVER, devuelve 'prisma' | 'supabase'
-│   ├── index.ts           ← Facade: despacha a Prisma o Supabase
-│   ├── prisma/            ← Implementación con Prisma (SQLite)
+│   ├── index.ts           ← Facade: llama directamente a Supabase
 │   ├── supabase/          ← Implementación con Supabase (PostgreSQL)
 │   └── types.ts           ← Tipos compartidos EmpresaRow, SenalRow, etc.
 ├── n8n.ts                 ← Helpers para llamar los webhooks de n8n
@@ -193,9 +182,6 @@ npm run dev
 # Verificar Supabase
 npx tsx scripts/verify_supabase.ts
 
-# Migrar SQLite → Supabase
-npx tsx scripts/migrate_sqlite_to_supabase.ts
-
 # Importar empresas desde Excel
 node scripts/import_empresas.js
 
@@ -221,7 +207,7 @@ npm run lint
 
 1. Leer el archivo del módulo antes de editar — no asumir lo que hay
 2. No hardcodear URLs de n8n — usar las variables de entorno
-3. No usar `DB_DRIVER` directamente — siempre a través de `lib/db/index.ts`
+3. No acceder a Supabase directamente en componentes — siempre a través de `lib/db/index.ts`
 4. No exponer `SUPABASE_SERVICE_ROLE_KEY` al cliente — solo a routes server-side
 5. Todo nuevo componente UI: usar Shadcn/ui existente antes de crear uno nuevo
 6. Antes de cualquier PR: `npm run lint && npm run test && npm run build`
@@ -242,3 +228,24 @@ El proyecto tiene skills instalados en `.claude/skills/`:
 | `senior-security` | Auditoría de seguridad |
 
 **Para activar una skill:** leer `SKILL.md` del directorio correspondiente antes de trabajar en esa área.
+
+| Skill | Usar cuando |
+|-------|-------------|
+| `uiuxpro` | Cualquier cambio visual — layout, color, tipografía, animación |
+| `verification-before-completion` | Antes de declarar cualquier tarea terminada |
+| `systematic-debugging` | Antes de proponer un fix a un bug |
+| `dispatching-parallel-agents` | Cuando hay ≥2 tareas independientes |
+
+---
+
+## Reglas de eficiencia (token-efficient)
+
+- Pensar antes de actuar. Leer archivos existentes antes de escribir código.
+- Output conciso; razonamiento detallado internamente.
+- Preferir ediciones dirigidas sobre reescribir archivos completos.
+- No releer archivos ya leídos a menos que hayan cambiado.
+- Omitir archivos > 100 KB salvo necesidad explícita.
+- Sin openers/closers aduladores. Sin relleno.
+- Soluciones simples y directas. No sobre-ingenierizar.
+- Probar el código antes de declarar terminado.
+- Las instrucciones del usuario siempre anulan este archivo.

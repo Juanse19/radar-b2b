@@ -1,7 +1,7 @@
 # Sprints — Historias de Usuario y Tareas
 **Proyecto:** T154000 - Soluciones Internas Team  
 **Developer:** Juan Sebastián Losada  
-**Última actualización:** 07-Abr-2026
+**Última actualización:** 09-Abr-2026
 
 ---
 
@@ -294,6 +294,72 @@
 
 ---
 
+### HU-28: Gestión de proyecto y trazabilidad — Semana 1 Sprint 03 🔄
+> Como developer, quiero registrar diariamente el trabajo realizado en un documento de trazabilidad, para justificar horas ante el equipo y mantener visibilidad del avance del proyecto.
+
+#### Lunes 7 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T01 | Análisis del archivo AGENTS.md: evaluación de su utilidad como guía operativa para construir y modificar workflows N8N (Abr 7) | ✅ Closed | 1h |
+| T02 | Documentación de utilidad del AGENTS.md: mapeo a casos de uso del proyecto Matec (fixes WF01/WF02/WF03, validación post-deploy, ciclo build→validate→deploy) (Abr 7) | ✅ Closed | 1h |
+| T03 | Planificación y diseño del esquema de Historias de Usuario para Azure DevOps: estructura HU + Task + horas, mapeo a sprint existente (Abr 7) | ✅ Closed | 2h |
+| T04 | Generación de 15 Historias de Usuario con 66 tareas desglosadas y horas estimadas por tarea para Sprint 01 y Sprint 02 (Abr 7) | ✅ Closed | 3h |
+| T05 | Creación del CSV de importación masiva `azure_devops_import_HUs.csv` con formato nativo Azure DevOps (Work Item Type, State, Effort, Iteration Path, Tags) (Abr 7) | ✅ Closed | 1h |
+
+**Subtotal Abr 7:** 8h
+
+#### Martes 8 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T06 | Análisis del estado real de cada HU del proyecto: clasificación Closed / Active / New basada en archivos existentes en el repo (Abr 8) | ✅ Closed | 1h |
+| T07 | Identificación de tareas pendientes críticas dentro de HUs cerradas: Logs_Fuentes headers, columnas segmentación Excel, renovación N8N API key, Tavily (Abr 8) | ✅ Closed | 1h |
+| T08 | Generación del documento `sprints-historias-usuario.md` con trazabilidad completa de Sprint 01, 02 y 03 con leyenda de estados (Abr 8) | ✅ Closed | 2h |
+| T09 | Generación del Daily Standup template (ayer/hoy) para comunicación con el equipo (Abr 8) | ✅ Closed | 0.5h |
+
+**Subtotal Abr 8:** 4.5h
+
+#### Miércoles 9 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T10 | Actualización del documento `sprints-historias-usuario.md` con trazabilidad de días anteriores (Abr 7 y Abr 8) (Abr 9) | ✅ Closed | 1h |
+| T11 | Creación del skill `/daily-tracker`: agente de trazabilidad diaria que actualiza automáticamente el documento con las tareas del día y genera el daily standup (Abr 9) | ✅ Closed | 1.5h |
+
+**Subtotal Abr 9:** 2.5h
+
+#### Lunes 13 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T12 | Reestructuración `sprints-historias-usuario.md`: 8 HUs técnicas permanentes, 4 sprints, 400h registradas. Regenerar CSV Azure DevOps con 19 HUs y 110 tareas (Abr 13) | ✅ Closed | 3h |
+
+**Subtotal Abr 13:** 3h
+
+#### Martes 14 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T13 | WF02 Sprint A+B+R — scripts Radar v1.1/v1.2 + reorden cadena A1→A2→A3 + L2 integration tests. Fix API: mapeo ContactoRow/SenalRow/keywords, dispatcher re-exports, tipo SOLUMAT, conteos por línea en Scan (Abr 14) | ✅ Closed | 6h |
+
+**Subtotal Abr 14:** 6h
+
+#### Miércoles 15 de abril
+
+| # | Tarea | Estado | Horas |
+|---|-------|--------|-------|
+| T14 | Sprint MAOA F0 — Fix 4 errores críticos WF02: Supabase URL localhost→prod, continueOnFail Pinecone/OpenAI, Filtro Menciones v5 con aliases DHL/FedEx/UPS. Script `fix_f0_critical_execution_errors.js` (Abr 15) | ✅ Closed | 3h |
+| T15 | Sprint MAOA F1 — WF02 MAOA alignment: AI RADAR1 → Agente 1 (prompt 10 secciones), nodo Scoring determinístico TIER+TIR, Parse Output 16 campos JSON, Format Final Columns1, migración 010 (21 cols Supabase). Script `fix_f1_maoa_alignment.js` (Abr 15) | ✅ Closed | 5h |
+| T16 | Sprint MAOA F3 — Frontend: tipos `ResultadoRadar`, columnas Convergencia+Acción+Score MAOA en `/results`, `SignalDetailSheet` sección MAOA, CSV export 27 cols, estado en tiempo real del agente, fix auth SharePoint (Abr 15) | ✅ Closed | 6h |
+| T17 | Componente `RadarSignalCard`: muestra resultado MAOA post-scan (AccionBadge, ConvergenciaBadge, score_final_maoa) + 91 tests MAOA Sprint 2 — 220 total passing. Reporte `REPORTE_PRUEBAS_MAOA_Sprint2.md` + 13 screenshots E2E (Abr 15) | ✅ Closed | 4h |
+
+**Subtotal Abr 15:** 18h
+
+**Total HU-28 acumulado:** 44h
+
+---
+
 ### HU-24: Integración HubSpot ⏳
 > Como Paola Vaquero, quiero que los contactos Apollo se sincronicen automáticamente a HubSpot, para gestionar el seguimiento comercial desde una sola herramienta.
 
@@ -356,21 +422,46 @@
 |--------|---------|-----|-------------|--------|
 | Sprint 01 | Feb 10 – Mar 17 | HU-08 a HU-13 (6 HUs) | 166h | ✅ Cerrado |
 | Sprint 02 | Mar 18 – Abr 4 | HU-14 a HU-22 (9 HUs) | 264h | ✅ Cerrado |
-| Sprint 03 | Abr 7 – Abr 18 | HU-23 a HU-27 (5 HUs) | ~83h est. | 🔄 En curso |
-| **TOTAL** | | **20 HUs · 70 Tareas** | **~513h** | |
+| Sprint 03 | Abr 7 – Abr 18 | HU-23 a HU-28 (6 HUs) | ~98h est. (15h reales) | 🔄 En curso |
+| **TOTAL** | | **21 HUs · 81 Tareas** | **~528h** | |
 
 ---
 
-## Daily Standup — Martes 7 de abril de 2026
+## Daily Standup — Jueves 16 de abril de 2026
 
-### ¿Qué hice ayer (lunes 6 de abril)?
-- Analicé y documenté el archivo `AGENTS.md` del framework WAT para definir su rol en el proyecto.
-- Generé el documento completo de **15 historias de usuario con 66 tareas** desglosadas para los Sprints 01 y 02, incluyendo horas por tarea.
-- Creé el archivo **CSV de importación masiva** (`azure_devops_import_HUs.csv`) listo para cargar en Azure DevOps.
-- Revisé el estado real de cada HU: identificando qué está completado, qué está en progreso y qué queda pendiente para Sprint 03.
+### ¿Qué hice ayer (miércoles 15 de abril)?
+- Sprint MAOA F0: 4 fixes críticos en WF02 — Supabase URL a producción, continueOnFail en Pinecone/OpenAI, Filtro Menciones v5 con aliases para multinacionales (DHL/FedEx/UPS)
+- Sprint MAOA F1: WF02 alineado — AI RADAR1 → Agente 1 (prompt 10 secciones), nodo Scoring determinístico TIER+TIR, migración SQL 010 (21 columnas MAOA en Supabase)
+- Sprint MAOA F3: Frontend — tipos ResultadoRadar, columnas Convergencia y Acción, SignalDetailSheet con sección MAOA, CSV export 27 columnas, estado en tiempo real del agente
+- Componente RadarSignalCard: resultado MAOA post-scan con AccionBadge, ConvergenciaBadge y score_final_maoa
+- 91 tests MAOA nuevos (220 total passing): maoa-scoring (46), api-signals-maoa (15), RadarSignalCard (30)
 
-### ¿Qué voy a hacer hoy (martes 7 de abril)?
-- Importar las historias de usuario al Azure DevOps usando el CSV generado (Sprint 01 y Sprint 02).
-- Crear el Sprint 03 en Azure DevOps y agregar las HU-23 a HU-27.
-- **Renovar la N8N API Key** en `n8n.event2flow.com` — expira el viernes 10 de abril (bloqueante crítico).
-- Coordinar con Felipe la renovación del plan Tavily para desbloquear las búsquedas del radar.
+### ¿Qué voy a hacer hoy (jueves 16 de abril)?
+- Aplicar `fix_f0f1_combined.js` en WF02 cuando n8n esté accesible (pendiente Cloudflare 530)
+- Coordinar resolución del bloqueante de n8n API con el equipo de infra
+- Importar HUs al Azure DevOps con el CSV generado
+- Evaluar activación `DB_DRIVER=supabase` — exponer `matec_radar` en `PGRST_DB_SCHEMAS`
+- Prueba E2E cadena completa: Smurfit Kappa → WF01 → WF02 → WF03 → `/results`
+
+### ¿Hay algún bloqueo?
+- 🔴 **n8n API inaccesible** — Cloudflare 530 bloquea aplicación de `fix_f0f1_combined.js` en WF02
+- ⚠️ **Tavily key agotada** — búsquedas del radar detenidas hasta renovar plan (~$30/mes)
+- ⚠️ **Supabase `matec_radar` no en `PGRST_DB_SCHEMAS`** — pendiente configuración para activar driver
+
+---
+
+## Cómo usar `/daily-tracker`
+
+Para actualizar este documento con el trabajo de hoy, ejecuta en Claude Code:
+
+```
+/daily-tracker
+```
+
+O con argumentos directos:
+
+```
+/daily-tracker HU-28 | T12: Renovar N8N API key en n8n.event2flow.com (1h, done), T13: Importar HUs a Azure DevOps (2h, done)
+```
+
+La skill actualizará automáticamente la tabla de tareas y el daily standup.
