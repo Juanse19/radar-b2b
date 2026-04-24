@@ -13,9 +13,9 @@ interface ScoreDistributionChartProps {
 
 const TIER_COLORS: Record<string, string> = {
   'ORO':       '#ca8a04', // yellow-600
-  'Monitoreo': '#3b82f6', // blue-500
-  'Contexto':  '#6b7280', // gray-500
-  'Sin Señal': '#374151', // gray-700
+  'Monitoreo': '#2563eb', // blue-600
+  'Contexto':  '#60758a', // muted-foreground
+  'Sin Señal': '#cbd5e1', // slate-300
 };
 
 export function ScoreDistributionChart({ tierCounts }: ScoreDistributionChartProps) {
@@ -25,7 +25,7 @@ export function ScoreDistributionChart({ tierCounts }: ScoreDistributionChartPro
 
   if (data.length === 0 || data.every(d => d.value === 0)) {
     return (
-      <div className="flex items-center justify-center h-40 text-gray-600 text-sm">
+      <div className="flex items-center justify-center h-40 text-muted-foreground text-sm">
         Sin datos — lanza un escaneo para ver la distribución
       </div>
     );
@@ -44,16 +44,23 @@ export function ScoreDistributionChart({ tierCounts }: ScoreDistributionChartPro
           dataKey="value"
         >
           {data.map(({ name }) => (
-            <Cell key={name} fill={TIER_COLORS[name] ?? '#6b7280'} />
+            <Cell key={name} fill={TIER_COLORS[name] ?? '#71acd2'} />
           ))}
         </Pie>
         <Tooltip
-          contentStyle={{ background: '#1f2937', border: '1px solid #374151', borderRadius: 8 }}
-          labelStyle={{ color: '#f3f4f6', fontWeight: 600 }}
-          itemStyle={{ color: '#d1d5db' }}
+          contentStyle={{
+            background: '#ffffff',
+            border: '1px solid #d2dce4',
+            borderRadius: 8,
+            boxShadow: '0 4px 12px rgba(20,46,71,0.08)',
+          }}
+          labelStyle={{ color: '#142e47', fontWeight: 600, fontSize: 13 }}
+          itemStyle={{ color: '#60758a', fontSize: 12 }}
         />
         <Legend
-          formatter={(value) => <span style={{ color: '#9ca3af', fontSize: 12 }}>{value}</span>}
+          formatter={(value) => (
+            <span style={{ color: '#60758a', fontSize: 12 }}>{value}</span>
+          )}
           iconSize={10}
           iconType="circle"
         />

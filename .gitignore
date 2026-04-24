@@ -64,9 +64,19 @@ skills-lock.json
 .agents/
 executions.json
 workflow.json
+.clone/
+.claude/worktrees/
+.claude/settings.local.json
+.claude/launch.json
+.playwright-mcp/
 
 # ========================
 # Datos raw (no en repo)
 # ========================
 *.xlsx
 empresas.csv
+# n8n workflow backups (contain workflow JSON - don't commit)
+n8n/backup_*.json
+n8n/wf02-radar/backup_*.json
+n8n/wf01-calificador/backup_*.json
+n8n/*_current_backup.json

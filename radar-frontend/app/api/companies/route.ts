@@ -61,7 +61,7 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json(
-      { id: empresa.id, company_name: empresa.company_name, linea_negocio: empresa.linea_negocio },
+      { id: empresa.id, company_name: empresa.company_name, linea_negocio },
       { status: 201 },
     );
   } catch (error) {

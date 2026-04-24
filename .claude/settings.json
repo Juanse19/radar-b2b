@@ -65,7 +65,10 @@
       "Bash(curl -s \"http://localhost:3000/api/companies?count=true\")",
       "Bash(curl -s -X POST \"http://localhost:3000/api/companies/import\" -H \"Content-Type: application/json\" -d '{\"\"empresas\"\":[{\"\"company_name\"\":\"\"TEST EMPRESA PRUEBA 999\"\",\"\"pais\"\":\"\"Colombia\"\",\"\"linea_negocio\"\":\"\"BHS\"\"}]}')",
       "Bash(npx prisma:*)",
-      "Bash(curl -s \"http://localhost:3000/api/companies?linea=Intralog%C3%ADstica&limit=500\")"
+      "Bash(curl -s \"http://localhost:3000/api/companies?linea=Intralog%C3%ADstica&limit=500\")",
+      "Bash(grep -v \"^$\")",
+      "Bash(curl -s \"http://localhost:3000/api/companies?limit=3&linea=aeropuertos\")",
+      "Bash(pkill -f \"next dev\")"
     ],
     "additionalDirectories": [
       "C:\\Users\\Juan\\Downloads\\SubAgentes Matec\\WorkFlows"

@@ -2,12 +2,12 @@ import { cn } from '@/lib/utils';
 import type { LineaNegocio } from '@/lib/types';
 
 const lineaStyles: Record<string, string> = {
-  'BHS':            'bg-blue-900/60    text-blue-300   border border-blue-800',
-  'Cartón':         'bg-amber-900/60   text-amber-300  border border-amber-800',
-  'Intralogística': 'bg-emerald-900/60 text-emerald-300 border border-emerald-800',
-  'Final de Línea': 'bg-violet-900/60  text-violet-300 border border-violet-800',
-  'Motos':          'bg-orange-900/60  text-orange-300 border border-orange-800',
-  'SOLUMAT':        'bg-cyan-900/60    text-cyan-300   border border-cyan-800',
+  'BHS':            'bg-blue-50    text-blue-700    border border-blue-200',
+  'Cartón':         'bg-amber-50   text-amber-700   border border-amber-200',
+  'Intralogística': 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+  'Final de Línea': 'bg-violet-50  text-violet-700  border border-violet-200',
+  'Motos':          'bg-orange-50  text-orange-700  border border-orange-200',
+  'SOLUMAT':        'bg-cyan-50    text-cyan-700    border border-cyan-200',
 };
 
 interface LineaBadgeProps {
@@ -16,7 +16,7 @@ interface LineaBadgeProps {
 }
 
 export function LineaBadge({ linea, className }: LineaBadgeProps) {
-  const style = lineaStyles[linea] ?? 'bg-gray-800 text-gray-300 border border-gray-700';
+  const style = lineaStyles[linea] ?? 'bg-surface-muted text-muted-foreground border border-border';
   return (
     <span className={cn(
       'inline-block px-2 py-0.5 rounded-full text-xs font-medium',
