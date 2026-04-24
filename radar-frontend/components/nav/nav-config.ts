@@ -1,11 +1,11 @@
 import {
   Activity,
   BarChart3,
+  Bot,
   Building2,
   Calendar,
   CheckCircle2,
   ClipboardList,
-  Code2,
   Coins,
   FileText,
   Home,
@@ -64,7 +64,6 @@ export const navTree: NavNode[] = [
       { label: 'Métricas', href: '/metricas', icon: BarChart3 },
       // { label: 'Cronograma',  href: '/cronograma',  icon: Calendar },
       { label: 'Informes', href: '/informes', icon: FileText },
-      // { label: 'Prompt',      href: '/prompt',      icon: Code2 },
     ],
   },
 
@@ -82,6 +81,7 @@ export const navTree: NavNode[] = [
       { label: 'Keywords', href: '/admin/keywords', icon: Key },
       { label: 'API Keys', href: '/admin/api-keys', icon: Key, badge: 'Nuevo' },
       { label: 'Tokens', href: '/admin/tokens', icon: Coins },
+      { label: 'Prompts IA', href: '/admin/prompts', icon: Bot },
     ],
   },
 
