@@ -235,9 +235,15 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
               {results.map((r, i) => {
                 const isActiva  = r.radar_activo === 'Sí';
                 const clickable = !!r.session_id && !!onVerInforme;
-                const fecha     = r.fecha_senal
-                  ? (() => { try { return new Date(r.fecha_senal!).toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' }); } catch { return r.fecha_senal; } })()
-                  : null;
+                const fecha = (() => {
+                  const fs = r.fecha_senal;
+                  if (!fs || fs === 'No disponible') return null;
+                  // Parse DD/MM/AAAA — JS Date() can't handle this format natively
+                  const [dd, mm, yy] = fs.split('/');
+                  const d = new Date(Number(yy), Number(mm) - 1, Number(dd));
+                  if (isNaN(d.getTime())) return fs;
+                  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: '2-digit' });
+                })();
 
                 return (
                   <tr
