@@ -7,6 +7,12 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 const nextConfig = {
   output: 'standalone',
 
+  // ─── Turbopack: silence workspace-root warning (using --webpack in dev) ─────
+  turbopack: {},
+
+  // ─── Fix: multiple lockfiles workspace-root warning ─────────────────────────
+  outputFileTracingRoot: __dirname,
+
   // ─── Webpack: limit memory in dev ───────────────────────────────────────────
   webpack(config, { dev, isServer }) {
     if (dev) {
