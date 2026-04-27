@@ -10,20 +10,38 @@ const S = SCHEMA;
 
 // ── Helpers ────────────────────────────────────────────────────────────────
 
-const LEGACY_MAP: Record<string, string> = {
-  aeropuertos: 'aeropuertos',
-  cargo: 'cargo_uld', 'cargo uld': 'cargo_uld',
-  carton: 'carton_corrugado', cartón: 'carton_corrugado',
-  'carton y papel': 'carton_corrugado', 'cartón y papel': 'carton_corrugado',
-  intralogística: 'final_linea', intralogistica: 'final_linea',
-  'final de linea': 'final_linea', 'final de línea': 'final_linea',
-  motos: 'ensambladoras_motos', 'ensambladoras motos': 'ensambladoras_motos',
-  solumat: 'solumat', bhs: 'aeropuertos',
+// Maps each display filter value → one or more sublínea codes in the DB.
+// BHS covers both aeropuertos (terminals) and cargo_uld (ground ops).
+const LINEA_TO_CODES: Record<string, string[]> = {
+  bhs:                    ['aeropuertos', 'cargo_uld'],
+  aeropuertos:            ['aeropuertos'],
+  cargo:                  ['cargo_uld'],
+  'cargo uld':            ['cargo_uld'],
+  cartón:                 ['carton_corrugado'],
+  carton:                 ['carton_corrugado'],
+  'cartón y papel':       ['carton_corrugado'],
+  'carton y papel':       ['carton_corrugado'],
+  intralogística:         ['logistica'],
+  intralogistica:         ['logistica'],
+  logística:              ['logistica'],
+  logistica:              ['logistica'],
+  'final de línea':       ['final_linea'],
+  'final de linea':       ['final_linea'],
+  'final linea':          ['final_linea'],
+  motos:                  ['ensambladoras_motos'],
+  'ensambladoras motos':  ['ensambladoras_motos'],
+  solumat:                ['solumat'],
 };
+
+function resolveLineaCodes(linea: string): string[] {
+  if (!linea || linea === 'ALL') return [];
+  return LINEA_TO_CODES[linea.toLowerCase()] ?? [linea.toLowerCase()];
+}
 
 async function resolveSubLineaId(linea?: string): Promise<number | undefined> {
   if (!linea || linea === 'ALL') return undefined;
-  const codigo = LEGACY_MAP[linea.toLowerCase()] ?? linea.toLowerCase();
+  const codes = resolveLineaCodes(linea);
+  const codigo = codes[0] ?? linea.toLowerCase();
   const row = await pgFirst<{ id: number }>(
     `SELECT id FROM ${S}.sub_lineas_negocio WHERE codigo = ${pgLit(codigo)} LIMIT 1`
   );
@@ -40,15 +58,23 @@ export async function getEmpresas(filter: GetEmpresasFilter = {}): Promise<Empre
 
   const conditions: string[] = [];
 
-  // Sub-línea filter via pivot
-  let subLineaId = filter.subLineaId;
-  if (!subLineaId && filter.linea && filter.linea !== 'ALL') {
-    subLineaId = await resolveSubLineaId(filter.linea);
-  }
-  if (subLineaId) {
+  // Sub-línea filter via pivot — supports multi-code lines (BHS = aeropuertos + cargo_uld)
+  if (filter.subLineaId) {
     conditions.push(
-      `e.id IN (SELECT empresa_id FROM ${S}.empresa_sub_lineas WHERE sub_linea_id = ${pgLit(subLineaId)})`
+      `e.id IN (SELECT empresa_id FROM ${S}.empresa_sub_lineas WHERE sub_linea_id = ${pgLit(filter.subLineaId)})`
     );
+  } else if (filter.linea && filter.linea !== 'ALL') {
+    const codes = resolveLineaCodes(filter.linea);
+    if (codes.length > 0) {
+      const codeList = codes.map(c => pgLit(c)).join(', ');
+      conditions.push(
+        `e.id IN (
+          SELECT esl.empresa_id FROM ${S}.empresa_sub_lineas esl
+          JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+          WHERE sl.codigo IN (${codeList})
+        )`
+      );
+    }
   }
 
   if (filter.tierActual)  conditions.push(`e.tier_actual = ${pgLit(filter.tierActual)}`);
