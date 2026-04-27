@@ -84,6 +84,8 @@ export async function GET(req: NextRequest) {
   const empresas  = parseEmpresas(url.searchParams.get('empresas'));
   const line      = url.searchParams.get('line');
   const provider  = url.searchParams.get('provider') ?? undefined;
+  const keywords  = url.searchParams.get('keywords')  ?? undefined;
+  const sublinea  = url.searchParams.get('sublinea')   ?? undefined;
 
   if (!sessionId) return new Response('sessionId required',  { status: 400 });
   if (!line)      return new Response('line required',       { status: 400 });
@@ -169,6 +171,8 @@ export async function GET(req: NextRequest) {
             providerName: provider,
             sessionId,
             emit:         emitter,
+            keywords,
+            sublinea,
           });
           totalCost += scan.cost_usd;
           if (scan.result.radar_activo === 'Sí') activas += 1;

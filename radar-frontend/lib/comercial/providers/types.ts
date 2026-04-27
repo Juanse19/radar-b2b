@@ -21,6 +21,10 @@ export interface ScanParams {
   apiKey?: string;
   /** Optional model override — if set, the provider uses this instead of its default. */
   model?: string;
+  /** Custom search keywords — overrides line-derived defaults when provided. */
+  keywords?: string;
+  /** Sub-line identifier (e.g. 'cargo_uld', 'aeropuertos') for more focused searches. */
+  sublinea?: string;
 }
 
 export interface CostEstimate {

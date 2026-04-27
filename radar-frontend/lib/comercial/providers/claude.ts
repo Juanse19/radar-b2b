@@ -74,11 +74,11 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG is optional — scan continues without context */ }
 
-  const keywords = resolveLineKeywords(line);
+  const keywords = params.keywords ?? resolveLineKeywords(line);
 
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
-Línea de negocio: ${line}
+Línea de negocio: ${line}${params.sublinea ? `\nSub-línea: ${params.sublinea}` : ''}
 Palabras clave de búsqueda: ${keywords}
 
 TAREA: Busca señales de inversión FUTURA de esta empresa en LATAM para 2026-2028.

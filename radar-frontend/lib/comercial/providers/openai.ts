@@ -115,11 +115,11 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG optional */ }
 
-  const keywords = resolveLineKeywords(line);
+  const keywords = params.keywords ?? resolveLineKeywords(line);
 
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
-Línea de negocio: ${line}
+Línea de negocio: ${line}${params.sublinea ? `\nSub-línea: ${params.sublinea}` : ''}
 Palabras clave del sector: ${keywords}
 
 TAREA: Busca señales de inversión FUTURA en LATAM 2026-2028 para esta empresa.
