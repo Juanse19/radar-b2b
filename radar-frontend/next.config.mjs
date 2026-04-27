@@ -6,6 +6,31 @@ const __dirname = fileURLToPath(new URL('.', import.meta.url));
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
+
+  // ─── Webpack: limit memory in dev ───────────────────────────────────────────
+  webpack(config, { dev, isServer }) {
+    if (dev) {
+      // Exclude heavy directories from file watching (prevents RAM spike on Windows)
+      config.watchOptions = {
+        ignored: [
+          '**/node_modules/**',
+          '**/.next/**',
+          '**/.git/**',
+          '**/dist/**',
+        ],
+        // Poll fallback only if FSEvents/inotify fails; 0 = use native watchers
+        poll: false,
+      };
+
+      // Reduce in-memory cache size per compilation (default is unlimited)
+      config.cache = {
+        type: 'filesystem',
+        maxMemoryGenerations: 1,
+      };
+    }
+    return config;
+  },
+
   async redirects() {
     return [
       // Legacy v1 redirects (keep — existing bookmarks)
