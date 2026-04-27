@@ -6,7 +6,6 @@
  * producing the structured JSON output.
  */
 import 'server-only';
-import { buildMaoaSystemPrompt } from './shared-prompt';
 import { parseAgente1Response } from '@/lib/comercial/schema';
 import type {
   AIProvider,
@@ -17,6 +16,12 @@ import type {
   SSEEmitter,
   SupportedFeature,
 } from './types';
+import {
+  CALIFICADOR_SYSTEM_PROMPT,
+  buildCalificadorUserPrompt,
+} from '@/lib/comercial/calificador/prompts';
+import { CALIFICACION_JSON_SCHEMA } from '@/lib/comercial/calificador/schema';
+import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/calificador/types';
 
 // Default to gpt-4o-mini: supports web_search_preview, $0.15/1M in, $0.60/1M out
 // (gpt-4o fallback available via OPENAI_MODEL env var if needed)
@@ -54,6 +59,12 @@ interface ResponsesApiResponse {
     total_tokens: number;
   };
 }
+
+// ---------------------------------------------------------------------------
+// System prompt — radar methodology with live web search
+// ---------------------------------------------------------------------------
+
+import { buildSystemPrompt, resolveLineKeywords } from './shared-prompt';
 
 
 // ---------------------------------------------------------------------------
@@ -104,29 +115,11 @@ async function scanImpl(
     ragBlock = buildRagBlock(ragCtx);
   } catch { /* RAG optional */ }
 
-  const lineKeywords: Record<string, string> = {
-    bhs:            'aeropuerto terminal CAPEX sorter BHS concesión licitación',
-    aeropuerto:     'aeropuerto terminal CAPEX sorter BHS concesión licitación',
-    cargo:          'bodega aerocarga CAPEX expansión logística aérea licitación',
-    cartón:         'planta corrugadora cartón CAPEX expansión capacidad producción',
-    carton:         'planta corrugadora cartón CAPEX expansión capacidad producción',
-    papel:          'planta corrugadora cartón CAPEX expansión capacidad producción',
-    intralogística: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
-    intralogistica: 'CEDI bodega almacén automatización WMS conveyor ASRS CAPEX licitación',
-    'final de línea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
-    'final de linea': 'palletizador embalaje packaging línea producción alimentos bebidas CAPEX',
-    motos:          'ensambladora motocicleta planta CAPEX expansión línea producción',
-    solumat:        'planta plástico material industrial molde inyección CAPEX expansión',
-    plástico:       'planta plástico material industrial molde inyección CAPEX expansión',
-  };
-  const lineKey = line.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
-  const keywords = Object.entries(lineKeywords).find(([k]) =>
-    lineKey.includes(k.normalize('NFD').replace(/[\u0300-\u036f]/g, ''))
-  )?.[1] ?? 'CAPEX inversión expansión planta nueva 2026 2027';
+  const keywords = params.keywords ?? resolveLineKeywords(line);
 
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
-Línea de negocio: ${line}
+Línea de negocio: ${line}${params.sublinea ? `\nSub-línea: ${params.sublinea}` : ''}
 Palabras clave del sector: ${keywords}
 
 TAREA: Busca señales de inversión FUTURA en LATAM 2026-2028 para esta empresa.
@@ -144,7 +137,7 @@ IMPORTANTE: Usa solo fuentes con proyectos documentados. NO cites Wikipedia, red
 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
-  let systemPromptText = buildMaoaSystemPrompt();
+  let systemPromptText = buildSystemPrompt(line);
   try {
     const { getAgentPrompt } = await import('@/lib/db/supabase/agent-prompts');
     const dbOverride = await getAgentPrompt('openai');
@@ -291,6 +284,75 @@ function createOpenAIProvider(): AIProvider {
 
     supports(feature: SupportedFeature): boolean {
       return feature === 'web_search' || feature === 'streaming';
+    },
+
+    async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
+      const apiKey = process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
+      const model = process.env.OPENAI_CALIFICADOR_MODEL ?? 'gpt-4o-mini';
+
+      emit?.emit('thinking', { empresa: params.empresa, chunk: 'Iniciando calificación con OpenAI…' });
+      emit?.emit('profiling_web', { empresa: params.empresa, query: `${params.empresa} ${params.pais} inversión 2026` });
+
+      const userMsg = buildCalificadorUserPrompt(params, params.ragContext);
+
+      const body = {
+        model,
+        max_tokens: 2048,
+        response_format: {
+          type: 'json_schema',
+          json_schema: { name: 'calificacion', strict: true, schema: CALIFICACION_JSON_SCHEMA },
+        },
+        messages: [
+          { role: 'system', content: CALIFICADOR_SYSTEM_PROMPT },
+          { role: 'user',   content: userMsg },
+        ],
+      };
+
+      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(`OpenAI calificar ${resp.status}: ${err.slice(0, 300)}`);
+      }
+
+      type OAIResp = { choices: Array<{ message: { content: string } }>; usage?: { prompt_tokens: number; completion_tokens: number } };
+      const data = await resp.json() as OAIResp;
+      const content = data.choices[0]?.message?.content ?? '';
+      const tokensIn  = data.usage?.prompt_tokens     ?? 0;
+      const tokensOut = data.usage?.completion_tokens ?? 0;
+      const cost = (tokensIn * PRICE_INPUT_PER_M + tokensOut * PRICE_OUTPUT_PER_M) / 1_000_000;
+
+      let rawJson: unknown;
+      try {
+        rawJson = JSON.parse(content);
+      } catch {
+        throw new Error(`OpenAI calificar non-JSON for ${params.empresa}`);
+      }
+
+      return {
+        scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        scoreTotal: 0,
+        tier: 'C',
+        razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',
+        perfilWeb: (rawJson as { perfilWeb?: CalificacionOutput['perfilWeb'] }).perfilWeb ?? { summary: '', sources: [] },
+        rawJson,
+        tokensInput: tokensIn,
+        tokensOutput: tokensOut,
+        costUsd: cost,
+        model,
+      };
+    },
+
+    estimateCalificacion(empresas_count: number): CostEstimate {
+      const tokens_in_est  = empresas_count * 2500;
+      const tokens_out_est = empresas_count * 600;
+      const cost_usd_est   = (tokens_in_est * PRICE_INPUT_PER_M + tokens_out_est * PRICE_OUTPUT_PER_M) / 1_000_000;
+      return { tokens_in_est, tokens_out_est, cost_usd_est, cached_percentage: 0 };
     },
   };
 }

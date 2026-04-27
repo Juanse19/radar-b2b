@@ -246,6 +246,8 @@ export function Step3Review({ state, onChange }: Props) {
           companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
         ),
       });
+      if (state.customKeywords) vivoParams.set('keywords', state.customKeywords);
+      if (state.sublinea)       vivoParams.set('sublinea', state.sublinea);
       router.push(`/en-vivo?${vivoParams.toString()}`);
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');

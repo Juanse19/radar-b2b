@@ -331,6 +331,19 @@ export function Step2Configure({ state, onChange }: Props) {
             >
               Editar en admin →
             </a>
+            <div className="mt-3 border-t border-border/40 pt-3">
+              <label className="mb-1 block text-xs font-medium text-foreground">
+                Palabras clave personalizadas
+                <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
+              </label>
+              <textarea
+                rows={2}
+                value={state.customKeywords ?? ''}
+                onChange={(e) => onChange({ customKeywords: e.target.value || undefined })}
+                placeholder="ej: palletizador ULMA CAPEX licitación 2026"
+                className="w-full resize-none rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+              />
+            </div>
           </div>
         </CollapsibleContent>
       </Collapsible>

@@ -6,6 +6,7 @@
  * No `server-only` here so types can be referenced by server code freely.
  */
 import type { Agente1Result } from '@/lib/comercial/schema';
+import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/calificador/types';
 
 // ---------------------------------------------------------------------------
 // Scan parameters and result types
@@ -20,6 +21,10 @@ export interface ScanParams {
   apiKey?: string;
   /** Optional model override — if set, the provider uses this instead of its default. */
   model?: string;
+  /** Custom search keywords — overrides line-derived defaults when provided. */
+  keywords?: string;
+  /** Sub-line identifier (e.g. 'cargo_uld', 'aeropuertos') for more focused searches. */
+  sublinea?: string;
 }
 
 export interface CostEstimate {
@@ -80,6 +85,16 @@ export interface AIProvider {
 
   /** Feature capability probe — used by UI to enable/disable options. */
   supports(feature: SupportedFeature): boolean;
+
+  /**
+   * Qualify a single company across 7 dimensions.
+   * Emits SSE events (thinking, dim_scored, etc.) if `emit` is provided.
+   * Returns raw LLM JSON — scoring/tier calculation is done in engine.ts.
+   */
+  calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput>;
+
+  /** Estimate cost for a batch of qualifications. */
+  estimateCalificacion(empresas_count: number): CostEstimate;
 }
 
 // ---------------------------------------------------------------------------

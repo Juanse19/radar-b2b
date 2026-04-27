@@ -1,0 +1,415 @@
+{
+  "name": "Agent 03 - Prospector v3.0",
+  "_changelog": [
+    "v3.0 (2026-04-27): Eliminado Google Sheets, solo Supabase. Fase 2 automática para C-Level + Director. Responde con contactos al frontend (lastNode). Acepta job_titles custom desde el input.",
+    "v2.0 (2026-04-09): Dual-write GSheets + Supabase. 6 líneas de negocio. Jerarquía Matec.",
+    "v1.0 (2026-03-20): Versión inicial con GSheets."
+  ],
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "prospector",
+        "responseMode": "lastNode",
+        "options": {}
+      },
+      "id": "e96c6a13-5ded-403f-8e7b-79eddd30d135",
+      "name": "Webhook Prospector",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [128, 304],
+      "webhookId": "94935cfd-5cb3-482a-9a8a-3bf5f60af64a"
+    },
+    {
+      "parameters": {
+        "jsCode": "// WF03 Prospector v3.0 — Parse Input\n// Soporta 3 formatos de input + job_titles custom\nconst raw = $input.all()[0].json;\nconst body = raw.body || raw;\n\nlet empresas = [];\n\nif (body.empresas && Array.isArray(body.empresas)) {\n  empresas = body.empresas.map(e => {\n    const base = typeof e === 'string' ? {\n      empresa: e,\n      pais: body.pais || 'Colombia',\n      paises: body.paises || [],\n      linea_negocio: body.linea || body.linea_negocio || 'Intralogística',\n      tier: body.tier || 'MONITOREO',\n      company_domain: body.company_domain || '',\n    } : e;\n    return { ...base, _custom_titles: body.job_titles || [] };\n  });\n} else if (body.empresa || body['COMPANY NAME']) {\n  empresas = [{ ...body, _custom_titles: body.job_titles || [] }];\n}\n\nif (!empresas.length) throw new Error('WF03: No empresas encontradas.');\n\nreturn empresas.flatMap(e => {\n  const tier = (e.tier_calculado || e.tier || e['TIER'] || 'MONITOREO').toUpperCase();\n  const maxContacts = tier === 'ORO' ? 5 : tier === 'PLATA' ? 4 : tier === 'MONITOREO' ? 3 : 0;\n  if (maxContacts === 0) return [];\n\n  const empresa   = e.empresa || e.company_name || e['COMPANY NAME'] || '';\n  const paisBase  = e.pais || e['PAÍS'] || 'Colombia';\n  const linea     = e.linea_negocio || e.linea || e['LÍNEA DE NEGOCIO'] || '';\n  const domain    = e.company_domain || e['DOMINIO'] || '';\n  const fecha     = new Date().toISOString().split('T')[0];\n  const paises    = (e.paises && e.paises.length > 0) ? e.paises : [paisBase];\n\n  return paises.map(pais => ({ json: {\n    empresa, pais, linea_negocio: linea, tier,\n    company_domain: domain,\n    score_calificacion: e.score_calificacion || 0,\n    score_radar: e.score_radar || 0,\n    composite_score: e.composite_score || 0,\n    max_contacts: maxContacts,\n    fecha_prospeccion: fecha,\n    grupo_empresarial: e.grupo_empresarial || '',\n    es_multinacional: paises.length > 1,\n    _custom_titles: e._custom_titles || [],\n  }}));\n}).filter(Boolean);"
+      },
+      "id": "cacba60f-52b1-4e29-9e6a-287b753e7367",
+      "name": "Code: Parse Input",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [352, 304]
+    },
+    {
+      "parameters": { "options": {} },
+      "id": "abbc9e30-cba0-476e-abcb-30f65042763e",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [576, 304]
+    },
+    {
+      "parameters": {
+        "jsCode": "const e = $input.all()[0].json;\nconst linea = (e.linea_negocio || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');\n\nconst TITLES = {\n  BHS: ['Chief Executive Officer','CEO','Chief Operating Officer','COO','Director General Aeropuerto','Director de Infraestructura Aeropuerto','Director de Operaciones Aeropuerto','VP Airport Operations','Airport Operations Manager','BHS Manager','Baggage Handling System Manager','Cargo Terminal Manager','Gerente de Infraestructura Aeropuerto','Gerente de Operaciones Aeropuerto','Managing Director','Country Manager'],\n  CARTON_PAPEL: ['Gerente General','Director General','Director de Proyectos','Director Técnico','Director de Compras','Director de Operaciones','Gerente de Planta','Gerente de Mantenimiento','Project Manager','Gerente de Proyectos','Plant Manager','Manufacturing Director'],\n  INTRALOGISTICA: ['Chief Operations Officer','COO','CEO','VP Operations','Operations Director','Plant Director','Manufacturing Director','Supply Chain Director','Director de Operaciones','Director de Planta','Director de Manufactura','Operations Manager','Plant Manager','Manufacturing Manager','Supply Chain Manager','Logistics Manager','Gerente de Planta','Gerente de Operaciones','Gerente de Producción','Gerente de Logística','Gerente de Supply Chain','Gerente General','Country Manager','Managing Director'],\n  FINAL_LINEA: ['CEO','COO','Gerente General','Director General','Director de Operaciones','Director de Supply Chain','Director de Manufactura','Director de Producción','Plant Manager','Gerente de Planta','Operations Manager','Supply Chain Manager','Gerente de Supply Chain','Logistics Manager','Head of Operations','Country Manager'],\n  MOTOS: ['CEO','Gerente General','Director General','Director de Manufactura','Director de Operaciones','Plant Manager','Gerente de Planta','Manufacturing Manager','Production Manager','Assembly Manager','Operations Manager'],\n  SOLUMAT: ['CEO','Gerente General','Director General','Director de Operaciones','Director de Manufactura','Plant Manager','Gerente de Planta','Manufacturing Manager','Process Manager','Operations Manager','Production Manager']\n};\n\nlet lineaKey = 'INTRALOGISTICA';\nif (linea.includes('bhs') || linea.includes('aeropuerto') || linea.includes('cargo') || linea.includes('uld')) lineaKey = 'BHS';\nelse if (linea.includes('cart') || linea.includes('corrugado') || linea.includes('papel')) lineaKey = 'CARTON_PAPEL';\nelse if (linea.includes('final') || linea.includes('alimento') || linea.includes('bebida')) lineaKey = 'FINAL_LINEA';\nelse if (linea.includes('moto')) lineaKey = 'MOTOS';\nelse if (linea.includes('solumat') || linea.includes('plastico')) lineaKey = 'SOLUMAT';\n\n// Usar job_titles custom si vienen en el input, si no, usar los de la línea\nconst customTitles = e._custom_titles || [];\nconst titles = customTitles.length > 0 ? customTitles : (TITLES[lineaKey] || TITLES.INTRALOGISTICA);\nconst perPage = Math.min(25, (e.max_contacts || 3) * 4);\n\nconst searchBody = {\n  page: 1, per_page: perPage,\n  person_seniorities: ['c_suite', 'vp', 'director', 'manager'],\n  person_titles: titles,\n};\n\nif (e.company_domain) searchBody.q_organization_domains_list = [e.company_domain];\nelse searchBody.q_organization_name = e.empresa;\n\nconst COUNTRY_MAP = { 'colombia':'Colombia','mexico':'Mexico','chile':'Chile','peru':'Peru','argentina':'Argentina','brasil':'Brazil','brazil':'Brazil','guatemala':'Guatemala','costa rica':'Costa Rica','ecuador':'Ecuador','panama':'Panama' };\nconst paisNorm = (e.pais || '').toLowerCase().normalize('NFD').replace(/[\\u0300-\\u036f]/g,'');\nconst countryMapped = COUNTRY_MAP[paisNorm] || e.pais;\nif (countryMapped) searchBody.person_locations = [countryMapped];\n\nreturn [{ json: { ...e, apollo_search_body: searchBody, _linea_key: lineaKey } }];"
+      },
+      "id": "998b44fc-4ace-4fe2-a006-8e5db78e37fb",
+      "name": "Code: Build Apollo Query",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/mixed_people/api_search",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{"name":"Content-Type","value":"application/json"},{"name":"Accept","value":"application/json"}] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.apollo_search_body) }}",
+        "options": { "response": {"response": {"neverError": true}}, "timeout": 30000 }
+      },
+      "id": "1890d3b5-38c7-4247-95fa-f0c136a99abc",
+      "name": "HTTP: Apollo Phase 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1024, 304],
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_APOLLO_CREDENTIAL_ID", "name": "Apollo API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "const apolloResp = $input.all()[0].json;\nconst ctx = $('Code: Build Apollo Query').first().json;\nconst statusCode = apolloResp.statusCode || apolloResp.status || 200;\nif (statusCode === 429) return [{ json: { ...ctx, apollo_response: null, _rate_limited: true } }];\nreturn [{ json: { ...ctx, apollo_response: apolloResp, _rate_limited: false } }];"
+      },
+      "id": "2ba8b975-be24-4172-95ca-ccaef77bee46",
+      "name": "Code: Merge Apollo Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1248, 304]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": false, "leftValue": "", "typeValidation": "loose"},
+          "conditions": [{"id":"rate-limit-check","leftValue":"={{ $json._rate_limited }}","rightValue": true,"operator":{"type":"boolean","operation":"true"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "f3a1b2c4-d5e6-7890-abcd-ef1234567890",
+      "name": "IF: Rate Limited?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1472, 304]
+    },
+    {
+      "parameters": { "unit": "seconds", "resume": "timeInterval", "options": {} },
+      "id": "a1b2c3d4-e5f6-7890-abcd-123456789012",
+      "name": "Wait 30s (Rate Limit)",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [1696, 176],
+      "webhookId": "rate-limit-wait-id"
+    },
+    {
+      "parameters": {
+        "jsCode": "const ctx = $input.all()[0].json;\nconst resp = ctx.apollo_response || {};\nconst raw  = resp.people || resp.contacts || resp.results || resp.data || [];\nconst maxContacts = ctx.max_contacts || 3;\n\nfunction classifyNivel(title, seniority) {\n  const t = (title || '').toLowerCase(), s = (seniority || '').toLowerCase();\n  const cl = ['chief executive','chief operations','chief operating','gerente general','director general','managing director','country general manager','country manager','general manager'];\n  if (cl.some(x => t.includes(x))) return 'C-LEVEL';\n  if (t.startsWith('ceo') || t.includes(' ceo') || t.startsWith('coo') || t.includes(' coo') || s === 'c_suite') return 'C-LEVEL';\n  if (t.includes('director') || t.includes('vice president') || t.includes(' vp ') || s === 'vp') return 'DIRECTOR';\n  if (t.includes('gerente') || t.includes('manager') || t.includes('head of') || s === 'director' || s === 'manager') return 'GERENTE';\n  return 'JEFE';\n}\n\nconst NIVEL_ORDER = { 'C-LEVEL': 4, 'DIRECTOR': 3, 'GERENTE': 2, 'JEFE': 1 };\n\nconst scored = raw.map(p => {\n  const nivel = classifyNivel(p.title, p.seniority);\n  return { ...p, _nivel: nivel, _priority: (NIVEL_ORDER[nivel] || 0) * 10 + (p.email || p.has_email ? 3 : 0) + (p.linkedin_url ? 1 : 0) };\n}).sort((a, b) => b._priority - a._priority);\n\nconst selected = scored.slice(0, maxContacts);\nif (!selected.length) return [{ json: { ...ctx, contacts_found: 0, contacts: [], prospection_status: 'NO_CONTACTS_FOUND' } }];\n\nconst contacts = selected.map(p => {\n  const phones = p.phone_numbers || [];\n  return {\n    nombre: p.first_name || '',\n    apellido: p.last_name || p.last_name_obfuscated || '',\n    cargo: p.title || '',\n    nivel: p._nivel,\n    email: p.email || p.work_email || '',\n    email_status: p.email_status || (p.email ? 'verified' : (p.has_email ? 'available' : 'not_found')),\n    linkedin: p.linkedin_url || '',\n    tel_empresa: (p.organization && (p.organization.phone || (p.organization.primary_phone && p.organization.primary_phone.number))) || '',\n    tel_movil: (phones.find(t => t.type === 'mobile') || {}).sanitized_number || '',\n    tel_directo: (phones.find(t => t.type === 'work_direct' || t.type === 'direct') || {}).sanitized_number || '',\n    grupo: (p.organization && p.organization.parent_organization && p.organization.parent_organization.name) || ctx.grupo_empresarial || '',\n    ciudad: p.city || '',\n    apollo_id: p.id || '',\n    has_email: !!(p.email || p.has_email),\n    has_linkedin: !!(p.linkedin_url),\n  };\n});\n\nreturn [{ json: { ...ctx, contacts_found: contacts.length, contacts, prospection_status: 'CONTACTS_FOUND' } }];"
+      },
+      "id": "df07cc47-e6ea-4aba-bc82-e4a34bfe8716",
+      "name": "Code: Filter & Format",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1696, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": true, "leftValue": "", "typeValidation": "strict"},
+          "conditions": [{"id":"has-contacts","leftValue":"={{ $json.prospection_status }}","rightValue":"CONTACTS_FOUND","operator":{"type":"string","operation":"equals"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "e87266f8-9966-4a7d-b1a6-8cb6c97975ef",
+      "name": "IF: Tiene Contactos",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1920, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Fase 2: Enriquecer email/LinkedIn para C-LEVEL y DIRECTOR\nconst data = $input.all()[0].json;\nconst contacts = data.contacts || [];\n\n// Solo enriquecer C-LEVEL y DIRECTOR (los que más importan)\nconst toEnrich = contacts.filter(c => c.nivel === 'C-LEVEL' || c.nivel === 'DIRECTOR');\n\nif (!toEnrich.length) {\n  // No hay C-Level/Director — saltar Fase 2\n  return [{ json: { ...data, _skip_fase2: true } }];\n}\n\n// Construir array details para bulk_match (máx 10)\nconst details = toEnrich.slice(0, 10).map(c => ({\n  id: c.apollo_id,\n  first_name: c.nombre,\n  last_name: c.apellido.replace(/\\*+/g,'').trim(),\n  organization_name: data.empresa,\n  domain: data.company_domain || '',\n}));\n\nreturn [{ json: { ...data, _fase2_details: details, _skip_fase2: false } }];"
+      },
+      "id": "b1c2d3e4-f5a6-7890-bcde-f01234567890",
+      "name": "Code: Prepare Fase 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2144, 304]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {"caseSensitive": false},
+          "conditions": [{"id":"skip-fase2","leftValue":"={{ $json._skip_fase2 }}","rightValue": true,"operator":{"type":"boolean","operation":"true"}}],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c2d3e4f5-a6b7-8901-cdef-012345678901",
+      "name": "IF: Skip Fase 2?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [2368, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.apollo.io/api/v1/people/bulk_match",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [{"name":"Content-Type","value":"application/json"},{"name":"Accept","value":"application/json"}] },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ details: $json._fase2_details, reveal_personal_emails: false }) }}",
+        "options": { "response": {"response": {"neverError": true}}, "timeout": 30000 }
+      },
+      "id": "d3e4f5a6-b7c8-9012-defa-123456789012",
+      "name": "HTTP: Apollo Bulk Match (Fase 2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2592, 176],
+      "credentials": { "httpHeaderAuth": { "id": "REPLACE_WITH_APOLLO_CREDENTIAL_ID", "name": "Apollo API Key" } }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Mergear datos de Fase 2 en los contactos\nconst fase2Resp = $input.all()[0].json;\nconst ctx = $('Code: Prepare Fase 2').first().json;\nconst contacts = ctx.contacts || [];\n\nconst enriched = fase2Resp.matches || fase2Resp.people || fase2Resp.results || [];\nconst enrichMap = {};\nfor (const p of enriched) {\n  if (p.id) enrichMap[p.id] = p;\n}\n\nconst updatedContacts = contacts.map(c => {\n  const match = enrichMap[c.apollo_id];\n  if (!match) return c;\n  return {\n    ...c,\n    email: match.email || match.work_email || c.email || '',\n    email_status: match.email_status || c.email_status,\n    linkedin: match.linkedin_url || c.linkedin || '',\n    has_email: !!(match.email || match.work_email || c.email),\n    has_linkedin: !!(match.linkedin_url || c.linkedin),\n    fase2_done: true,\n  };\n});\n\nreturn [{ json: { ...ctx, contacts: updatedContacts, _fase2_applied: true } }];"
+      },
+      "id": "e4f5a6b7-c8d9-0123-efab-234567890123",
+      "name": "Code: Merge Fase 2",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2816, 176]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Expandir contactos a filas + generar IDs + preparar para Supabase\nconst data = $input.all()[0].json;\nconst contacts = data.contacts || [];\n\nreturn contacts.map((c, idx) => {\n  const empShort = (data.empresa || '').substring(0, 20).replace(/\\s+/g, '-').toUpperCase();\n  const paisShort = (data.pais || '').substring(0, 3).toUpperCase();\n  const id = `${empShort}-${paisShort}-${String(idx + 1).padStart(3, '0')}`;\n  return { json: {\n    ID:               id,\n    Empresa:          data.empresa,\n    Pais:             data.pais,\n    Nombre:           c.nombre,\n    Apellido:         c.apellido,\n    Cargo:            c.cargo,\n    Nivel:            c.nivel,\n    Email_Verificado: c.email || '',\n    Estado_Email:     c.email_status || '',\n    LinkedIn:         c.linkedin || '',\n    Tel_Empresa:      c.tel_empresa || '',\n    Tel_Directo:      c.tel_directo || '',\n    Tel_Movil:        c.tel_movil || '',\n    Grupo:            c.grupo || '',\n    Ciudad:           c.ciudad || '',\n    Persona_ID:       c.apollo_id || '',\n    Fecha:            data.fecha_prospeccion,\n    Linea_Negocio:    data.linea_negocio,\n    Tier:             data.tier,\n    Es_Multinacional: data.es_multinacional ? 'Si' : 'No',\n    Score_Cal:        data.score_calificacion || 0,\n    Score_Radar:      data.score_radar || 0,\n    Composite_Score:  data.composite_score || 0,\n    _empresa_original: data.empresa,\n    _pais_original:    data.pais,\n  }};\n});"
+      },
+      "id": "d9f6a389-b6dc-4085-8c5e-ac03a9cf7394",
+      "name": "Code: Expand to Rows",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3040, 304]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Upsert en Supabase — matec_radar.contactos\n// Un DO block por lote de contactos de la misma empresa\nconst items = $input.all();\nif (!items.length) return [];\n\nconst fecha = new Date().toISOString();\n\n// Construir INSERT statements para cada contacto\nconst rows = items.map(item => {\n  const d = item.json;\n  const esc = v => (v || '').replace(/'/g, \"''\");\n  return `(\n    '${esc(d.Persona_ID)}',\n    '${esc(d.Empresa)}',\n    '${esc(d.Pais)}',\n    '${esc(d.Nombre)}',\n    '${esc(d.Apellido)}',\n    '${esc(d.Cargo)}',\n    '${esc(d.Nivel)}',\n    '${esc(d.Email_Verificado)}',\n    '${esc(d.Estado_Email)}',\n    '${esc(d.LinkedIn)}',\n    '${esc(d.Tel_Empresa)}',\n    '${esc(d.Tel_Movil)}',\n    '${esc(d.Linea_Negocio)}',\n    '${esc(d.Tier)}',\n    '${esc(d.Grupo)}',\n    '${esc(d.Ciudad)}',\n    ${d.Score_Cal || 0},\n    ${d.Score_Radar || 0},\n    ${d.Composite_Score || 0},\n    '${esc(d.Es_Multinacional)}',\n    '${fecha}'\n  )`;\n});\n\nconst sql = `\nINSERT INTO matec_radar.contactos (\n  apollo_id, empresa, pais, nombre, apellido, cargo, nivel,\n  email_verificado, estado_email, linkedin_url,\n  tel_empresa, tel_movil, linea_negocio, tier,\n  grupo_empresarial, ciudad,\n  score_calificacion, score_radar, composite_score,\n  es_multinacional, fecha_prospeccion\n) VALUES ${rows.join(',\\n')}\nON CONFLICT (apollo_id) DO UPDATE SET\n  email_verificado = EXCLUDED.email_verificado,\n  estado_email     = EXCLUDED.estado_email,\n  linkedin_url     = EXCLUDED.linkedin_url,\n  tel_empresa      = EXCLUDED.tel_empresa,\n  tel_movil        = EXCLUDED.tel_movil,\n  tier             = EXCLUDED.tier,\n  score_calificacion = EXCLUDED.score_calificacion,\n  score_radar      = EXCLUDED.score_radar,\n  composite_score  = EXCLUDED.composite_score,\n  fecha_prospeccion= EXCLUDED.fecha_prospeccion\nWHERE\n  matec_radar.contactos.email_verificado IS DISTINCT FROM EXCLUDED.email_verificado\n  OR matec_radar.contactos.tier IS DISTINCT FROM EXCLUDED.tier;\n`;\n\nreturn [{ json: { sql, _row_count: rows.length, _empresa: items[0].json.Empresa } }];"
+      },
+      "id": "f5a6b7c8-d9e0-1234-fabc-345678901234",
+      "name": "Code: Build Supabase SQL",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [3264, 304]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase.valparaiso.cafe/pg/query",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          {"name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY || '' }}"},
+          {"name": "Authorization", "value": "={{ 'Bearer ' + ($vars.SUPABASE_SERVICE_ROLE_KEY || '') }}"},
+          {"name": "Content-Type", "value": "application/json"}
+        ]},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.sql }) }}",
+        "options": { "response": {"response": {"neverError": true}}, "continueOnFail": true, "timeout": 15000 }
+      },
+      "id": "a6b7c8d9-e0f1-2345-abcd-456789012345",
+      "name": "HTTP: Supabase Upsert Contactos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3488, 304]
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $input.all()[0].json;\nreturn [{ json: {\n  Empresa_Dominio: data.company_domain || data.empresa,\n  Empresa:         data.empresa,\n  Sub_Linea:       data.linea_negocio,\n  Pais:            data.pais,\n  Dominio:         data.company_domain || '',\n  Razon:           'Apollo no devolvió contactos para los job titles configurados',\n  Re_escanear:     'Si',\n  Fecha:           data.fecha_prospeccion,\n  Tier:            data.tier,\n  sql: `INSERT INTO matec_radar.sin_contactos (empresa, dominio, sub_linea, pais, razon, re_escanear, fecha, tier) VALUES ('${(data.empresa||'').replace(/'/g,\"''\")}','${(data.company_domain||'').replace(/'/g,\"''\")}','${(data.linea_negocio||'').replace(/'/g,\"''\")}','${(data.pais||'').replace(/'/g,\"''\")}','Apollo sin resultados para job titles configurados','Si','${data.fecha_prospeccion}','${data.tier}') ON CONFLICT (empresa, pais) DO NOTHING;`\n}}];"
+      },
+      "id": "648bf83d-a9a5-490b-a82e-28ccd6d0acef",
+      "name": "Code: Sin Contactos Row",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2144, 496]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase.valparaiso.cafe/pg/query",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          {"name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY || '' }}"},
+          {"name": "Authorization", "value": "={{ 'Bearer ' + ($vars.SUPABASE_SERVICE_ROLE_KEY || '') }}"},
+          {"name": "Content-Type", "value": "application/json"}
+        ]},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ query: $json.sql }) }}",
+        "options": { "response": {"response": {"neverError": true}}, "continueOnFail": true, "timeout": 10000 }
+      },
+      "id": "b7c8d9e0-f1a2-3456-bcde-567890123456",
+      "name": "HTTP: Supabase Sin Contactos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2368, 496]
+    },
+    {
+      "parameters": { "amount": 1, "unit": "seconds" },
+      "id": "a5d0b2a9-ec03-493d-97ed-72a28658af83",
+      "name": "Wait Between Companies",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [3712, 400],
+      "webhookId": "5f87f965-14e1-41b1-be53-c9fba0e9d897"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Nodo final: query Supabase para traer los contactos recién insertados\n// y responder al webhook con la lista completa\n// Se ejecuta cuando el loop termina (output 0 = done)\nconst items = $input.all();\nreturn [{ json: {\n  status: 'ok',\n  message: 'Prospección completada',\n  _loop_done: true,\n} }];"
+      },
+      "id": "c8d9e0f1-a2b3-4567-cdef-678901234567",
+      "name": "Code: Loop Done",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [800, 176]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://supabase.valparaiso.cafe/rest/v1/rpc/get_prospectos_recientes",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [
+          {"name": "apikey", "value": "={{ $vars.SUPABASE_SERVICE_ROLE_KEY || '' }}"},
+          {"name": "Authorization", "value": "={{ 'Bearer ' + ($vars.SUPABASE_SERVICE_ROLE_KEY || '') }}"},
+          {"name": "Content-Type", "value": "application/json"}
+        ]},
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\"minutes_ago\": 5}",
+        "options": { "response": {"response": {"neverError": true}}, "continueOnFail": true }
+      },
+      "id": "d9e0f1a2-b3c4-5678-defa-789012345678",
+      "name": "HTTP: Query Contactos Recientes",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1024, 176]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Construir respuesta final para el frontend\nconst supabaseResp = $input.all()[0].json;\nconst contactos = Array.isArray(supabaseResp) ? supabaseResp : (supabaseResp.data || supabaseResp.contactos || []);\n\nconst nivelOrder = {'C-LEVEL':0,'DIRECTOR':1,'GERENTE':2,'JEFE':3,'ANALISTA':4};\nconst sorted = [...contactos].sort((a,b) => (nivelOrder[a.nivel]||5) - (nivelOrder[b.nivel]||5));\n\nreturn [{ json: {\n  success: true,\n  version: '3.0',\n  total: sorted.length,\n  con_email: sorted.filter(c => c.email_verificado).length,\n  con_linkedin: sorted.filter(c => c.linkedin_url).length,\n  contactos: sorted,\n  timestamp: new Date().toISOString(),\n} }];"
+      },
+      "id": "e0f1a2b3-c4d5-6789-efab-890123456789",
+      "name": "Code: Build Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1248, 176]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      },
+      "id": "f1a2b3c4-d5e6-7890-fabc-901234567890",
+      "name": "Respond with Contacts",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1472, 176]
+    }
+  ],
+  "connections": {
+    "Webhook Prospector": {
+      "main": [[{"node": "Code: Parse Input", "type": "main", "index": 0}]]
+    },
+    "Code: Parse Input": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    },
+    "Loop Over Items": {
+      "main": [
+        [{"node": "Code: Loop Done", "type": "main", "index": 0}],
+        [{"node": "Code: Build Apollo Query", "type": "main", "index": 0}]
+      ]
+    },
+    "Code: Loop Done": {
+      "main": [[{"node": "HTTP: Query Contactos Recientes", "type": "main", "index": 0}]]
+    },
+    "HTTP: Query Contactos Recientes": {
+      "main": [[{"node": "Code: Build Response", "type": "main", "index": 0}]]
+    },
+    "Code: Build Response": {
+      "main": [[{"node": "Respond with Contacts", "type": "main", "index": 0}]]
+    },
+    "Code: Build Apollo Query": {
+      "main": [[{"node": "HTTP: Apollo Phase 1", "type": "main", "index": 0}]]
+    },
+    "HTTP: Apollo Phase 1": {
+      "main": [[{"node": "Code: Merge Apollo Response", "type": "main", "index": 0}]]
+    },
+    "Code: Merge Apollo Response": {
+      "main": [[{"node": "IF: Rate Limited?", "type": "main", "index": 0}]]
+    },
+    "IF: Rate Limited?": {
+      "main": [
+        [{"node": "Wait 30s (Rate Limit)", "type": "main", "index": 0}],
+        [{"node": "Code: Filter & Format", "type": "main", "index": 0}]
+      ]
+    },
+    "Wait 30s (Rate Limit)": {
+      "main": [[{"node": "HTTP: Apollo Phase 1", "type": "main", "index": 0}]]
+    },
+    "Code: Filter & Format": {
+      "main": [[{"node": "IF: Tiene Contactos", "type": "main", "index": 0}]]
+    },
+    "IF: Tiene Contactos": {
+      "main": [
+        [{"node": "Code: Prepare Fase 2", "type": "main", "index": 0}],
+        [{"node": "Code: Sin Contactos Row", "type": "main", "index": 0}]
+      ]
+    },
+    "Code: Prepare Fase 2": {
+      "main": [[{"node": "IF: Skip Fase 2?", "type": "main", "index": 0}]]
+    },
+    "IF: Skip Fase 2?": {
+      "main": [
+        [{"node": "Code: Expand to Rows", "type": "main", "index": 0}],
+        [{"node": "HTTP: Apollo Bulk Match (Fase 2)", "type": "main", "index": 0}]
+      ]
+    },
+    "HTTP: Apollo Bulk Match (Fase 2)": {
+      "main": [[{"node": "Code: Merge Fase 2", "type": "main", "index": 0}]]
+    },
+    "Code: Merge Fase 2": {
+      "main": [[{"node": "Code: Expand to Rows", "type": "main", "index": 0}]]
+    },
+    "Code: Expand to Rows": {
+      "main": [[{"node": "Code: Build Supabase SQL", "type": "main", "index": 0}]]
+    },
+    "Code: Build Supabase SQL": {
+      "main": [[{"node": "HTTP: Supabase Upsert Contactos", "type": "main", "index": 0}]]
+    },
+    "HTTP: Supabase Upsert Contactos": {
+      "main": [[{"node": "Wait Between Companies", "type": "main", "index": 0}]]
+    },
+    "Code: Sin Contactos Row": {
+      "main": [[{"node": "HTTP: Supabase Sin Contactos", "type": "main", "index": 0}]]
+    },
+    "HTTP: Supabase Sin Contactos": {
+      "main": [[{"node": "Wait Between Companies", "type": "main", "index": 0}]]
+    },
+    "Wait Between Companies": {
+      "main": [[{"node": "Loop Over Items", "type": "main", "index": 0}]]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "executionTimeout": 300
+  },
+  "versionId": "agent03-v3.0",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "matec-agent03-v3"
+  }
+}

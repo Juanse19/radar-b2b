@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Plus, Pencil, Trash2,
   ChevronLeft, ChevronRight, Search, Loader2, Eye,
-  Plane, Package, Warehouse, Globe,
+  Plane, Package, Truck, Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -36,7 +36,7 @@ interface EmpresaRow {
   dominio?: string;
 }
 
-type LineaFiltro = 'ALL' | 'BHS' | 'Cartón' | 'Intralogística';
+type LineaFiltro = string;
 
 interface FormValues {
   company_name: string;
@@ -108,7 +108,7 @@ const LINEA_OPTIONS: {
     value: 'Intralogística',
     label: 'Intralogística',
     desc: 'CEDI, WMS, ASRS',
-    Icon: Warehouse,
+    Icon: Truck,
     color: 'text-emerald-400',
     activeBg: 'bg-emerald-950/60',
     activeBorder: 'border-emerald-500',
@@ -250,9 +250,9 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent className="bg-surface-muted border-border">
-                  <SelectItem value="BHS"            className="text-foreground">BHS</SelectItem>
-                  <SelectItem value="Cartón"         className="text-foreground">Cartón</SelectItem>
-                  <SelectItem value="Intralogística" className="text-foreground">Intralogística</SelectItem>
+                  <SelectItem value="BHS"             className="text-foreground">BHS</SelectItem>
+                  <SelectItem value="Cartón"          className="text-foreground">Cartón</SelectItem>
+                  <SelectItem value="Intralogística"  className="text-foreground">Intralogística</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -627,13 +627,10 @@ export default function EmpresasPage() {
                   <div className="flex items-center gap-2 min-w-0">
                     <span
                       className={`w-1.5 h-5 rounded-full shrink-0 ${
-                        empresa.linea === 'BHS'
-                          ? 'bg-blue-500'
-                          : empresa.linea === 'Cartón'
-                          ? 'bg-amber-500'
-                          : empresa.linea === 'Intralogística'
-                          ? 'bg-emerald-500'
-                          : 'bg-gray-600'
+                        empresa.linea === 'BHS'             ? 'bg-blue-500'
+                        : empresa.linea === 'Cartón'        ? 'bg-amber-500'
+                        : empresa.linea === 'Intralogística'? 'bg-emerald-500'
+                        : 'bg-gray-600'
                       }`}
                     />
                     <span

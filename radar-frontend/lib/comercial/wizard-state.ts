@@ -13,6 +13,8 @@ export interface WizardState {
   // Step 2 data
   count:    number;          // auto mode (1-20)
   selectedIds: number[];     // manual mode
+  customKeywords?: string;   // optional override for AI search keywords
+  sublinea?: string;         // optional sublínea filter (only when single line selected)
   // Step 3 data
   provider: string;          // 'claude' | 'openai' | 'gemini'
   budgetUsd: number;         // user override, default from estimate
@@ -35,19 +37,21 @@ export function useWizardState() {
     return {
       step,
       mode,
-      line:        sp.get('line') ?? '',
-      presetId:    sp.get('preset'),
-      count:       Number(sp.get('count') ?? '5'),
-      selectedIds: (sp.get('empresas') ?? '').split(',').filter(Boolean).map(Number),
-      provider:    sp.get('provider') ?? 'claude',
-      budgetUsd:   Number(sp.get('budget') ?? '0'),
+      line:           sp.get('line') ?? '',
+      presetId:       sp.get('preset'),
+      count:          Number(sp.get('count') ?? '5'),
+      selectedIds:    (sp.get('empresas') ?? '').split(',').filter(Boolean).map(Number),
+      customKeywords: sp.get('keywords')  ?? undefined,
+      sublinea:       sp.get('sublinea') ?? undefined,
+      provider:       sp.get('provider') ?? 'claude',
+      budgetUsd:      Number(sp.get('budget') ?? '0'),
     };
   }, [sp]);
 
   const patch = useCallback((updates: Partial<WizardState>) => {
     const next = new URLSearchParams(sp.toString());
     for (const [k, v] of Object.entries(updates)) {
-      const key = k === 'presetId' ? 'preset' : k === 'selectedIds' ? 'empresas' : k;
+      const key = k === 'presetId' ? 'preset' : k === 'selectedIds' ? 'empresas' : k === 'customKeywords' ? 'keywords' : k;
       if (v === null || v === undefined || v === '') {
         next.delete(key);
         continue;

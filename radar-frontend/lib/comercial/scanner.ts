@@ -102,6 +102,10 @@ export interface ScanOptions {
   apiKey?:       string;
   /** Model override — from ai_provider_configs DB, takes precedence over provider default. */
   model?:        string;
+  /** Custom search keywords — passed through to the provider, overrides line-derived defaults. */
+  keywords?:     string;
+  /** Sub-line for more targeted searches (e.g. 'cargo_uld', 'aeropuertos'). */
+  sublinea?:     string;
 }
 
 /**
@@ -133,6 +137,8 @@ export async function scanCompany(
         empresaId: company.id ?? null,
         apiKey,
         model,
+        keywords:  opts.keywords,
+        sublinea:  opts.sublinea,
       },
       opts.emit,
     );

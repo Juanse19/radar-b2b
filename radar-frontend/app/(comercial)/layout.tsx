@@ -5,19 +5,20 @@ import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
 
 const breadcrumbMap: Record<string, string> = {
-  escanear:   'Escanear',
-  'en-vivo':  'En vivo',
-  vivo:       'En vivo',
-  resultados: 'Resultados',
-  metricas:   'Métricas',
-  cronograma: 'Cronograma',
-  informes:   'Informes',
-  prompt:     'Visor de Prompts',
-  investigar: 'Investigar',
+  escanear:    'Escanear',
+  'en-vivo':   'En vivo',
+  vivo:        'En vivo',
+  resultados:  'Resultados',
+  metricas:    'Métricas',
+  cronograma:  'Cronograma',
+  informes:    'Informes',
+  prompt:      'Visor de Prompts',
+  investigar:  'Investigar',
+  calificador: 'Calificador',
 };
 
 // Wide pages that need more horizontal space
-const widePages = new Set(['resultados', 'investigar', 'metricas']);
+const widePages = new Set(['resultados', 'investigar', 'metricas', 'calificador']);
 
 export default function ComercialLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

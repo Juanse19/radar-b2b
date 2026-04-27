@@ -33,11 +33,11 @@ from unidecode import unidecode
 # ---------------------------------------------------------------------------
 # Config
 # ---------------------------------------------------------------------------
-SUPABASE_URL = "http://localhost:8000"
+SUPABASE_URL = "https://supabase.valparaiso.cafe"
 SERVICE_KEY  = (
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9"
-    ".eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3NzU2NzI2NzcsImV4cCI6MTkzMzM1MjY3N30"
-    ".EcqvysQnH7ZrGAz2OJJnUQVYYS1qsRlEhnb9xjbqFuQ"
+    ".eyJyb2xlIjoic2VydmljZV9yb2xlIiwiaXNzIjoic3VwYWJhc2UiLCJpYXQiOjE3MDAwMDAwMDAsImV4cCI6MjIwMDAwMDAwMH0"
+    ".vBDC2y9ofT_-tvJxNdtRtFilgmkFN-ktiSl2AHiZZ3o"
 )
 SCHEMA       = "matec_radar"
 BASE_HEADERS = {
@@ -46,21 +46,21 @@ BASE_HEADERS = {
     "Accept-Profile":  SCHEMA,
     "Content-Profile": SCHEMA,
     "Content-Type":    "application/json",
+    "User-Agent":      "MatecRadar-Frontend/2.0",
 }
 
 DOCS_DIR = Path(__file__).parent.parent.parent / "docs" / "PROSPECCIÓN"
 
 EXCEL_FILES = [
     # (file_path, sub_linea_id, version, header_row)
-    # header_row: 0-based index of the row containing column names (default 0)
+    # header_row: 0-based index of the row containing column names
     (DOCS_DIR / "Linea Aeropuertos"     / "BASE DE DATOS AEROPUERTOS FINAL.xlsx",        1, "v2", 0),
-    (DOCS_DIR / "Linea Carton y Papel"  / "BASE DE DATOS CARTON Y PAPEL.xlsx",            3, "v2", 0),
-    (DOCS_DIR / "Final de Línea"        / "BASE DE DATOS FINAL DE LINEA.xlsx",            4, "v2", 0),
-    (DOCS_DIR / "Línea Solumat"         / "BASE DE DATOS SOLUMAT.xlsx",                   6, "v2", 0),
-    (DOCS_DIR / "Línea Cargo"           / "BASE DE DATOS CARGO LATAM.xlsx",               2, "v1", 0),
+    (DOCS_DIR / "Linea Carton y Papel"  / "BASE DE DATOS CARTON Y PAPEL.xlsx",            3, "v2", 3),
+    (DOCS_DIR / "Final de Línea"        / "BASE DE DATOS FINAL DE LINEA.xlsx",            4, "v2", 4),
+    (DOCS_DIR / "Línea Solumat"         / "BASE DE DATOS SOLUMAT.xlsx",                   6, "v2", 3),
+    (DOCS_DIR / "Línea Cargo"           / "BASE DE DATOS CARGO LATAM.xlsx",               2, "v1", 1),
     (DOCS_DIR / "Ensambladora de Motos" / "BASE DE DATOS ENSAMBLADORAS MOTOS LATAM.xlsx", 5, "v1", 0),
-    # Logística: header on row 3 (rows 0-2 are category labels / weights)
-    (DOCS_DIR / "Línea Logistica"       / "BASE DE DATOS LOGÍSTICA 2026.xlsx",            7, "v2", 3),
+    (DOCS_DIR / "Línea Logistica"       / "BASE DE DATOS LOGÍSTICA 2026.xlsx",            9, "v2", 3),
 ]
 COLOMBIA_CSV  = DOCS_DIR / "Líneas Colombianas" / "empresas_colombia_2026.csv"
 CSV_SUB_LINEA = 4  # final_linea
@@ -153,6 +153,7 @@ GET_HEADERS = {
     "apikey":         SERVICE_KEY,
     "Authorization":  f"Bearer {SERVICE_KEY}",
     "Accept-Profile": SCHEMA,
+    "User-Agent":     "MatecRadar-Frontend/2.0",
 }
 
 
@@ -299,11 +300,6 @@ def upsert_pivot(empresa_id: int, sub_linea_id: int, es_principal: bool = True) 
 # Excel helpers
 # ---------------------------------------------------------------------------
 def load_sheet(path: Path, sheet_name: str = "Base de Datos", header_row: int = 0):
-    """Load a sheet and return (header, data_rows).
-
-    header_row: 0-based row index containing column names.
-    Some files (e.g. Logística) have category-label rows before the real header.
-    """
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
     target = None
     for name in wb.sheetnames:
@@ -349,8 +345,8 @@ def parse_v2(row, header, source_file: str) -> dict:
     tier_raw  = gcol(row, header, "TIER")
     score_raw = gcol(row, header, "Score_Total", "Score Total")
 
-    # company name: col 1 always
-    company_name = clean_val(row[1]) if len(row) > 1 else None
+    # company name: search by column header (some files have col[0]=None, col[1]=ID, col[2]=name)
+    company_name = gcol(row, header, "COMPANY NAME", "Empresa", "Company")
 
     # grupo empresarial: prefer col index 2 if header contains "Grupo" there,
     # else search by name

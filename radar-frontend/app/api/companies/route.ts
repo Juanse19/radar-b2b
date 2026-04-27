@@ -18,11 +18,20 @@ export async function GET(req: NextRequest) {
   try {
     if (count === 'true') {
       const raw = await getEmpresasCount();
-      // Merge legacy "Intralogistica" (without accent) into canonical "Intralogística"
+      // Map DB sublínea codes → chip display labels used by the /empresas filter UI.
+      // BHS aggregates both aeropuertos and cargo_uld.
+      const CODIGO_TO_CHIP: Record<string, string> = {
+        aeropuertos:         'BHS',
+        cargo_uld:           'BHS',
+        carton_corrugado:    'Cartón',
+        logistica:           'Intralogística',
+        final_linea:         'Intralogística',  // historically misclassified intralogística companies
+        // ensambladoras_motos and solumat excluded until those lines have real imported data
+      };
       const counts: Record<string, number> = {};
-      for (const [key, val] of Object.entries(raw)) {
-        const canonical = key === 'Intralogistica' ? 'Intralogística' : key;
-        counts[canonical] = (counts[canonical] ?? 0) + val;
+      for (const [codigo, val] of Object.entries(raw)) {
+        const label = CODIGO_TO_CHIP[codigo] ?? codigo;
+        counts[label] = (counts[label] ?? 0) + val;
       }
       return NextResponse.json(counts);
     }
