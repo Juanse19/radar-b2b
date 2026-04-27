@@ -5,6 +5,7 @@ import { cn } from '@/lib/utils';
 import { Zap, Target, LayoutGrid, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { WizardState } from '@/lib/comercial/wizard-state';
+import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
 
 const LINEAS = [
   { value: 'BHS',            label: 'BHS',           sub: 'Aeropuertos' },
@@ -12,7 +13,7 @@ const LINEAS = [
   { value: 'Cartón',         label: 'Cartón',         sub: 'Corrugado' },
   { value: 'Final de Línea', label: 'Final de Línea', sub: 'Alimentos / Bebidas' },
   { value: 'Motos',          label: 'Motos',          sub: 'Ensambladoras' },
-  { value: 'SOLUMAT',        label: 'Solumat',        sub: 'Plásticos' },
+  { value: 'Solumat',        label: 'Solumat',        sub: 'Plásticos' },
 ];
 
 const ALL_VALUES = LINEAS.map((l) => l.value);
@@ -34,16 +35,26 @@ export function Step1Target({ state, onChange }: Props) {
     const next = selectedLines.includes(value)
       ? selectedLines.filter((x) => x !== value)
       : [...selectedLines, value];
-    onChange({ line: next.join(',') });
+    // Reset sublínea when line selection changes
+    onChange({ line: next.join(','), sublinea: undefined });
   }
 
   function selectAll() {
-    onChange({ line: ALL_VALUES.join(',') });
+    onChange({ line: ALL_VALUES.join(','), sublinea: undefined });
   }
 
   function clearAll() {
-    onChange({ line: '' });
+    onChange({ line: '', sublinea: undefined });
   }
+
+  // Sublínea chips — only shown when exactly 1 line is selected
+  const singleLineSubs: string[] = (() => {
+    if (selectedLines.length !== 1) return [];
+    const cfg = LINEAS_CONFIG.find(
+      (c) => c.key.toLowerCase() === selectedLines[0]!.toLowerCase(),
+    );
+    return cfg?.sublineas ?? [];
+  })();
 
   return (
     <div className="space-y-6">
@@ -128,6 +139,46 @@ export function Step1Target({ state, onChange }: Props) {
           >
             Seleccionar todas las líneas (LATAM completo)
           </button>
+        )}
+
+        {/* Sublínea chips — only when 1 line selected */}
+        {singleLineSubs.length > 0 && (
+          <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
+            <div className="mb-2 flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">
+                Sub-línea <span className="font-normal">(opcional)</span>
+              </span>
+              {state.sublinea && (
+                <button
+                  type="button"
+                  onClick={() => onChange({ sublinea: undefined })}
+                  className="text-xs text-muted-foreground hover:text-foreground"
+                >
+                  Limpiar
+                </button>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {singleLineSubs.map((sub) => {
+                const isActive = state.sublinea === sub;
+                return (
+                  <button
+                    key={sub}
+                    type="button"
+                    onClick={() => onChange({ sublinea: isActive ? undefined : sub })}
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-xs transition-all duration-150',
+                      isActive
+                        ? 'border-primary bg-primary/20 font-medium text-primary'
+                        : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                    )}
+                  >
+                    {sub}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         )}
       </div>
 

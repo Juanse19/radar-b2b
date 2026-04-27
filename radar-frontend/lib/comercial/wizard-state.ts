@@ -14,6 +14,7 @@ export interface WizardState {
   count:    number;          // auto mode (1-20)
   selectedIds: number[];     // manual mode
   customKeywords?: string;   // optional override for AI search keywords
+  sublinea?: string;         // optional sublínea filter (only when single line selected)
   // Step 3 data
   provider: string;          // 'claude' | 'openai' | 'gemini'
   budgetUsd: number;         // user override, default from estimate
@@ -40,7 +41,8 @@ export function useWizardState() {
       presetId:       sp.get('preset'),
       count:          Number(sp.get('count') ?? '5'),
       selectedIds:    (sp.get('empresas') ?? '').split(',').filter(Boolean).map(Number),
-      customKeywords: sp.get('keywords') ?? undefined,
+      customKeywords: sp.get('keywords')  ?? undefined,
+      sublinea:       sp.get('sublinea') ?? undefined,
       provider:       sp.get('provider') ?? 'claude',
       budgetUsd:      Number(sp.get('budget') ?? '0'),
     };
