@@ -25,9 +25,8 @@ export async function GET(req: NextRequest) {
         cargo_uld:           'BHS',
         carton_corrugado:    'Cartón',
         logistica:           'Intralogística',
-        final_linea:         'Final de Línea',
-        ensambladoras_motos: 'Motos',
-        solumat:             'Solumat',
+        final_linea:         'Intralogística',  // historically misclassified intralogística companies
+        // ensambladoras_motos and solumat excluded until those lines have real imported data
       };
       const counts: Record<string, number> = {};
       for (const [codigo, val] of Object.entries(raw)) {
@@ -38,7 +37,19 @@ export async function GET(req: NextRequest) {
     }
 
     const empresas = await getEmpresasByLinea(linea, limit, offset);
-    return NextResponse.json(empresas);
+    const mapped = empresas.map((e) => {
+      const raw = e as unknown as Record<string, unknown>;
+      const subLinea = raw.sub_linea_principal as Record<string, unknown> | null;
+      return {
+        id:      String(raw.id ?? ''),
+        nombre:  String(raw.company_name ?? raw.nombre ?? ''),
+        pais:    String(raw.pais_nombre ?? raw.pais ?? ''),
+        dominio: (raw.company_domain ?? raw.dominio ?? null) as string | null,
+        linea:   String(subLinea?.nombre ?? raw.linea_negocio ?? raw.linea ?? ''),
+        tier:    String(raw.tier_actual ?? raw.tier ?? 'sin_calificar'),
+      };
+    });
+    return NextResponse.json(mapped);
   } catch (error) {
     const msg = error instanceof Error ? error.message : 'Error desconocido';
     // Log completo en servidor para debugging (visible en terminal del dev server)

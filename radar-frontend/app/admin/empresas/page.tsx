@@ -5,7 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Plus, Pencil, Trash2,
   ChevronLeft, ChevronRight, Search, Loader2, Eye,
-  Plane, Package, Truck, Globe, Boxes, Bike, Layers,
+  Plane, Package, Truck, Globe,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import Link from 'next/link';
@@ -114,39 +114,6 @@ const LINEA_OPTIONS: {
     activeBorder: 'border-emerald-500',
     badge: 'bg-emerald-900 text-emerald-300',
     dot: 'bg-emerald-400',
-  },
-  {
-    value: 'Final de Línea',
-    label: 'Final de Línea',
-    desc: 'Alimentos y bebidas',
-    Icon: Boxes,
-    color: 'text-violet-400',
-    activeBg: 'bg-violet-950/60',
-    activeBorder: 'border-violet-500',
-    badge: 'bg-violet-900 text-violet-300',
-    dot: 'bg-violet-400',
-  },
-  {
-    value: 'Motos',
-    label: 'Motos',
-    desc: 'Ensambladoras',
-    Icon: Bike,
-    color: 'text-rose-400',
-    activeBg: 'bg-rose-950/60',
-    activeBorder: 'border-rose-500',
-    badge: 'bg-rose-900 text-rose-300',
-    dot: 'bg-rose-400',
-  },
-  {
-    value: 'Solumat',
-    label: 'Solumat',
-    desc: 'Plásticos',
-    Icon: Layers,
-    color: 'text-orange-400',
-    activeBg: 'bg-orange-950/60',
-    activeBorder: 'border-orange-500',
-    badge: 'bg-orange-900 text-orange-300',
-    dot: 'bg-orange-400',
   },
 ];
 
@@ -286,9 +253,6 @@ function EmpresaModal({ open, onClose, initial, onSubmit, loading, titulo }: Emp
                   <SelectItem value="BHS"             className="text-foreground">BHS</SelectItem>
                   <SelectItem value="Cartón"          className="text-foreground">Cartón</SelectItem>
                   <SelectItem value="Intralogística"  className="text-foreground">Intralogística</SelectItem>
-                  <SelectItem value="Final de Línea"  className="text-foreground">Final de Línea</SelectItem>
-                  <SelectItem value="Motos"           className="text-foreground">Motos</SelectItem>
-                  <SelectItem value="Solumat"         className="text-foreground">Solumat</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -568,7 +532,7 @@ export default function EmpresasPage() {
           <p className="text-xs text-muted-foreground uppercase tracking-widest mb-3 font-semibold">
             Filtrar por línea
           </p>
-          <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {LINEA_OPTIONS.map(opt => {
               const isActive = lineaFiltro === opt.value;
               const cnt = opt.value === 'ALL'
@@ -666,9 +630,6 @@ export default function EmpresasPage() {
                         empresa.linea === 'BHS'             ? 'bg-blue-500'
                         : empresa.linea === 'Cartón'        ? 'bg-amber-500'
                         : empresa.linea === 'Intralogística'? 'bg-emerald-500'
-                        : empresa.linea === 'Final de Línea'? 'bg-violet-500'
-                        : empresa.linea === 'Motos'         ? 'bg-rose-500'
-                        : empresa.linea === 'Solumat'       ? 'bg-orange-500'
                         : 'bg-gray-600'
                       }`}
                     />
