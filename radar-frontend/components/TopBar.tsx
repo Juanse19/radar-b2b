@@ -1,7 +1,8 @@
 'use client'
 import Image from 'next/image'
 import Link from 'next/link'
-import { Menu, Bell, Sun, Moon } from 'lucide-react'
+import { Menu, Sun, Moon } from 'lucide-react'
+import { NotificationBell } from '@/components/notifications/NotificationBell'
 import { useTheme } from 'next-themes'
 import { useEffect, useState } from 'react'
 import type { SessionUser } from '@/lib/auth/types'
@@ -58,10 +59,8 @@ export function TopBar({ session, onMobileMenuToggle }: TopBarProps) {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Notifications bell (placeholder) */}
-      <button type="button" className="text-white/60 hover:text-white transition-colors">
-        <Bell className="w-5 h-5" />
-      </button>
+      {/* Notifications bell — wired to /api/notifications */}
+      <NotificationBell />
 
       {/* Theme toggle — deferred until mounted to avoid SSR/client hydration mismatch */}
       <button
