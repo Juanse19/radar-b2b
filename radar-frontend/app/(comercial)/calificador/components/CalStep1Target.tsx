@@ -6,6 +6,7 @@ import { Zap, Target, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { KeywordChips } from '@/app/(comercial)/components/KeywordChips';
 
 const LINEAS = [
   { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos, Cargo' },
@@ -133,6 +134,16 @@ export function CalStep1Target({ state, onChange }: Props) {
                 );
               })}
             </div>
+          </div>
+        )}
+
+        {/* Keywords for selected line/sublinea */}
+        {state.linea && (
+          <div className="mt-2">
+            <KeywordChips
+              linea={state.linea}
+              sublinea={state.sublinea}
+            />
           </div>
         )}
       </div>

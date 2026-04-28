@@ -14,20 +14,32 @@ import { Step3Review } from './Step3Review';
 export function Wizard() {
   const { state, patch, goto, next, prev, canNext } = useWizardState();
   const presetAppliedRef = useRef(false);
-  const autoAdvancedRef  = useRef(false);
+  // Track previous line/mode to distinguish "user just selected" vs "user went back"
+  const prevLineRef = useRef(state.line);
+  const prevModeRef = useRef(state.mode);
 
-  // Auto-advance from Step 1 → Step 2 when both line and mode are selected.
-  // Uses a ref to fire only ONCE per session; if user goes back to Step 1,
-  // they can re-trigger by changing line/mode (ref resets below).
+  // Auto-advance from Step 1 → Step 2 only when line or mode CHANGES.
+  // If user navigates back to Step 1 with the same line/mode already set,
+  // nothing changed → no auto-advance. Only fires when user makes a new selection.
   useEffect(() => {
     if (state.step !== 1) {
-      autoAdvancedRef.current = false;  // reset when user navigates away
+      // Keep refs in sync as user moves through wizard
+      prevLineRef.current = state.line;
+      prevModeRef.current = state.mode;
       return;
     }
-    if (autoAdvancedRef.current)  return;
-    if (!state.line || !state.mode) return;
+    if (!state.line || !state.mode) {
+      prevLineRef.current = state.line;
+      prevModeRef.current = state.mode;
+      return;
+    }
+    const lineChanged = state.line !== prevLineRef.current;
+    const modeChanged = state.mode !== prevModeRef.current;
+    prevLineRef.current = state.line;
+    prevModeRef.current = state.mode;
 
-    autoAdvancedRef.current = true;
+    if (!lineChanged && !modeChanged) return; // back-navigation — stay on step 1
+
     const timer = setTimeout(() => patch({ step: 2 }), 400);
     return () => clearTimeout(timer);
   }, [state.step, state.line, state.mode, patch]);

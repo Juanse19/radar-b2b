@@ -23,11 +23,8 @@ export default async function EscanearPage({ searchParams }: Props) {
   const hasLinea = typeof linea === 'string' && linea.length > 0;
 
   if (!hasLinea) {
-    return (
-      <Suspense fallback={<WizardFallback />}>
-        <LineaLanding />
-      </Suspense>
-    );
+    // LineaLanding is a static client component — no Suspense needed
+    return <LineaLanding />;
   }
 
   return (
