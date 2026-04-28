@@ -20,6 +20,11 @@ export interface InterpretedQuery {
   source:    'llm' | 'regex';
 }
 
+export interface HistoryTurn {
+  role:    'user' | 'assistant';
+  content: string;
+}
+
 const LINEAS = [
   { key: 'BHS',            patterns: [/bhs/i, /aeropuerto/i, /terminal/i, /carrusel/i, /equipaje/i] },
   { key: 'Cartón',         patterns: [/cart[óo]n/i, /papel/i, /corrugadora/i, /corrugado/i] },
@@ -141,14 +146,18 @@ const INTERPRET_TOOL = {
   },
 };
 
-async function interpretWithHaiku(text: string, apiKey: string): Promise<InterpretedQuery | null> {
+async function interpretWithHaiku(text: string, apiKey: string, history: HistoryTurn[] = []): Promise<InterpretedQuery | null> {
+  const messages: Array<{ role: string; content: string }> = [
+    ...history.slice(-6).map((h) => ({ role: h.role, content: h.content })),
+    { role: 'user', content: text },
+  ];
   const body = {
     model:      HAIKU_MODEL,
     max_tokens: 1024,
     tool_choice: { type: 'tool', name: 'extract_radar_query' },
     tools:      [INTERPRET_TOOL],
-    system:     `Sos un parser de queries para el RADAR de inversión Matec. Tu tarea es extraer parámetros estructurados de la pregunta del usuario. Las 3 líneas Matec son: BHS (aeropuertos/terminales), Cartón (corrugado/papel), Intralogística (CEDI/WMS/Final de Línea/Solumat/Logística). Si el usuario menciona "Final de Línea" o "Solumat" o "Logística" → línea es Intralogística (son sub-líneas).`,
-    messages:   [{ role: 'user', content: text }],
+    system:     `Sos un parser de queries para el RADAR de inversión Matec. Tu tarea es extraer parámetros estructurados de la pregunta del usuario. Las 3 líneas Matec son: BHS (aeropuertos/terminales), Cartón (corrugado/papel), Intralogística (CEDI/WMS/Final de Línea/Solumat/Logística). Si el usuario menciona "Final de Línea" o "Solumat" o "Logística" → línea es Intralogística (son sub-líneas). IMPORTANTE: el usuario puede hacer preguntas de seguimiento como "¿y en Colombia?" o "¿también en México?" — usá el historial de la conversación para inferir la línea, empresa y países implícitos del contexto previo.`,
+    messages,
   };
 
   const resp = await fetch('https://api.anthropic.com/v1/messages', {
@@ -204,12 +213,12 @@ export function interpretChat(question: string): InterpretedQuery {
  * (server async). Más preciso que interpretChat() pero requiere CLAUDE_API_KEY
  * o fila activa en ai_provider_configs.
  */
-export async function interpretChatLLM(question: string): Promise<InterpretedQuery> {
+export async function interpretChatLLM(question: string, history: HistoryTurn[] = []): Promise<InterpretedQuery> {
   const text = question.trim();
   const apiKey = await getAnthropicKey();
   if (apiKey) {
     try {
-      const result = await interpretWithHaiku(text, apiKey);
+      const result = await interpretWithHaiku(text, apiKey, history);
       if (result) return result;
     } catch (err) {
       console.warn('[chatInterpreter] Haiku failed, falling back to regex:', err);

@@ -32,12 +32,24 @@ export function Step1Target({ state, onChange }: Props) {
     const next = selectedLines.includes(value)
       ? selectedLines.filter((x) => x !== value)
       : [...selectedLines, value];
-    // Reset sublínea when line selection changes
-    onChange({ line: next.join(','), sublinea: undefined });
+    // Reset sublíneas when line selection changes
+    onChange({ line: next.join(','), sublineas: [] });
   }
 
   function selectAll() {
-    onChange({ line: ALL_VALUES.join(','), sublinea: undefined });
+    onChange({ line: ALL_VALUES.join(','), sublineas: [] });
+  }
+
+  function toggleSublinea(sub: string) {
+    const current = state.sublineas ?? [];
+    const next = current.includes(sub)
+      ? current.filter((s) => s !== sub)
+      : [...current, sub];
+    onChange({ sublineas: next });
+  }
+
+  function clearSublineas() {
+    onChange({ sublineas: [] });
   }
 
   function clearAll() {
@@ -138,17 +150,22 @@ export function Step1Target({ state, onChange }: Props) {
           </button>
         )}
 
-        {/* Sublínea chips — only when 1 line selected */}
+        {/* Sub-línea chips — multi-select cuando hay 1 línea seleccionada */}
         {singleLineSubs.length > 0 && (
           <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 px-3 py-2.5">
             <div className="mb-2 flex items-center justify-between">
               <span className="text-xs font-medium text-muted-foreground">
-                Sub-línea <span className="font-normal">(opcional)</span>
+                Sub-líneas <span className="font-normal">(opcional · multi-select)</span>
+                {(state.sublineas?.length ?? 0) > 0 && (
+                  <span className="ml-2 text-foreground">
+                    {state.sublineas.length} seleccionada{state.sublineas.length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </span>
-              {state.sublinea && (
+              {(state.sublineas?.length ?? 0) > 0 && (
                 <button
                   type="button"
-                  onClick={() => onChange({ sublinea: undefined })}
+                  onClick={clearSublineas}
                   className="text-xs text-muted-foreground hover:text-foreground"
                 >
                   Limpiar
@@ -157,12 +174,12 @@ export function Step1Target({ state, onChange }: Props) {
             </div>
             <div className="flex flex-wrap gap-1.5">
               {singleLineSubs.map((sub) => {
-                const isActive = state.sublinea === sub;
+                const isActive = (state.sublineas ?? []).includes(sub);
                 return (
                   <button
                     key={sub}
                     type="button"
-                    onClick={() => onChange({ sublinea: isActive ? undefined : sub })}
+                    onClick={() => toggleSublinea(sub)}
                     className={cn(
                       'rounded-full border px-2.5 py-0.5 text-xs transition-all duration-150',
                       isActive

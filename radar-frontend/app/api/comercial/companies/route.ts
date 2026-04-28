@@ -89,14 +89,20 @@ export async function GET(req: NextRequest) {
   const where: string[] = [];
 
   // Sublínea filter — case + accent insensitive match against sub_lineas_negocio.nombre.
-  // Useful when a single line is selected and the wizard exposes the line's children.
+  // Soporta multi-select via CSV (`?sublinea=Final de Línea,Solumat`).
   if (sublineaDecoded) {
-    where.push(`EXISTS (
-      SELECT 1 FROM ${S}.empresa_sub_lineas esl
-      JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-      WHERE esl.empresa_id = e.id
-        AND lower(${S}.f_unaccent(sl.nombre)) = lower(${S}.f_unaccent(${pgLit(sublineaDecoded)}))
-    )`);
+    const subList = sublineaDecoded.split(',').map(s => s.trim()).filter(Boolean);
+    if (subList.length > 0) {
+      const conds = subList.map(
+        s => `lower(${S}.f_unaccent(sl.nombre)) = lower(${S}.f_unaccent(${pgLit(s)}))`,
+      );
+      where.push(`EXISTS (
+        SELECT 1 FROM ${S}.empresa_sub_lineas esl
+        JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+        WHERE esl.empresa_id = e.id
+          AND (${conds.join(' OR ')})
+      )`);
+    }
   }
 
   if (lineaDecoded && lineaDecoded !== 'ALL') {

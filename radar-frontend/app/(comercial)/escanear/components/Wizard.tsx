@@ -14,17 +14,29 @@ import { Step3Review } from './Step3Review';
 export function Wizard() {
   const { state, patch, goto, next, prev, canNext } = useWizardState();
   const presetAppliedRef = useRef(false);
-  const autoAdvancedRef  = useRef(false);
+  // Initialize to true if already past step 1 (page loaded with ?step=2 or ?step=3).
+  // This prevents auto-advance from firing when user goes back to step 1 from a URL
+  // that was already at step 2/3 (e.g., from a deep link or a shared URL).
+  const autoAdvancedRef  = useRef(state.step > 1);
+  const prevLineRef      = useRef(state.line);
+  const prevModeRef      = useRef(state.mode);
+
+  // Reset auto-advance ONLY when the user makes a new selection (line or mode changes).
+  // This allows re-triggering after a selection change without firing on "Atrás" clicks.
+  useEffect(() => {
+    if (state.line !== prevLineRef.current || state.mode !== prevModeRef.current) {
+      autoAdvancedRef.current = false;
+      prevLineRef.current = state.line;
+      prevModeRef.current = state.mode;
+    }
+  }, [state.line, state.mode]);
 
   // Auto-advance from Step 1 → Step 2 when both line and mode are selected.
-  // Uses a ref to fire only ONCE per session; if user goes back to Step 1,
-  // they can re-trigger by changing line/mode (ref resets below).
+  // Does NOT reset on step changes — going back to Step 1 won't re-trigger.
+  // Re-triggers only if the user picks a different line or mode (effect above).
   useEffect(() => {
-    if (state.step !== 1) {
-      autoAdvancedRef.current = false;  // reset when user navigates away
-      return;
-    }
-    if (autoAdvancedRef.current)  return;
+    if (state.step !== 1)          return;
+    if (autoAdvancedRef.current)   return;
     if (!state.line || !state.mode) return;
 
     autoAdvancedRef.current = true;
@@ -69,7 +81,7 @@ export function Wizard() {
         <Button
           variant="outline"
           size="sm"
-          onClick={prev}
+          onClick={() => { autoAdvancedRef.current = true; prev(); }}
           disabled={state.step === 1}
         >
           <ChevronLeft size={14} className="mr-1" /> Atrás

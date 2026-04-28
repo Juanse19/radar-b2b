@@ -30,12 +30,27 @@ const EXAMPLES = [
   '¿Qué señales nuevas hay en intralogística Colombia?',
 ];
 
+const SESSION_KEY = 'chat-turns-radar';
+
 export function ChatPanel() {
   const [turns, setTurns]     = useState<ChatTurn[]>([]);
   const [input, setInput]     = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
   const [provider, setProvider] = useState<'claude' | 'openai' | 'gemini'>('claude');
   const scrollRef             = useRef<HTMLDivElement>(null);
+
+  // Restore turns from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem(SESSION_KEY);
+      if (saved) setTurns(JSON.parse(saved) as ChatTurn[]);
+    } catch {}
+  }, []);
+
+  // Persist turns to sessionStorage whenever they change
+  useEffect(() => {
+    try { sessionStorage.setItem(SESSION_KEY, JSON.stringify(turns)); } catch {}
+  }, [turns]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
@@ -45,6 +60,8 @@ export function ChatPanel() {
     const q = question.trim();
     if (!q || loading) return;
     setInput('');
+    // Build history from current turns BEFORE adding the new user message
+    const history = turns.slice(-6).map((t) => ({ role: t.role, content: t.text }));
     setTurns((t) => [...t, { role: 'user', text: q }]);
     setLoading(true);
 
@@ -52,7 +69,7 @@ export function ChatPanel() {
       const r = await fetch('/api/radar/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: q, provider }),
+        body: JSON.stringify({ question: q, provider, history }),
       });
       const data = await r.json();
       setTurns((t) => [
@@ -130,6 +147,14 @@ export function ChatPanel() {
 
         <div className="border-t border-border p-3 space-y-2">
           <div className="flex items-center justify-between gap-2 text-xs">
+            <button
+              type="button"
+              onClick={() => { setTurns([]); try { sessionStorage.removeItem(SESSION_KEY); } catch {} }}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+              title="Limpiar conversación"
+            >
+              Limpiar
+            </button>
             <span className="text-muted-foreground">Proveedor IA:</span>
             <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
               {(['claude','openai','gemini'] as const).map((p) => (

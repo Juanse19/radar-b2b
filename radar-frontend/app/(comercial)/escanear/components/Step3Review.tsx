@@ -216,7 +216,11 @@ export function Step3Review({ state, onChange }: Props) {
       } else {
         // Manual mode — re-hydrate full name/country from companies endpoint
         const qs = new URLSearchParams({ linea: state.line, limit: '200' });
-        if (state.sublinea) qs.set('sublinea', state.sublinea);
+        if (state.sublineas && state.sublineas.length > 0) {
+          qs.set('sublinea', state.sublineas.join(','));
+        } else if (state.sublinea) {
+          qs.set('sublinea', state.sublinea);
+        }
         const lookupRes = await fetch(`/api/comercial/companies?${qs}`);
         const all: ComercialCompany[] = lookupRes.ok ? await lookupRes.json() : [];
         companies = all.filter((c) => state.selectedIds.includes(c.id));
@@ -248,7 +252,13 @@ export function Step3Review({ state, onChange }: Props) {
         ),
       });
       if (state.customKeywords) vivoParams.set('keywords', state.customKeywords);
-      if (state.sublinea)       vivoParams.set('sublinea', state.sublinea);
+      if (state.sublineas && state.sublineas.length > 0) {
+        vivoParams.set('sublineas', state.sublineas.join(','));
+      } else if (state.sublinea) {
+        vivoParams.set('sublinea', state.sublinea);
+      }
+      // Default ragEnabled is true; only forward when explicitly disabled
+      if (state.ragEnabled === false) vivoParams.set('rag', 'false');
       router.push(`/en-vivo?${vivoParams.toString()}`);
     } catch (e) {
       setFireError(e instanceof Error ? e.message : 'Error ejecutando escaneo');

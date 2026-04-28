@@ -20,7 +20,7 @@
  */
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
-import { interpretChatLLM } from '@/lib/radar/chatInterpreter';
+import { interpretChatLLM, type HistoryTurn } from '@/lib/radar/chatInterpreter';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -28,6 +28,7 @@ export const maxDuration = 300;
 interface RawBody {
   question?: unknown;
   provider?: unknown;
+  history?:  unknown;
 }
 
 export async function POST(req: NextRequest) {
@@ -47,7 +48,19 @@ export async function POST(req: NextRequest) {
       ? body.provider
       : 'claude';
 
-  const interpreted = await interpretChatLLM(body.question);
+  const history: HistoryTurn[] = Array.isArray(body.history)
+    ? (body.history as unknown[])
+        .filter(
+          (h): h is { role: unknown; content: unknown } =>
+            !!h && typeof h === 'object' &&
+            ((h as Record<string, unknown>).role === 'user' || (h as Record<string, unknown>).role === 'assistant') &&
+            typeof (h as Record<string, unknown>).content === 'string',
+        )
+        .map((h) => ({ role: (h as { role: 'user' | 'assistant' }).role, content: (h as { content: string }).content }))
+        .slice(-6)
+    : [];
+
+  const interpreted = await interpretChatLLM(body.question, history);
 
   // Si no se detectó línea, no podemos disparar scan — pedir clarificación
   if (!interpreted.linea) {

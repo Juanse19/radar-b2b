@@ -1,16 +1,38 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Radar, Sparkles, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleTrigger,
+  CollapsibleContent,
+} from '@/components/ui/collapsible';
+import { Loader2, Radar, Sparkles, AlertTriangle, X, ChevronLeft, ChevronRight, ChevronDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { LineaSelectorCards } from '@/components/agent/LineaSelectorCards';
 import { Stepper } from '../../escanear/components/Stepper';
+import type { ParentLineaItem } from '@/app/api/comercial/lineas-tree/route';
 
 const PAISES = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Panamá'];
+
+const FALLBACK_KEYWORDS = ['CAPEX', 'inversión', 'licitación', 'expansión', 'nueva planta'];
+
+interface FuenteApi {
+  nombre?: string;
+  url_base?: string | null;
+  lineas?: string[] | null;
+  pais?: string | null;
+  country?: string | null;
+}
+
+interface KeywordApi {
+  palabra?: string;
+  sub_linea_id?: number | null;
+}
 
 interface PersistedSignal {
   id: string;
@@ -33,6 +55,28 @@ interface ScanResponse {
   cost?: { tokens_input: number; tokens_output: number; cost_usd: number; search_calls: number; model: string };
 }
 
+function groupFuentesByCountry(rows: FuenteApi[]): Array<{ country: string; sources: string[] }> {
+  const groups = new Map<string, string[]>();
+  for (const f of rows) {
+    const country = f.pais ?? f.country ?? 'Otros';
+    const name = f.nombre ?? '';
+    if (!name) continue;
+    const existing = groups.get(country) ?? [];
+    if (!existing.includes(name)) existing.push(name);
+    groups.set(country, existing);
+  }
+  return Array.from(groups.entries()).map(([country, sources]) => ({ country, sources }));
+}
+
+function resolveSubLineaIds(tree: ParentLineaItem[], line: string, subLinea: string): number[] {
+  const parent = tree.find((p) => p.label === line);
+  if (!parent) return [];
+  const pool = subLinea
+    ? parent.subLineas.filter((s) => s.value === subLinea || s.label === subLinea)
+    : parent.subLineas;
+  return pool.map((s) => s.id).filter((id): id is number => id !== null);
+}
+
 export function SenalesScanForm() {
   const [step, setStep]           = useState<1 | 2 | 3>(1);
   const [linea, setLinea]         = useState<string>('');
@@ -44,6 +88,93 @@ export function SenalesScanForm() {
   const [running, setRunning]     = useState<boolean>(false);
   const [result, setResult]       = useState<ScanResponse | null>(null);
   const [error, setError]         = useState<string | null>(null);
+
+  // Fuentes + Keywords — resolved from selected line for display and payload
+  const [lineasTree,    setLineasTree]    = useState<ParentLineaItem[]>([]);
+  const [fuentesGroups, setFuentesGroups] = useState<Array<{ country: string; sources: string[] }>>([]);
+  const [dbKeywords,    setDbKeywords]    = useState<string[]>(FALLBACK_KEYWORDS);
+  const allFuentesRef = useRef<FuenteApi[]>([]);
+
+  useEffect(() => {
+    fetch('/api/comercial/lineas-tree')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: ParentLineaItem[]) => { if (Array.isArray(data)) setLineasTree(data); })
+      .catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch('/api/admin/fuentes')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: unknown) => {
+        if (cancelled) return;
+        const rows: FuenteApi[] = Array.isArray(data) ? data
+          : (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data))
+              ? ((data as { data: FuenteApi[] }).data) : [];
+        allFuentesRef.current = rows;
+        applyFuentesFilter(rows, linea);
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  useEffect(() => {
+    if (allFuentesRef.current.length > 0) applyFuentesFilter(allFuentesRef.current, linea);
+  }, [linea]);
+
+  function applyFuentesFilter(rows: FuenteApi[], line: string) {
+    const sel = line?.toLowerCase();
+    const filtered = sel
+      ? rows.filter((f) =>
+          !f.lineas || f.lineas.length === 0 ||
+          f.lineas.some((l) => l.toLowerCase().includes(sel) || sel.includes(l.toLowerCase()))
+        )
+      : rows;
+    const grouped = groupFuentesByCountry(filtered.length > 0 ? filtered : rows);
+    if (grouped.length > 0) setFuentesGroups(grouped);
+  }
+
+  useEffect(() => {
+    let cancelled = false;
+    const ids = resolveSubLineaIds(lineasTree, linea, subLinea);
+
+    if (ids.length === 0) {
+      if (!linea) return;
+      fetch('/api/admin/keywords')
+        .then((r) => r.ok ? r.json() : [])
+        .then((data: unknown) => {
+          if (cancelled) return;
+          const rows: KeywordApi[] = Array.isArray(data) ? data : [];
+          const words = rows.map((k) => k.palabra ?? '').filter((w) => w.length > 0);
+          if (words.length > 0) setDbKeywords(words.slice(0, 40));
+        })
+        .catch(() => {});
+      return () => { cancelled = true; };
+    }
+
+    Promise.all(
+      ids.map((id) =>
+        fetch(`/api/admin/keywords?sub_linea_id=${id}`)
+          .then((r) => r.ok ? r.json() : [])
+          .then((data: unknown): KeywordApi[] => Array.isArray(data) ? data : [])
+          .catch((): KeywordApi[] => [])
+      )
+    ).then((results) => {
+      if (cancelled) return;
+      const seen = new Set<string>();
+      const words: string[] = [];
+      for (const rows of results) {
+        for (const k of rows) {
+          const w = k.palabra ?? '';
+          if (w && !seen.has(w)) { seen.add(w); words.push(w); }
+        }
+      }
+      setDbKeywords(words.length > 0 ? words.slice(0, 40) : FALLBACK_KEYWORDS);
+    });
+
+    return () => { cancelled = true; };
+  }, [lineasTree, linea, subLinea]);
 
   function togglePais(p: string) {
     setPaises((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -60,10 +191,16 @@ export function SenalesScanForm() {
     setResult(null);
     setRunning(true);
     try {
-      const keywords = keywordsRaw
+      const customKws = keywordsRaw
         .split(/[\n,]/)
         .map((s) => s.trim())
         .filter(Boolean);
+      // Merge DB keywords with custom ones (custom takes priority, placed first)
+      const keywords = customKws.length > 0 ? customKws : dbKeywords;
+      // Collect fuentes from DB (raw names for the payload)
+      const fuentes = allFuentesRef.current
+        .filter((f) => f.nombre)
+        .map((f) => ({ nombre: f.nombre!, url_base: f.url_base ?? undefined }));
 
       const resp = await fetch('/api/radar/scan-signals', {
         method: 'POST',
@@ -73,9 +210,9 @@ export function SenalesScanForm() {
           sub_linea:     subLinea || undefined,
           paises,
           keywords,
-          fuentes:       [], // S2 follow-up: cargar desde tabla `fuentes` por sub-línea
+          fuentes,
           provider,
-          max_senales:   maxSenales,
+          max_senales: maxSenales,
         }),
       });
       const data = (await resp.json()) as ScanResponse | { error: string };
@@ -111,9 +248,71 @@ export function SenalesScanForm() {
           </div>
         )}
 
-        {/* Step 2 — Países + Keywords + Máximo */}
+        {/* Step 2 — Fuentes + Keywords + Países + Máximo */}
         {step === 2 && (
           <div className="space-y-5">
+            {/* Fuentes institucionales from DB (T3/T4) */}
+            {fuentesGroups.length > 0 && (
+              <Collapsible>
+                <CollapsibleTrigger
+                  className={cn(
+                    'group flex w-full items-center justify-between rounded-lg border border-border',
+                    'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+                  )}
+                >
+                  <span className="font-medium">Fuentes institucionales</span>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="secondary" className="h-5 text-[10px]">
+                      {fuentesGroups.reduce((n, g) => n + g.sources.length, 0)} activas
+                    </Badge>
+                    <ChevronDown
+                      size={14}
+                      className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                    />
+                  </div>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="mt-2">
+                  <div className="space-y-1 rounded-lg border border-border/50 bg-background p-3 text-xs">
+                    {fuentesGroups.map((f) => (
+                      <div key={f.country} className="flex flex-wrap items-baseline gap-1.5">
+                        <span className="font-medium text-foreground">{f.country}:</span>
+                        <span className="text-muted-foreground">{f.sources.join(', ')}</span>
+                      </div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
+            )}
+
+            {/* Keywords from DB (T2/T4) */}
+            <Collapsible>
+              <CollapsibleTrigger
+                className={cn(
+                  'group flex w-full items-center justify-between rounded-lg border border-border',
+                  'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+                )}
+              >
+                <span className="font-medium">Palabras clave del sector</span>
+                <div className="flex items-center gap-2">
+                  <Badge variant="secondary" className="h-5 text-[10px]">{dbKeywords.length}</Badge>
+                  <ChevronDown
+                    size={14}
+                    className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                  />
+                </div>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="mt-2">
+                <div className="rounded-lg border border-border/50 bg-background p-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {dbKeywords.map((k) => (
+                      <Badge key={k} variant="outline" className="text-[11px]">{k}</Badge>
+                    ))}
+                  </div>
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+
+            {/* Countries */}
             <div>
               <Label className="mb-2 block">Países objetivo</Label>
               <div className="flex flex-wrap gap-1.5">
@@ -138,21 +337,20 @@ export function SenalesScanForm() {
               </div>
             </div>
 
+            {/* Custom keywords override */}
             <div>
               <Label htmlFor="kw" className="mb-2 block">
-                Keywords (separadas por coma o salto de línea)
+                Palabras clave adicionales
+                <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
               </Label>
               <textarea
                 id="kw"
                 value={keywordsRaw}
                 onChange={(e) => setKwsRaw(e.target.value)}
-                placeholder="CAPEX, expansión, nueva planta, licitación, BHS"
-                rows={3}
-                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+                placeholder="ej: nueva concesión aeroportuaria terminal T3 CAPEX 2026"
+                rows={2}
+                className="w-full resize-none rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
               />
-              <p className="mt-1 text-xs text-muted-foreground">
-                Si lo dejás vacío, el agente usa las keywords por defecto de la línea.
-              </p>
             </div>
 
             <div>
@@ -189,9 +387,9 @@ export function SenalesScanForm() {
             <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
               <p className="font-medium">Resumen del escaneo</p>
               <ul className="mt-2 space-y-1 text-muted-foreground">
-                <li>· <strong className="text-foreground">{linea}</strong>{subLinea && <> · sub-línea <strong className="text-foreground">{subLinea}</strong></>}</li>
+                <li>· <strong className="text-foreground">{linea}</strong>{subLinea && <> · <strong className="text-foreground">{subLinea}</strong></>}</li>
                 <li>· {paises.length} país{paises.length !== 1 ? 'es' : ''}: {paises.join(', ')}</li>
-                <li>· {keywordsRaw.split(/[\n,]/).filter(Boolean).length || 'default'} keywords</li>
+                <li>· {keywordsRaw.split(/[\n,]/).filter(Boolean).length || dbKeywords.length} keywords · {fuentesGroups.reduce((n, g) => n + g.sources.length, 0)} fuentes</li>
                 <li>· máximo {maxSenales} señales · provider <strong className="text-foreground">{provider}</strong></li>
               </ul>
             </div>
