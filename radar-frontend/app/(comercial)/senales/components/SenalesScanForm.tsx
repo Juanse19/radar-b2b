@@ -6,8 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Radar, Sparkles, AlertTriangle, X } from 'lucide-react';
+import { Loader2, Radar, Sparkles, AlertTriangle, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { LineaSelectorCards } from '@/components/agent/LineaSelectorCards';
+import { Stepper } from '../../escanear/components/Stepper';
 
 const PAISES = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Panamá'];
 
@@ -33,6 +34,7 @@ interface ScanResponse {
 }
 
 export function SenalesScanForm() {
+  const [step, setStep]           = useState<1 | 2 | 3>(1);
   const [linea, setLinea]         = useState<string>('');
   const [subLinea, setSubLinea]   = useState<string>('');
   const [paises, setPaises]       = useState<string[]>([]);
@@ -48,6 +50,10 @@ export function SenalesScanForm() {
   }
 
   const canRun = linea && paises.length > 0 && !running;
+  const canNext =
+    step === 1 ? Boolean(linea) :
+    step === 2 ? paises.length > 0 :
+    false;
 
   async function run() {
     setError(null);
@@ -87,104 +93,138 @@ export function SenalesScanForm() {
 
   return (
     <div className="space-y-6">
-      <Card className="space-y-5 p-6">
-        <div>
-          <Label className="mb-2 block">Línea de negocio</Label>
-          <LineaSelectorCards
-            value={linea}
-            onChange={(v) => { setLinea(v === 'ALL' ? '' : v); setSubLinea(''); }}
-            sublinea={subLinea || undefined}
-            onSublineaChange={(s) => setSubLinea(s ?? '')}
-          />
-        </div>
+      <Stepper current={step} onGoto={(s) => setStep(s)} />
 
-        <div>
-          <Label className="mb-2 block">Países objetivo</Label>
-          <div className="flex flex-wrap gap-1.5">
-            {PAISES.map((p) => {
-              const active = paises.includes(p);
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  onClick={() => togglePais(p)}
-                  className={
-                    'rounded-full border px-3 py-1 text-xs transition-all ' +
-                    (active
-                      ? 'border-primary bg-primary/20 font-medium text-primary'
-                      : 'border-border text-muted-foreground hover:border-primary/50')
-                  }
-                >
-                  {p}
-                </button>
-              );
-            })}
+      <Card className="p-6">
+        {/* Step 1 — Línea + Sub-línea */}
+        {step === 1 && (
+          <div className="space-y-5">
+            <div>
+              <Label className="mb-2 block">Línea de negocio</Label>
+              <LineaSelectorCards
+                value={linea}
+                onChange={(v) => { setLinea(v === 'ALL' ? '' : v); setSubLinea(''); }}
+                sublinea={subLinea || undefined}
+                onSublineaChange={(s) => setSubLinea(s ?? '')}
+              />
+            </div>
           </div>
-        </div>
+        )}
 
-        <div>
-          <Label htmlFor="kw" className="mb-2 block">
-            Keywords (separadas por coma o salto de línea)
-          </Label>
-          <textarea
-            id="kw"
-            value={keywordsRaw}
-            onChange={(e) => setKwsRaw(e.target.value)}
-            placeholder="CAPEX, expansión, nueva planta, licitación, BHS"
-            rows={3}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
-          />
-          <p className="mt-1 text-xs text-muted-foreground">
-            Si lo dejás vacío, el agente usa las keywords por defecto de la línea.
-          </p>
-        </div>
+        {/* Step 2 — Países + Keywords + Máximo */}
+        {step === 2 && (
+          <div className="space-y-5">
+            <div>
+              <Label className="mb-2 block">Países objetivo</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {PAISES.map((p) => {
+                  const active = paises.includes(p);
+                  return (
+                    <button
+                      key={p}
+                      type="button"
+                      onClick={() => togglePais(p)}
+                      className={
+                        'rounded-full border px-3 py-1 text-xs transition-all ' +
+                        (active
+                          ? 'border-primary bg-primary/20 font-medium text-primary'
+                          : 'border-border text-muted-foreground hover:border-primary/50')
+                      }
+                    >
+                      {p}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div>
-            <Label htmlFor="max" className="mb-2 block">Máximo de señales</Label>
-            <Input
-              id="max"
-              type="number"
-              min={1}
-              max={25}
-              value={maxSenales}
-              onChange={(e) => setMaxSenales(Math.min(Math.max(Number(e.target.value), 1), 25))}
-            />
+            <div>
+              <Label htmlFor="kw" className="mb-2 block">
+                Keywords (separadas por coma o salto de línea)
+              </Label>
+              <textarea
+                id="kw"
+                value={keywordsRaw}
+                onChange={(e) => setKwsRaw(e.target.value)}
+                placeholder="CAPEX, expansión, nueva planta, licitación, BHS"
+                rows={3}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Si lo dejás vacío, el agente usa las keywords por defecto de la línea.
+              </p>
+            </div>
+
+            <div>
+              <Label htmlFor="max" className="mb-2 block">Máximo de señales a devolver</Label>
+              <Input
+                id="max"
+                type="number"
+                min={1}
+                max={25}
+                value={maxSenales}
+                onChange={(e) => setMaxSenales(Math.min(Math.max(Number(e.target.value), 1), 25))}
+              />
+            </div>
           </div>
-          <div>
-            <Label htmlFor="prov" className="mb-2 block">Proveedor IA</Label>
-            <select
-              id="prov"
-              value={provider}
-              onChange={(e) => setProvider(e.target.value as 'claude' | 'openai' | 'gemini')}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-            >
-              <option value="claude">Claude (recomendado)</option>
-              <option value="openai" disabled>OpenAI (próximamente)</option>
-              <option value="gemini" disabled>Gemini (próximamente)</option>
-            </select>
-          </div>
-        </div>
+        )}
 
-        <div className="flex items-center justify-between border-t border-border pt-4">
-          <p className="text-xs text-muted-foreground">
-            {linea && paises.length > 0
-              ? `Listo para escanear ${paises.length} país${paises.length !== 1 ? 'es' : ''} en ${linea}`
-              : 'Selecciona línea y al menos un país'}
-          </p>
-          <Button onClick={run} disabled={!canRun} size="sm">
-            {running ? (
-              <>
-                <Loader2 size={14} className="mr-2 animate-spin" /> Escaneando…
-              </>
-            ) : (
-              <>
-                <Radar size={14} className="mr-2" /> Ejecutar Modo Señales
-              </>
-            )}
-          </Button>
-        </div>
+        {/* Step 3 — Provider + Resumen + Ejecutar */}
+        {step === 3 && (
+          <div className="space-y-5">
+            <div>
+              <Label htmlFor="prov" className="mb-2 block">Proveedor IA</Label>
+              <select
+                id="prov"
+                value={provider}
+                onChange={(e) => setProvider(e.target.value as 'claude' | 'openai' | 'gemini')}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+              >
+                <option value="claude">Claude Sonnet 4.6 (recomendado · web search)</option>
+                <option value="openai" disabled>OpenAI (próximamente)</option>
+                <option value="gemini" disabled>Gemini (próximamente)</option>
+              </select>
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Resumen del escaneo</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                <li>· <strong className="text-foreground">{linea}</strong>{subLinea && <> · sub-línea <strong className="text-foreground">{subLinea}</strong></>}</li>
+                <li>· {paises.length} país{paises.length !== 1 ? 'es' : ''}: {paises.join(', ')}</li>
+                <li>· {keywordsRaw.split(/[\n,]/).filter(Boolean).length || 'default'} keywords</li>
+                <li>· máximo {maxSenales} señales · provider <strong className="text-foreground">{provider}</strong></li>
+              </ul>
+            </div>
+
+            <Button onClick={run} disabled={!canRun} size="sm" className="w-full">
+              {running ? (
+                <><Loader2 size={14} className="mr-2 animate-spin" /> Escaneando…</>
+              ) : (
+                <><Radar size={14} className="mr-2" /> Ejecutar Modo Señales</>
+              )}
+            </Button>
+          </div>
+        )}
       </Card>
+
+      {/* Navegación */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setStep((step - 1) as 1 | 2 | 3)}
+          disabled={step === 1}
+        >
+          <ChevronLeft size={14} className="mr-1" /> Atrás
+        </Button>
+        {step < 3 ? (
+          <Button size="sm" onClick={() => setStep((step + 1) as 1 | 2 | 3)} disabled={!canNext}>
+            Siguiente <ChevronRight size={14} className="ml-1" />
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Revisa y ejecuta arriba</span>
+        )}
+      </div>
 
       {error && (
         <Card className="flex items-start gap-3 border-destructive bg-destructive/5 p-4 text-sm">
