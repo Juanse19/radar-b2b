@@ -4,9 +4,10 @@ import { useEffect, useState } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
-import { Loader2, Layers, AlertTriangle, Check } from 'lucide-react';
-import { getMainLineas } from '@/lib/comercial/lineas-config';
-import { useLineasTree, getSubLineasFor } from '@/lib/comercial/useLineasTree';
+import { Input } from '@/components/ui/input';
+import { Loader2, Layers, AlertTriangle, Check, ChevronLeft, ChevronRight } from 'lucide-react';
+import { LineaSelectorCards } from '@/components/agent/LineaSelectorCards';
+import { Stepper } from '../../escanear/components/Stepper';
 
 interface Empresa {
   id: number;
@@ -17,9 +18,11 @@ interface Empresa {
 }
 
 export function ContactosMasivoForm() {
+  const [step, setStep]           = useState<1 | 2 | 3>(1);
   const [linea, setLinea]         = useState<string>('');
   const [sublinea, setSublinea]   = useState<string>('');
   const [tier, setTier]           = useState<string>('');
+  const [contactosPorEmpresa, setContactosPorEmpresa] = useState<number>(3);
   const [empresas, setEmpresas]   = useState<Empresa[]>([]);
   const [selected, setSelected]   = useState<Set<number>>(new Set());
   const [loading, setLoading]     = useState<boolean>(false);
@@ -27,8 +30,12 @@ export function ContactosMasivoForm() {
   const [error, setError]         = useState<string | null>(null);
   const [message, setMessage]     = useState<string | null>(null);
 
-  const { data: tree } = useLineasTree();
-  const subOptions = linea ? getSubLineasFor(tree, linea) : [];
+  const canNext =
+    step === 1 ? Boolean(linea) :
+    step === 2 ? selected.size > 0 :
+    false;
+
+  // Sublineas now come from LineaSelectorCards directly via onSublineaChange.
 
   useEffect(() => {
     if (!linea) { setEmpresas([]); return; }
@@ -98,54 +105,137 @@ export function ContactosMasivoForm() {
 
   return (
     <div className="space-y-5">
-      <Card className="space-y-4 p-5">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-          <div>
-            <Label htmlFor="lin" className="mb-1 block">Línea</Label>
-            <select id="lin" value={linea} onChange={(e) => { setLinea(e.target.value); setSublinea(''); }}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="">Selecciona…</option>
-              {getMainLineas().map((l) => (
-                <option key={l.key} value={l.key}>{l.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="sub" className="mb-1 block">Sub-línea</Label>
-            <select id="sub" value={sublinea} onChange={(e) => setSublinea(e.target.value)} disabled={subOptions.length === 0}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50">
-              <option value="">Todas</option>
-              {subOptions.map((s) => <option key={s.id} value={s.value}>{s.label}</option>)}
-            </select>
-          </div>
-          <div>
-            <Label htmlFor="tier" className="mb-1 block">Tier</Label>
-            <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}
-              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
-              <option value="">Todos</option>
-              <option value="A">A · ORO</option>
-              <option value="B">B · MONITOREO</option>
-              <option value="C">C · ARCHIVO</option>
-              <option value="D">D · DESCARTAR</option>
-            </select>
-          </div>
-        </div>
+      <Stepper current={step} onGoto={(s) => setStep(s)} />
 
-        <div className="flex items-center justify-between border-t border-border pt-3">
-          <p className="text-xs text-muted-foreground">
-            {loading ? <Loader2 size={12} className="inline animate-spin" /> : `${empresas.length} empresas · ${selected.size} seleccionadas`}
-          </p>
-          <div className="flex gap-2">
-            <Button size="sm" variant="outline" onClick={toggleAll} disabled={empresas.length === 0}>
-              {selected.size === empresas.length && empresas.length > 0 ? 'Deseleccionar' : 'Seleccionar todas'}
-            </Button>
-            <Button size="sm" onClick={runProspect} disabled={running || selected.size === 0}>
-              {running ? <Loader2 size={14} className="mr-2 animate-spin" /> : <Layers size={14} className="mr-2" />}
-              Buscar contactos masivos
+      <Card className="p-5">
+        {/* Step 1 — Línea + Sub-línea */}
+        {step === 1 && (
+          <div className="space-y-5">
+            <div>
+              <Label className="mb-2 block">Línea de negocio</Label>
+              <LineaSelectorCards
+                value={linea}
+                onChange={(v) => { setLinea(v === 'ALL' ? '' : v); setSublinea(''); }}
+                sublinea={sublinea || undefined}
+                onSublineaChange={(s) => setSublinea(s ?? '')}
+              />
+            </div>
+          </div>
+        )}
+
+        {/* Step 2 — Filtro tier + Selección de empresas */}
+        {step === 2 && (
+          <div className="space-y-4">
+            <div className="flex items-end gap-3">
+              <div className="flex-1">
+                <Label htmlFor="tier" className="mb-1 block">Filtrar por Tier</Label>
+                <select id="tier" value={tier} onChange={(e) => setTier(e.target.value)}
+                  className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  <option value="">Todos los tiers</option>
+                  <option value="A">A · ORO</option>
+                  <option value="B">B · MONITOREO</option>
+                  <option value="C">C · ARCHIVO</option>
+                  <option value="D">D · DESCARTAR</option>
+                </select>
+              </div>
+              <Button size="sm" variant="outline" onClick={toggleAll} disabled={empresas.length === 0}>
+                {selected.size === empresas.length && empresas.length > 0 ? 'Deseleccionar todas' : 'Seleccionar todas'}
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              {loading ? <><Loader2 size={12} className="inline animate-spin" /> cargando…</> : `${empresas.length} empresas · ${selected.size} seleccionadas`}
+            </p>
+
+            {empresas.length > 0 && (
+              <Card className="max-h-96 overflow-auto p-0">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 border-b border-border bg-muted/60 text-left">
+                    <tr>
+                      <th className="w-10 px-3 py-2"></th>
+                      <th className="px-3 py-2 font-medium">Empresa</th>
+                      <th className="px-3 py-2 font-medium">Línea</th>
+                      <th className="px-3 py-2 font-medium">País</th>
+                      <th className="px-3 py-2 font-medium">Tier</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {empresas.map((e) => {
+                      const checked = selected.has(e.id);
+                      return (
+                        <tr key={e.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
+                          <td className="px-3 py-2">
+                            <button
+                              onClick={() => toggle(e.id)}
+                              className={`flex h-4 w-4 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
+                            >
+                              {checked && <Check size={10} strokeWidth={3} />}
+                            </button>
+                          </td>
+                          <td className="px-3 py-2">{e.name}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{e.linea}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{e.country}</td>
+                          <td className="px-3 py-2 text-muted-foreground">{e.tier}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* Step 3 — Configurar y ejecutar */}
+        {step === 3 && (
+          <div className="space-y-5">
+            <div>
+              <Label htmlFor="cpe" className="mb-1 block">Contactos por empresa</Label>
+              <Input
+                id="cpe" type="number" min={1} max={10}
+                value={contactosPorEmpresa}
+                onChange={(e) => setContactosPorEmpresa(Math.min(Math.max(Number(e.target.value), 1), 10))}
+              />
+              <p className="mt-1 text-xs text-muted-foreground">
+                Default 3. Apollo cobra por contacto enriquecido — ORO=5, MONITOREO=3, ARCHIVO=4.
+              </p>
+            </div>
+
+            <div className="rounded-md border border-border bg-muted/30 p-4 text-sm">
+              <p className="font-medium">Resumen del run masivo (WF03)</p>
+              <ul className="mt-2 space-y-1 text-muted-foreground">
+                <li>· Línea <strong className="text-foreground">{linea}</strong>{sublinea && <> · Sub-línea <strong className="text-foreground">{sublinea}</strong></>}</li>
+                {tier && <li>· Tier filtrado: <strong className="text-foreground">{tier}</strong></li>}
+                <li>· <strong className="text-foreground">{selected.size}</strong> empresa{selected.size !== 1 ? 's' : ''} seleccionada{selected.size !== 1 ? 's' : ''}</li>
+                <li>· Hasta <strong className="text-foreground">{contactosPorEmpresa}</strong> contacto{contactosPorEmpresa !== 1 ? 's' : ''} por empresa · ~{selected.size * contactosPorEmpresa} contactos totales</li>
+              </ul>
+            </div>
+
+            <Button onClick={runProspect} disabled={running || selected.size === 0} size="sm" className="w-full">
+              {running ? <><Loader2 size={14} className="mr-2 animate-spin" /> Disparando WF03…</> : <><Layers size={14} className="mr-2" /> Buscar contactos masivos</>}
             </Button>
           </div>
-        </div>
+        )}
       </Card>
+
+      {/* Navegación */}
+      <div className="flex items-center justify-between">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setStep((step - 1) as 1 | 2 | 3)}
+          disabled={step === 1}
+        >
+          <ChevronLeft size={14} className="mr-1" /> Atrás
+        </Button>
+        {step < 3 ? (
+          <Button size="sm" onClick={() => setStep((step + 1) as 1 | 2 | 3)} disabled={!canNext}>
+            Siguiente <ChevronRight size={14} className="ml-1" />
+          </Button>
+        ) : (
+          <span className="text-xs text-muted-foreground">Revisa y ejecuta arriba</span>
+        )}
+      </div>
 
       {error && (
         <Card className="flex items-start gap-2 border-destructive bg-destructive/5 p-3 text-sm text-destructive">
@@ -157,43 +247,6 @@ export function ContactosMasivoForm() {
       {message && (
         <Card className="border-emerald-500/30 bg-emerald-500/5 p-3 text-sm text-emerald-600">
           {message}
-        </Card>
-      )}
-
-      {empresas.length > 0 && (
-        <Card className="overflow-auto p-0">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/40 text-left">
-              <tr>
-                <th className="w-10 px-3 py-2"></th>
-                <th className="px-3 py-2 font-medium">Empresa</th>
-                <th className="px-3 py-2 font-medium">Línea</th>
-                <th className="px-3 py-2 font-medium">País</th>
-                <th className="px-3 py-2 font-medium">Tier</th>
-              </tr>
-            </thead>
-            <tbody>
-              {empresas.map((e) => {
-                const checked = selected.has(e.id);
-                return (
-                  <tr key={e.id} className="border-b border-border last:border-b-0 hover:bg-muted/20">
-                    <td className="px-3 py-2">
-                      <button
-                        onClick={() => toggle(e.id)}
-                        className={`flex h-4 w-4 items-center justify-center rounded border ${checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border'}`}
-                      >
-                        {checked && <Check size={10} strokeWidth={3} />}
-                      </button>
-                    </td>
-                    <td className="px-3 py-2">{e.name}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{e.linea}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{e.country}</td>
-                    <td className="px-3 py-2 text-muted-foreground">{e.tier}</td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
         </Card>
       )}
     </div>

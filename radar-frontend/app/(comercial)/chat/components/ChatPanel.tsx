@@ -34,6 +34,7 @@ export function ChatPanel() {
   const [turns, setTurns]     = useState<ChatTurn[]>([]);
   const [input, setInput]     = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
+  const [provider, setProvider] = useState<'claude' | 'openai' | 'gemini'>('claude');
   const scrollRef             = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -51,7 +52,7 @@ export function ChatPanel() {
       const r = await fetch('/api/radar/chat', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ question: q, provider: 'claude' }),
+        body: JSON.stringify({ question: q, provider }),
       });
       const data = await r.json();
       setTurns((t) => [
@@ -127,7 +128,27 @@ export function ChatPanel() {
           )}
         </div>
 
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-3 space-y-2">
+          <div className="flex items-center justify-between gap-2 text-xs">
+            <span className="text-muted-foreground">Proveedor IA:</span>
+            <div className="inline-flex rounded-md border border-border bg-muted/30 p-0.5">
+              {(['claude','openai','gemini'] as const).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => setProvider(p)}
+                  className={
+                    'rounded px-2 py-0.5 text-[11px] font-medium transition-all ' +
+                    (provider === p
+                      ? 'bg-background text-foreground shadow-sm ring-1 ring-border'
+                      : 'text-muted-foreground hover:text-foreground')
+                  }
+                >
+                  {p === 'claude' ? 'Claude' : p === 'openai' ? 'OpenAI' : 'Gemini'}
+                </button>
+              ))}
+            </div>
+          </div>
           <form
             onSubmit={(e) => {
               e.preventDefault();
