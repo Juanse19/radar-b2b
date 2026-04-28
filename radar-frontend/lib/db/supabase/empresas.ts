@@ -105,7 +105,7 @@ export async function getEmpresasByLinea(linea: string, limit = 50, offset = 0):
 
 export async function getEmpresasCount(): Promise<Record<string, number>> {
   const rows = await pgQuery<{ codigo: string; count: string }>(
-    `SELECT sl.codigo, COUNT(esl.empresa_id)::text AS count
+    `SELECT sl.codigo, COUNT(DISTINCT esl.empresa_id)::text AS count
      FROM ${S}.empresa_sub_lineas esl
      JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
      GROUP BY sl.codigo`

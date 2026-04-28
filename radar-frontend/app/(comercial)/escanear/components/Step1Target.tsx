@@ -8,9 +8,12 @@ import type { WizardState } from '@/lib/comercial/wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
 
 const LINEAS = [
-  { value: 'BHS',            label: 'BHS',           sub: 'Aeropuertos' },
-  { value: 'Intralogística', label: 'Intralogística', sub: 'CEDI / WMS' },
-  { value: 'Cartón',         label: 'Cartón',         sub: 'Corrugado' },
+  { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos' },
+  { value: 'Intralogística', label: 'Intralogística',  sub: 'CEDI / WMS' },
+  { value: 'Cartón',         label: 'Cartón',          sub: 'Corrugado' },
+  { value: 'Final de Línea', label: 'Final de Línea',  sub: 'Alimentos / Bebidas' },
+  { value: 'Motos',          label: 'Motos',           sub: 'Ensambladoras' },
+  { value: 'Solumat',        label: 'Solumat',         sub: 'Plásticos' },
 ];
 
 const ALL_VALUES = LINEAS.map((l) => l.value);
