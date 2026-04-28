@@ -216,6 +216,7 @@ export function Step3Review({ state, onChange }: Props) {
       } else {
         // Manual mode — re-hydrate full name/country from companies endpoint
         const qs = new URLSearchParams({ linea: state.line, limit: '200' });
+        if (state.sublinea) qs.set('sublinea', state.sublinea);
         const lookupRes = await fetch(`/api/comercial/companies?${qs}`);
         const all: ComercialCompany[] = lookupRes.ok ? await lookupRes.json() : [];
         companies = all.filter((c) => state.selectedIds.includes(c.id));

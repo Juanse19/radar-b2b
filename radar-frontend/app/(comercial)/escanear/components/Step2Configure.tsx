@@ -171,6 +171,7 @@ export function Step2Configure({ state, onChange }: Props) {
     }
 
     const params = new URLSearchParams({ linea: state.line, limit: '200' });
+    if (state.sublinea) params.set('sublinea', state.sublinea);
     fetch(`/api/comercial/companies?${params}`)
       .then((r) => r.ok ? r.json() : [])
       .then((all: ComercialCompany[]) => {
@@ -214,6 +215,7 @@ export function Step2Configure({ state, onChange }: Props) {
           ) : (
             <CompanySelector
               line={state.line}
+              sublinea={state.sublinea}
               selected={selectedCompanies}
               onChange={handleCompaniesChange}
               maxSelect={20}

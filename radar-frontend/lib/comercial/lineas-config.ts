@@ -18,7 +18,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     bgClass: 'bg-sky-500/10',
     borderClass: 'border-sky-500',
     description: 'Baggage Handling Systems · Aeropuertos LATAM',
-    sublineas: ['Aeropuertos', 'Terminales de Pasajeros', 'Carga Aérea', 'ULD / Ground Support'],
+    sublineas: ['Aeropuertos', 'Cargo / ULD'],
   },
   {
     key: 'Cartón',
@@ -28,7 +28,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     bgClass: 'bg-amber-500/10',
     borderClass: 'border-amber-500',
     description: 'Industria cartonera y papelera',
-    sublineas: ['Corrugado', 'Cartón Ondulado', 'Papel y Celulosa'],
+    sublineas: ['Cartón Corrugado'],
   },
   {
     key: 'Intralogística',
@@ -38,7 +38,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     bgClass: 'bg-emerald-500/10',
     borderClass: 'border-emerald-500',
     description: 'Automatización de centros de distribución',
-    sublineas: ['CEDI / Almacenes', 'WMS', 'Conveyor & Sorters', 'ASRS / Picking'],
+    sublineas: ['Final de Línea', 'Ensambladoras de Motos', 'Solumat', 'Logística'],
   },
   {
     key: 'Final de Línea',
