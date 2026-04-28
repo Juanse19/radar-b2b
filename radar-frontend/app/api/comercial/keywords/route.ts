@@ -1,4 +1,3 @@
-import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
