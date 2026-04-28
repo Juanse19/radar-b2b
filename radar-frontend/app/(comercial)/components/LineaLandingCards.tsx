@@ -1,6 +1,6 @@
 'use client';
 
-import { Plane, Package, Truck, Boxes, Bike, Layers } from 'lucide-react';
+import { Plane, Package, Truck, Layers } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
@@ -9,8 +9,6 @@ const ICON_MAP: Record<string, LucideIcon> = {
   Plane,
   Package,
   Truck,
-  Boxes,
-  Bike,
   Layers,
 };
 

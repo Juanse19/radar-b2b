@@ -245,6 +245,7 @@ export function Step3Review({ state, onChange }: Props) {
         empresas: JSON.stringify(
           companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
         ),
+        rag: String(state.ragEnabled ?? false),
       });
       if (state.customKeywords) vivoParams.set('keywords', state.customKeywords);
       if (state.sublinea)       vivoParams.set('sublinea', state.sublinea);
@@ -275,6 +276,39 @@ export function Step3Review({ state, onChange }: Props) {
           <dd className="col-span-1 font-medium sm:col-span-2">{empresasCount}</dd>
         </dl>
       </Card>
+
+      {/* RAG toggle */}
+      <div>
+        <p className="mb-3 text-sm font-medium">Configuración avanzada</p>
+        <button
+          type="button"
+          onClick={() => onChange({ ragEnabled: !state.ragEnabled })}
+          className={cn(
+            'w-full flex items-start gap-3 rounded-lg border-2 px-4 py-3 text-left transition-all',
+            state.ragEnabled
+              ? 'border-primary bg-primary/10 ring-1 ring-primary'
+              : 'border-border hover:border-primary/40 hover:bg-muted/40',
+          )}
+        >
+          <div className={cn(
+            'mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded border-2 transition-colors',
+            state.ragEnabled ? 'border-primary bg-primary' : 'border-muted-foreground/40',
+          )}>
+            {state.ragEnabled && <Check size={10} strokeWidth={3} className="text-primary-foreground" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className={cn('text-sm font-semibold', state.ragEnabled && 'text-primary')}>
+              Contexto RAG
+            </p>
+            <p className="text-xs text-muted-foreground">
+              Añade contexto de calificaciones pasadas para mejorar precisión
+            </p>
+            {state.ragEnabled && (
+              <p className="text-xs font-medium text-primary mt-1">ACTIVO</p>
+            )}
+          </div>
+        </button>
+      </div>
 
       {/* Provider selector */}
       <div>

@@ -8,12 +8,9 @@ import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
 
 const LINEAS = [
-  { value: 'BHS',            label: 'BHS',           sub: 'Aeropuertos' },
-  { value: 'Intralogística', label: 'Intralogística', sub: 'CEDI / WMS' },
-  { value: 'Cartón',         label: 'Cartón',         sub: 'Corrugado' },
-  { value: 'Final de Línea', label: 'Final de Línea', sub: 'Alimentos / Bebidas' },
-  { value: 'Motos',          label: 'Motos',          sub: 'Ensambladoras' },
-  { value: 'SOLUMAT',        label: 'Solumat',        sub: 'Plásticos' },
+  { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos, Cargo' },
+  { value: 'Cartón',         label: 'Cartón',          sub: 'Corrugado' },
+  { value: 'Intralogística', label: 'Intralogística',  sub: 'Final de Línea, Motos, Solumat' },
 ];
 
 interface Props {

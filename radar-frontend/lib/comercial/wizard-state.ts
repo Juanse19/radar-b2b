@@ -18,6 +18,7 @@ export interface WizardState {
   // Step 3 data
   provider: string;          // 'claude' | 'openai' | 'gemini'
   budgetUsd: number;         // user override, default from estimate
+  ragEnabled?: boolean;      // include past-scan context via RAG
 }
 
 /**
@@ -45,6 +46,7 @@ export function useWizardState() {
       sublinea:       sp.get('sublinea') ?? undefined,
       provider:       sp.get('provider') ?? 'claude',
       budgetUsd:      Number(sp.get('budget') ?? '0'),
+      ragEnabled:     sp.get('rag') === 'true',
     };
   }, [sp]);
 

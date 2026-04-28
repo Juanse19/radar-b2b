@@ -41,7 +41,7 @@ interface SubLineaNegocio {
   nombre: string;
   codigo: string;
   descripcion: string | null;
-  activa: boolean;
+  activo: boolean;
   orden: number;
   linea?: { id: number; nombre: string; color_hex: string };
 }
@@ -295,7 +295,7 @@ function CreateSubLineaDialog({
           ...form,
           linea_id: lineaId,
           orden: Number(form.orden),
-          activa: true,
+          activo: true,
         }),
       }),
     onSuccess: () => {
@@ -388,11 +388,11 @@ function SubLineasSection({ lineas }: { lineas: LineaNegocio[] }) {
   });
 
   const toggleMutation = useMutation({
-    mutationFn: ({ id, activa }: { id: number; activa: boolean }) =>
+    mutationFn: ({ id, activo }: { id: number; activo: boolean }) =>
       fetchJson(`/api/sub-lineas/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ activa }),
+        body: JSON.stringify({ activo }),
       }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ['admin-sublineas'] });
@@ -497,19 +497,19 @@ function SubLineasSection({ lineas }: { lineas: LineaNegocio[] }) {
                     <td className="px-4 py-3">
                       <button
                         type="button"
-                        onClick={() => toggleMutation.mutate({ id: s.id, activa: !s.activa })}
-                        title={s.activa ? 'Desactivar sub-línea' : 'Activar sub-línea'}
+                        onClick={() => toggleMutation.mutate({ id: s.id, activo: !s.activo })}
+                        title={s.activo ? 'Desactivar sub-línea' : 'Activar sub-línea'}
                         className={`flex items-center gap-1.5 text-xs font-medium transition-colors rounded-md px-2 py-1 ${
-                          s.activa
+                          s.activo
                             ? 'text-green-600 bg-green-500/10 hover:bg-green-500/20'
                             : 'text-muted-foreground bg-muted/50 hover:bg-muted hover:text-foreground'
                         }`}
                       >
-                        {s.activa
+                        {s.activo
                           ? <ToggleRight size={18} className="text-green-500" />
                           : <ToggleLeft size={18} />
                         }
-                        {s.activa ? 'Activa' : 'Inactiva'}
+                        {s.activo ? 'Activa' : 'Inactiva'}
                       </button>
                     </td>
                     <td className="px-4 py-3">
