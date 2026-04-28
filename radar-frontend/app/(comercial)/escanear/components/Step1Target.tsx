@@ -6,7 +6,6 @@ import { Zap, Target, LayoutGrid, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { WizardState } from '@/lib/comercial/wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
-import { KeywordChips } from '@/app/(comercial)/components/KeywordChips';
 
 const LINEAS = [
   { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos, Cargo' },
@@ -189,15 +188,6 @@ export function Step1Target({ state, onChange }: Props) {
           </div>
         )}
 
-        {/* Keywords for selected line/sublinea */}
-        {selectedLines.length > 0 && (
-          <div className="mt-2">
-            <KeywordChips
-              linea={selectedLines.length === 1 ? selectedLines[0]! : 'ALL'}
-              sublinea={state.sublinea}
-            />
-          </div>
-        )}
       </div>
 
       {/* Modo */}

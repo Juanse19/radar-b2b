@@ -63,10 +63,12 @@ const FALLBACK_FUENTES = [
   { country: 'Brasil',   sources: ['ANAC', 'Infraestrutura.gov', 'Portal Transparência'] },
 ];
 
-const FALLBACK_KEYWORDS = [
-  'terminal pasajeros', 'sistema BHS', 'carrusel equipaje', 'CUTE CUSS CBIS',
-  'ampliación aeropuerto', 'concesión aeroportuaria', 'self bag drop',
-];
+// Color styles per keyword tipo — matches KeywordChips component
+const TIPO_STYLES: Record<string, string> = {
+  senal:    'bg-blue-50  text-blue-700  border-blue-200  dark:bg-blue-950  dark:text-blue-300  dark:border-blue-800',
+  producto: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
+  sector:   'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+};
 
 interface FuenteApi {
   nombre?:         string;
@@ -79,11 +81,12 @@ interface FuenteApi {
   country?:        string | null;
 }
 
-interface KeywordApi {
-  palabra?:       string;
-  tipo?:          string | null;
-  peso?:          number | null;
-  sub_linea_id?:  number | null;
+interface KeywordResult {
+  id:               number;
+  sub_linea_nombre: string;
+  palabra:          string;
+  tipo:             string;
+  peso:             number;
 }
 
 function groupFuentesByCountry(rows: FuenteApi[]): Array<{ country: string; sources: string[] }> {
@@ -117,9 +120,11 @@ export function Step2Configure({ state, onChange }: Props) {
     state.mode === 'manual' ? manualCount : autoCount,
   );
 
-  // Fuentes and Keywords — fetched from admin APIs with graceful fallback
+  // Fuentes — fetched from admin API with graceful fallback
   const [fuentesGroups, setFuentesGroups] = useState<Array<{ country: string; sources: string[] }>>(FALLBACK_FUENTES);
-  const [keywords,      setKeywords]      = useState<string[]>(FALLBACK_KEYWORDS);
+  // Keywords — fetched per selected line/subline from comercial API
+  const [keywords,      setKeywords]      = useState<KeywordResult[]>([]);
+  const [kwLoading,     setKwLoading]     = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -142,20 +147,26 @@ export function Step2Configure({ state, onChange }: Props) {
   }, []);
 
   useEffect(() => {
+    // Fetch keywords specific to the selected line/subline from the comercial API
+    if (!state.line || state.line === 'ALL') {
+      setKeywords([]);
+      return;
+    }
     let cancelled = false;
-    fetch('/api/admin/keywords')
+    setKwLoading(true);
+    const params = new URLSearchParams({ linea: state.line });
+    if (state.sublinea) params.set('sublinea', state.sublinea);
+    fetch(`/api/comercial/keywords?${params.toString()}`)
       .then((r) => r.ok ? r.json() : [])
-      .then((data: KeywordApi[] | unknown) => {
+      .then((data: KeywordResult[] | unknown) => {
         if (cancelled) return;
-        const rows: KeywordApi[] = Array.isArray(data) ? data : [];
-        const words = rows
-          .map((k) => k.palabra ?? '')
-          .filter((w) => w.length > 0);
-        if (words.length > 0) setKeywords(words.slice(0, 40));  // cap to avoid visual overflow
+        const rows: KeywordResult[] = Array.isArray(data) ? data : [];
+        setKeywords(rows);
       })
-      .catch(() => { /* keep fallback */ });
+      .catch(() => { if (!cancelled) setKeywords([]); })
+      .finally(() => { if (!cancelled) setKwLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [state.line, state.sublinea]);
 
   useEffect(() => {
     if (state.mode !== 'manual' || !state.line || hydrated) return;
@@ -307,9 +318,11 @@ export function Step2Configure({ state, onChange }: Props) {
         >
           <span className="font-medium">Palabras clave</span>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="h-5 text-[10px]">
-              {keywords.length}
-            </Badge>
+            {!kwLoading && (
+              <Badge variant="secondary" className="h-5 text-[10px]">
+                {keywords.length > 0 ? keywords.length : state.line ? '0' : '—'}
+              </Badge>
+            )}
             <ChevronDown
               size={14}
               className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
@@ -318,23 +331,43 @@ export function Step2Configure({ state, onChange }: Props) {
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2">
           <div className="rounded-lg border border-border/50 bg-background p-3">
-            <div className="flex flex-wrap gap-1.5">
-              {keywords.map((k) => (
-                <Badge key={k} variant="outline" className="text-[11px]">
-                  {k}
-                </Badge>
-              ))}
-            </div>
-            <a
-              href="/admin/keywords"
-              className="mt-2 inline-block text-xs text-primary hover:underline"
-            >
-              Editar en admin →
-            </a>
+            {kwLoading ? (
+              /* Loading skeleton */
+              <div className="flex flex-wrap gap-1.5">
+                {[60, 80, 50, 70, 55].map((w) => (
+                  <span
+                    key={w}
+                    className="inline-block h-5 animate-pulse rounded-full bg-muted"
+                    style={{ width: w }}
+                  />
+                ))}
+              </div>
+            ) : keywords.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {state.line
+                  ? 'Sin palabras clave registradas para esta selección.'
+                  : 'Selecciona una línea de negocio para ver las palabras clave.'}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((kw) => (
+                  <span
+                    key={kw.id}
+                    title={kw.sub_linea_nombre}
+                    className={cn(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
+                      TIPO_STYLES[kw.tipo] ?? 'bg-muted text-muted-foreground border-border',
+                    )}
+                  >
+                    {kw.palabra}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="mt-3 border-t border-border/40 pt-3">
               <label className="mb-1 block text-xs font-medium text-foreground">
                 Palabras clave personalizadas
-                <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
+                <span className="ml-1 font-normal text-muted-foreground">(opcional — se suman a las anteriores)</span>
               </label>
               <textarea
                 rows={2}
