@@ -2,6 +2,7 @@ import {
   Activity,
   BarChart3,
   Bot,
+  Briefcase,
   Building2,
   Calendar,
   CheckCircle2,
@@ -49,7 +50,7 @@ export const navTree: NavNode[] = [
   { label: 'Resultados Agente', href: '/agente-resultados', icon: ClipboardList, roles: ['ADMIN'] },
   { label: 'Calificación', href: '/calificacion', icon: CheckCircle2, roles: ['ADMIN'] },
   { label: 'Resultados', href: '/results', icon: Table2, roles: ['ADMIN'] },
-  { label: 'Contactos', href: '/contactos', icon: Users, roles: ['ADMIN'] },
+  { label: 'Contactos (legacy)', href: '/admin/contactos-legacy', icon: Users, roles: ['ADMIN'] },
   { label: 'Cronograma', href: '/schedule', icon: Calendar, roles: ['ADMIN'] },
 
   // Módulo Comercial — inteligencia B2B con sub-módulos por función.
@@ -60,7 +61,9 @@ export const navTree: NavNode[] = [
       { label: 'Escanear', href: '/escanear', icon: Zap },
       { label: 'En vivo', href: '/en-vivo', icon: Activity },
       { label: 'Calificador', href: '/calificador', icon: CheckCircle2 },
+      { label: 'Contactos', href: '/contactos', icon: Users },
       { label: 'Investigar', href: '/investigar', icon: Search },
+      { label: 'Portafolio', href: '/portfolio', icon: Briefcase, badge: 'v5' },
       { label: 'Resultados', href: '/resultados', icon: TrendingUp },
       { label: 'Métricas', href: '/metricas', icon: BarChart3 },
       { label: 'Informes', href: '/informes', icon: FileText },
