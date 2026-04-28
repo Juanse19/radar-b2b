@@ -201,6 +201,7 @@ export async function calificarEmpresa(
 
   return {
     scores:      llmData.scores,
+    dimensiones: llmData.dimensiones,
     scoreTotal,
     tier,
     razonamiento: llmData.razonamiento,

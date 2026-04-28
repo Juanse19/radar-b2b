@@ -6,6 +6,17 @@ import { z } from 'zod';
 
 const DimScore = z.number().min(0).max(10);
 
+/**
+ * v5: per-dimension justification map (optional).
+ * Each entry pairs a textual `valor` (e.g. "Muy Alto") with a brief
+ * `justificacion` (≤ 200 chars). Existing v2 LLM responses without
+ * this field continue to validate.
+ */
+const DimDetail = z.object({
+  valor:         z.string().min(1).max(120),
+  justificacion: z.string().min(10).max(500),
+}).passthrough();
+
 export const CalificacionLLMResponseSchema = z.object({
   scores: z.object({
     impacto_presupuesto: DimScore,
@@ -16,6 +27,16 @@ export const CalificacionLLMResponseSchema = z.object({
     ticket_estimado:     DimScore,
     prioridad_comercial: DimScore,
   }),
+  /** v5 — optional. When present, UI renders detailed per-dimension rationale. */
+  dimensiones: z.object({
+    impacto_presupuesto: DimDetail,
+    multiplanta:         DimDetail,
+    recurrencia:         DimDetail,
+    referente_mercado:   DimDetail,
+    anio_objetivo:       DimDetail,
+    ticket_estimado:     DimDetail,
+    prioridad_comercial: DimDetail,
+  }).partial().optional(),
   razonamiento: z.string().min(50).max(5000),
   perfilWeb: z.object({
     summary: z.string().min(10),
