@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { useWizardState } from '@/lib/comercial/wizard-state';
+import type { WizardState } from '@/lib/comercial/wizard-state';
 import { getPresetById } from '@/lib/comercial/presets';
 import { Stepper } from './Stepper';
 import { Step1Target } from './Step1Target';
@@ -13,33 +14,37 @@ import { Step3Review } from './Step3Review';
 
 export function Wizard() {
   const { state, patch, goto, next, prev, canNext } = useWizardState();
-  const presetAppliedRef = useRef(false);
-  // Initialize to true if already past step 1 (page loaded with ?step=2 or ?step=3).
-  // This prevents auto-advance from firing when user goes back to step 1 from a URL
-  // that was already at step 2/3 (e.g., from a deep link or a shared URL).
-  const autoAdvancedRef  = useRef(state.step > 1);
-  const prevLineRef      = useRef(state.line);
-  const prevModeRef      = useRef(state.mode);
+  const presetAppliedRef   = useRef(false);
+  // true  → auto-advance is suppressed (already advanced, or user clicked Atrás)
+  // false → will advance as soon as mode is explicitly clicked with a line set
+  const autoAdvancedRef    = useRef(state.step > 1);
+  // Becomes true ONLY when the user explicitly clicks a mode card (Auto/Manual).
+  // Line or subline changes alone do NOT set this — they shouldn't trigger advance.
+  const modeJustClickedRef = useRef(false);
 
-  // Reset auto-advance ONLY when the user makes a new selection (line or mode changes).
-  // This allows re-triggering after a selection change without firing on "Atrás" clicks.
-  useEffect(() => {
-    if (state.line !== prevLineRef.current || state.mode !== prevModeRef.current) {
-      autoAdvancedRef.current = false;
-      prevLineRef.current = state.line;
-      prevModeRef.current = state.mode;
+  // Wrap patch so we can detect explicit mode clicks from Step1Target.
+  // Any call that includes `mode` in its updates is a deliberate user action.
+  const handleChange = useCallback((updates: Partial<WizardState>) => {
+    if ('mode' in updates && updates.mode !== undefined && updates.mode !== '') {
+      modeJustClickedRef.current = true;
+      autoAdvancedRef.current    = false; // allow re-advance after going back
     }
-  }, [state.line, state.mode]);
+    patch(updates);
+  }, [patch]);
 
-  // Auto-advance from Step 1 → Step 2 when both line and mode are selected.
-  // Does NOT reset on step changes — going back to Step 1 won't re-trigger.
-  // Re-triggers only if the user picks a different line or mode (effect above).
+  // Auto-advance step 1 → 2 ONLY when:
+  //   1. User explicitly clicked a mode card (modeJustClickedRef)
+  //   2. A line is already selected
+  // This prevents accidental advance when the user is exploring lines/sublines
+  // while mode is already set from a previous URL visit.
   useEffect(() => {
-    if (state.step !== 1)          return;
-    if (autoAdvancedRef.current)   return;
-    if (!state.line || !state.mode) return;
+    if (state.step !== 1)             return;
+    if (autoAdvancedRef.current)      return;
+    if (!modeJustClickedRef.current)  return;
+    if (!state.line || !state.mode)   return;
 
-    autoAdvancedRef.current = true;
+    modeJustClickedRef.current = false;
+    autoAdvancedRef.current    = true;
     const timer = setTimeout(() => patch({ step: 2 }), 400);
     return () => clearTimeout(timer);
   }, [state.step, state.line, state.mode, patch]);
@@ -72,16 +77,20 @@ export function Wizard() {
       <Stepper current={state.step} onGoto={goto} />
 
       <Card className="p-6">
-        {state.step === 1 && <Step1Target    state={state} onChange={patch} />}
-        {state.step === 2 && <Step2Configure state={state} onChange={patch} />}
-        {state.step === 3 && <Step3Review    state={state} onChange={patch} />}
+        {state.step === 1 && <Step1Target    state={state} onChange={handleChange} />}
+        {state.step === 2 && <Step2Configure state={state} onChange={handleChange} />}
+        {state.step === 3 && <Step3Review    state={state} onChange={handleChange} />}
       </Card>
 
       <div className="flex items-center justify-between">
         <Button
           variant="outline"
           size="sm"
-          onClick={() => { autoAdvancedRef.current = true; prev(); }}
+          onClick={() => {
+            autoAdvancedRef.current    = true;
+            modeJustClickedRef.current = false;
+            prev();
+          }}
           disabled={state.step === 1}
         >
           <ChevronLeft size={14} className="mr-1" /> Atrás

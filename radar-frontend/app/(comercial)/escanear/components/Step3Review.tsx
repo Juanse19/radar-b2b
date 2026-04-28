@@ -243,6 +243,10 @@ export function Step3Review({ state, onChange }: Props) {
         state.provider,
       );
 
+      // Keywords priority: custom textarea > DB keywords fetched in Step2 > nothing
+      const effectiveKeywords = state.customKeywords?.trim()
+        || (() => { try { return sessionStorage.getItem('wizard-db-keywords') ?? ''; } catch { return ''; } })();
+
       const vivoParams = new URLSearchParams({
         sessionId,
         line:     state.line,
@@ -251,7 +255,7 @@ export function Step3Review({ state, onChange }: Props) {
           companies.map(c => ({ id: c.id, name: c.name, country: c.country })),
         ),
       });
-      if (state.customKeywords) vivoParams.set('keywords', state.customKeywords);
+      if (effectiveKeywords) vivoParams.set('keywords', effectiveKeywords);
       if (state.sublineas && state.sublineas.length > 0) {
         vivoParams.set('sublineas', state.sublineas.join(','));
       } else if (state.sublinea) {

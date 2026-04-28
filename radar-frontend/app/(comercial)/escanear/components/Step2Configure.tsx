@@ -196,7 +196,11 @@ export function Step2Configure({ state, onChange }: Props) {
           if (cancelled) return;
           const rows: KeywordApi[] = Array.isArray(data) ? data : [];
           const words = rows.map((k) => k.palabra ?? '').filter((w) => w.length > 0);
-          if (words.length > 0) setKeywords(words.slice(0, 40));
+          if (words.length > 0) {
+          const kws = words.slice(0, 40);
+          setKeywords(kws);
+          try { sessionStorage.setItem('wizard-db-keywords', kws.join(',')); } catch {}
+        }
         })
         .catch(() => {});
       return () => { cancelled = true; };
@@ -220,7 +224,10 @@ export function Step2Configure({ state, onChange }: Props) {
           if (w && !seen.has(w)) { seen.add(w); words.push(w); }
         }
       }
-      setKeywords(words.length > 0 ? words.slice(0, 40) : FALLBACK_KEYWORDS);
+      const final = words.length > 0 ? words.slice(0, 40) : FALLBACK_KEYWORDS;
+      setKeywords(final);
+      // Persist for Step3Review to inject into the scan payload
+      try { sessionStorage.setItem('wizard-db-keywords', final.join(',')); } catch {}
     });
 
     return () => { cancelled = true; };
