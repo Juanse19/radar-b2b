@@ -20,7 +20,7 @@
  */
 import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
-import { interpretChat } from '@/lib/radar/chatInterpreter';
+import { interpretChatLLM } from '@/lib/radar/chatInterpreter';
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 300;
@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
       ? body.provider
       : 'claude';
 
-  const interpreted = interpretChat(body.question);
+  const interpreted = await interpretChatLLM(body.question);
 
   // Si no se detectó línea, no podemos disparar scan — pedir clarificación
   if (!interpreted.linea) {

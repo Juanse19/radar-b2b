@@ -5,6 +5,28 @@
  * a single empresa.
  */
 import 'server-only';
+import { pgFirst, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
+
+/**
+ * Resuelve la API key de Anthropic. Prioridad:
+ *   1. Override explícito en input.apiKey
+ *   2. process.env.CLAUDE_API_KEY (dev local)
+ *   3. ai_provider_configs.api_key_enc WHERE provider='anthropic' AND is_active=TRUE (prod)
+ */
+async function resolveAnthropicKey(override?: string): Promise<string | undefined> {
+  if (override) return override;
+  const env = process.env.CLAUDE_API_KEY?.trim();
+  if (env) return env;
+  try {
+    const row = await pgFirst<{ api_key_enc: string }>(
+      `SELECT api_key_enc FROM ${SCHEMA}.ai_provider_configs
+       WHERE provider = ${pgLit('anthropic')} AND is_active = TRUE LIMIT 1`,
+    );
+    return row?.api_key_enc?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 const CLAUDE_DEFAULT_MODEL  = 'claude-sonnet-4-6';
 const PRICE_INPUT_PER_M  = 3.0;
@@ -56,8 +78,8 @@ async function fetchWithRetry(
  * prompts and returns the final text + token usage.
  */
 export async function runClaudeWebSearch(input: RunInput): Promise<RunResult> {
-  const apiKey = input.apiKey ?? process.env.CLAUDE_API_KEY;
-  if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
+  const apiKey = await resolveAnthropicKey(input.apiKey);
+  if (!apiKey) throw new Error('Anthropic API key not configured (env CLAUDE_API_KEY or ai_provider_configs)');
 
   const model = input.model ?? CLAUDE_DEFAULT_MODEL;
   const maxTurns = input.maxTurns ?? 10;
