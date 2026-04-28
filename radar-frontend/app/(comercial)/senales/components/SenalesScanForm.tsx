@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Radar, Sparkles, AlertTriangle, X } from 'lucide-react';
-import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { LineaSelectorCards } from '@/components/agent/LineaSelectorCards';
 
 const PAISES = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Panamá'];
 
@@ -42,8 +42,6 @@ export function SenalesScanForm() {
   const [running, setRunning]     = useState<boolean>(false);
   const [result, setResult]       = useState<ScanResponse | null>(null);
   const [error, setError]         = useState<string | null>(null);
-
-  const subOptions = LINEAS_CONFIG.find((l) => l.key === linea)?.sublineas ?? [];
 
   function togglePais(p: string) {
     setPaises((prev) => (prev.includes(p) ? prev.filter((x) => x !== p) : [...prev, p]));
@@ -92,58 +90,13 @@ export function SenalesScanForm() {
       <Card className="space-y-5 p-6">
         <div>
           <Label className="mb-2 block">Línea de negocio</Label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-            {LINEAS_CONFIG.map((l) => {
-              const active = linea === l.key;
-              return (
-                <button
-                  key={l.key}
-                  type="button"
-                  onClick={() => {
-                    setLinea(active ? '' : l.key);
-                    setSubLinea('');
-                  }}
-                  aria-pressed={active}
-                  className={
-                    'rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all ' +
-                    (active
-                      ? 'border-primary bg-primary/20 font-semibold ring-2 ring-primary'
-                      : 'border-border bg-muted/30 hover:border-primary/60')
-                  }
-                >
-                  <span className="block font-medium">{l.label}</span>
-                  <span className="block text-[11px] text-muted-foreground">{l.description}</span>
-                </button>
-              );
-            })}
-          </div>
+          <LineaSelectorCards
+            value={linea}
+            onChange={(v) => { setLinea(v === 'ALL' ? '' : v); setSubLinea(''); }}
+            sublinea={subLinea || undefined}
+            onSublineaChange={(s) => setSubLinea(s ?? '')}
+          />
         </div>
-
-        {subOptions.length > 0 && (
-          <div>
-            <Label className="mb-2 block">Sub-línea (opcional)</Label>
-            <div className="flex flex-wrap gap-1.5">
-              {subOptions.map((s) => {
-                const active = subLinea === s;
-                return (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => setSubLinea(active ? '' : s)}
-                    className={
-                      'rounded-full border px-2.5 py-0.5 text-xs transition-all ' +
-                      (active
-                        ? 'border-primary bg-primary/20 font-medium text-primary'
-                        : 'border-border text-muted-foreground hover:border-primary/50')
-                    }
-                  >
-                    {s}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         <div>
           <Label className="mb-2 block">Países objetivo</Label>

@@ -7,6 +7,21 @@ export interface LineaNegocioConfig {
   borderClass: string;
   description: string;
   sublineas: string[];
+  /**
+   * v5: solo 3 líneas son "main" en el DB real (parents en sub_lineas_negocio).
+   * Las otras (Final de Línea, Motos, Solumat) son sublíneas de Intralogística
+   * pero se mantienen como entradas top-level por compat con código legacy.
+   */
+  isMainLinea?: boolean;
+}
+
+/** Las 3 líneas principales de Matec — coinciden con DB matec_radar.lineas_negocio. */
+export const MAIN_LINEA_KEYS = ['BHS', 'Cartón', 'Intralogística'] as const;
+export type MainLineaKey = typeof MAIN_LINEA_KEYS[number];
+
+/** Devuelve solo las líneas top-level (las 3 reales). */
+export function getMainLineas(): LineaNegocioConfig[] {
+  return LINEAS_CONFIG.filter((l) => l.isMainLinea);
 }
 
 export const LINEAS_CONFIG: LineaNegocioConfig[] = [
@@ -19,6 +34,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     borderClass: 'border-sky-500',
     description: 'Baggage Handling Systems · Aeropuertos LATAM',
     sublineas: ['Aeropuertos', 'Cargo / ULD'],
+    isMainLinea: true,
   },
   {
     key: 'Cartón',
@@ -29,6 +45,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     borderClass: 'border-amber-500',
     description: 'Industria cartonera y papelera',
     sublineas: ['Cartón Corrugado'],
+    isMainLinea: true,
   },
   {
     key: 'Intralogística',
@@ -39,6 +56,7 @@ export const LINEAS_CONFIG: LineaNegocioConfig[] = [
     borderClass: 'border-emerald-500',
     description: 'Automatización de centros de distribución',
     sublineas: ['Final de Línea', 'Ensambladoras de Motos', 'Solumat', 'Logística'],
+    isMainLinea: true,
   },
   {
     key: 'Final de Línea',

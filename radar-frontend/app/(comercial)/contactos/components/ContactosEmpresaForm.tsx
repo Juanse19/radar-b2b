@@ -6,7 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Loader2, Search, UserPlus, AlertTriangle } from 'lucide-react';
-import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { getMainLineas } from '@/lib/comercial/lineas-config';
+import { useLineasTree, getSubLineasFor } from '@/lib/comercial/useLineasTree';
 
 interface Contact {
   id?:        number;
@@ -20,7 +21,10 @@ interface Contact {
 export function ContactosEmpresaForm() {
   const [empresa, setEmpresa]   = useState<string>('');
   const [linea, setLinea]       = useState<string>('');
+  const [sublinea, setSublinea] = useState<string>('');
   const [pais, setPais]         = useState<string>('');
+  const { data: tree } = useLineasTree();
+  const subOptions = linea ? getSubLineasFor(tree, linea) : [];
   const [tier, setTier]         = useState<string>('B');
   const [loading, setLoading]   = useState<boolean>(false);
   const [contacts, setContacts] = useState<Contact[]>([]);
@@ -96,14 +100,26 @@ export function ContactosEmpresaForm() {
           </div>
           <div>
             <Label htmlFor="lin" className="mb-1 block">Línea</Label>
-            <select id="lin" value={linea} onChange={(e) => setLinea(e.target.value)}
+            <select id="lin" value={linea} onChange={(e) => { setLinea(e.target.value); setSublinea(''); }}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
               <option value="">Selecciona…</option>
-              {LINEAS_CONFIG.slice(0, 3).map((l) => (
+              {getMainLineas().map((l) => (
                 <option key={l.key} value={l.key}>{l.label}</option>
               ))}
             </select>
           </div>
+          {subOptions.length > 0 && (
+            <div className="md:col-span-2">
+              <Label htmlFor="sublin" className="mb-1 block">Sub-línea (opcional)</Label>
+              <select id="sublin" value={sublinea} onChange={(e) => setSublinea(e.target.value)}
+                className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
+                <option value="">Todas las sub-líneas</option>
+                {subOptions.map((s) => (
+                  <option key={s.id} value={s.value}>{s.label}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <Label htmlFor="pais" className="mb-1 block">País</Label>
             <Input id="pais" value={pais} onChange={(e) => setPais(e.target.value)} placeholder="Colombia, México…" />

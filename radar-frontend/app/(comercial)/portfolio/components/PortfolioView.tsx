@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Loader2, Search, Filter, ChevronRight } from 'lucide-react';
-import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { getMainLineas } from '@/lib/comercial/lineas-config';
 import { formatFechaRadar } from '@/lib/utils/parseFechaRadar';
 
 interface PortfolioRow {
@@ -124,7 +124,7 @@ export function PortfolioView() {
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             >
               <option value="">Todas</option>
-              {LINEAS_CONFIG.map((l) => (
+              {getMainLineas().map((l) => (
                 <option key={l.key} value={l.key}>{l.label}</option>
               ))}
             </select>

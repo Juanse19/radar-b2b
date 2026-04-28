@@ -5,7 +5,8 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Loader2, Layers, AlertTriangle, Check } from 'lucide-react';
-import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { getMainLineas } from '@/lib/comercial/lineas-config';
+import { useLineasTree, getSubLineasFor } from '@/lib/comercial/useLineasTree';
 
 interface Empresa {
   id: number;
@@ -26,7 +27,8 @@ export function ContactosMasivoForm() {
   const [error, setError]         = useState<string | null>(null);
   const [message, setMessage]     = useState<string | null>(null);
 
-  const subOptions = LINEAS_CONFIG.find((l) => l.key === linea)?.sublineas ?? [];
+  const { data: tree } = useLineasTree();
+  const subOptions = linea ? getSubLineasFor(tree, linea) : [];
 
   useEffect(() => {
     if (!linea) { setEmpresas([]); return; }
@@ -103,7 +105,7 @@ export function ContactosMasivoForm() {
             <select id="lin" value={linea} onChange={(e) => { setLinea(e.target.value); setSublinea(''); }}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm">
               <option value="">Selecciona…</option>
-              {LINEAS_CONFIG.slice(0, 3).map((l) => (
+              {getMainLineas().map((l) => (
                 <option key={l.key} value={l.key}>{l.label}</option>
               ))}
             </select>
@@ -113,7 +115,7 @@ export function ContactosMasivoForm() {
             <select id="sub" value={sublinea} onChange={(e) => setSublinea(e.target.value)} disabled={subOptions.length === 0}
               className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm disabled:opacity-50">
               <option value="">Todas</option>
-              {subOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+              {subOptions.map((s) => <option key={s.id} value={s.value}>{s.label}</option>)}
             </select>
           </div>
           <div>
