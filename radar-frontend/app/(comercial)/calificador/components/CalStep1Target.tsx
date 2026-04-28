@@ -39,45 +39,65 @@ export function CalStep1Target({ state, onChange }: Props) {
     }
   }
 
+  // When a line is already set (e.g. pre-selected from landing), show a compact
+  // read-only bar instead of the full card grid.
+  const lineIsPreset = !!state.linea;
+
   return (
     <div className="space-y-6">
-      {/* Línea selector — flat grid of 6 */}
+      {/* Línea selector */}
       <div>
         <Label className="mb-2 block">Línea de negocio</Label>
-        <div className="grid grid-cols-3 gap-2">
-          {LINEAS.map((l) => {
-            const selected = state.linea === l.value;
-            return (
-              <button
-                key={l.value}
-                type="button"
-                onClick={() => selectLinea(l.value)}
-                aria-pressed={selected}
-                className={cn(
-                  'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
-                  selected
-                    ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
-                    : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
-                )}
-              >
-                {selected && (
-                  <span
-                    aria-hidden
-                    className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                  >
-                    <Check size={10} strokeWidth={3} />
+
+        {lineIsPreset ? (
+          /* Compact read-only line display */
+          <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+            <span className="text-sm font-medium">{state.linea}</span>
+            <button
+              type="button"
+              onClick={() => onChange({ linea: '', subLineaId: null, sublinea: undefined })}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Cambiar
+            </button>
+          </div>
+        ) : (
+          /* Full card grid */
+          <div className="grid grid-cols-3 gap-2">
+            {LINEAS.map((l) => {
+              const selected = state.linea === l.value;
+              return (
+                <button
+                  key={l.value}
+                  type="button"
+                  onClick={() => selectLinea(l.value)}
+                  aria-pressed={selected}
+                  className={cn(
+                    'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
+                    selected
+                      ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
+                      : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
+                  )}
+                >
+                  {selected && (
+                    <span
+                      aria-hidden
+                      className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                    >
+                      <Check size={10} strokeWidth={3} />
+                    </span>
+                  )}
+                  <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
+                    {l.label}
                   </span>
-                )}
-                <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
-                  {l.label}
-                </span>
-                <span className={cn('block text-[11px] leading-tight', selected ? 'text-primary/80' : 'text-muted-foreground')}>
-                  {l.sub}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+                  <span className={cn('block text-[11px] leading-tight', selected ? 'text-primary/80' : 'text-muted-foreground')}>
+                    {l.sub}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Sublínea chips — only when a line is selected */}
         {singleLineSubs.length > 0 && (

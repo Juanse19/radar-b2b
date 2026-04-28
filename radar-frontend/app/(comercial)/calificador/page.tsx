@@ -77,7 +77,7 @@ export default async function CalificadorDashboardPage() {
             Evalúa empresas en 7 dimensiones y asigna tier comercial con IA
           </p>
         </div>
-        <Link href="/calificador/wizard">
+        <Link href="/calificador/wizard/seleccionar">
           <Button className="shrink-0 gap-2">
             Nueva calificación <ArrowRight size={14} />
           </Button>
@@ -130,7 +130,7 @@ export default async function CalificadorDashboardPage() {
               Inicia una sesión de calificación para evaluar empresas de tu base de datos
               y descubrir cuáles tienen mayor potencial comercial.
             </p>
-            <Link href="/calificador/wizard">
+            <Link href="/calificador/wizard/seleccionar">
               <Button>Calificar empresas</Button>
             </Link>
           </CardContent>
@@ -145,7 +145,7 @@ export default async function CalificadorDashboardPage() {
               Ver historial de calificaciones
             </Button>
           </Link>
-          <Link href="/calificador/wizard">
+          <Link href="/calificador/wizard/seleccionar">
             <Button variant="outline" size="sm">
               Nueva calificación
             </Button>

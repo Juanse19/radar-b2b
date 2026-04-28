@@ -56,89 +56,99 @@ export function Step1Target({ state, onChange }: Props) {
     return cfg?.sublineas ?? [];
   })();
 
+  // When a line is already set (e.g. pre-selected from landing), show a compact
+  // read-only bar instead of the full card grid.
+  const lineIsPreset = selectedLines.length > 0;
+
   return (
     <div className="space-y-6">
       {/* Líneas */}
       <div>
-        <div className="mb-2 flex items-center justify-between">
-          <Label>Línea de negocio</Label>
-          <div className="flex items-center gap-3 text-xs">
-            {selectedLines.length > 0 && (
-              <span className="text-muted-foreground">
-                {selectedLines.length} seleccionada{selectedLines.length !== 1 ? 's' : ''}
-              </span>
-            )}
-            {!allSelected && (
+        {lineIsPreset ? (
+          /* Compact read-only line display */
+          <div className="mb-0">
+            <div className="mb-2 flex items-center justify-between">
+              <Label>Línea de negocio</Label>
+            </div>
+            <div className="flex items-center justify-between rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <span className="text-sm font-medium">{selectedLines.join(', ')}</span>
               <button
                 type="button"
-                onClick={selectAll}
-                className="flex items-center gap-1 font-medium text-primary hover:underline"
+                onClick={() => onChange({ line: '', sublinea: undefined })}
+                className="text-xs text-muted-foreground hover:text-foreground"
               >
-                <LayoutGrid size={12} />
-                Todas
+                Cambiar
               </button>
-            )}
-            {selectedLines.length > 0 && (
-              <button
-                type="button"
-                onClick={clearAll}
-                className="text-muted-foreground hover:text-foreground hover:underline"
-              >
-                Limpiar
-              </button>
-            )}
+            </div>
           </div>
-        </div>
-
-        <div className="grid grid-cols-3 gap-2">
-          {LINEAS.map((l) => {
-            const selected = selectedLines.includes(l.value);
-            return (
-              <button
-                key={l.value}
-                type="button"
-                onClick={() => toggleLine(l.value)}
-                aria-pressed={selected}
-                className={cn(
-                  'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
-                  selected
-                    ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
-                    : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
-                )}
-              >
-                {selected && (
-                  <span
-                    aria-hidden
-                    className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+        ) : (
+          /* Full card grid — shown when no line is pre-selected */
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <Label>Línea de negocio</Label>
+              <div className="flex items-center gap-3 text-xs">
+                {!allSelected && (
+                  <button
+                    type="button"
+                    onClick={selectAll}
+                    className="flex items-center gap-1 font-medium text-primary hover:underline"
                   >
-                    <Check size={10} strokeWidth={3} />
-                  </span>
+                    <LayoutGrid size={12} />
+                    Todas
+                  </button>
                 )}
-                <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
-                  {l.label}
-                </span>
-                <span
-                  className={cn(
-                    'block text-[11px] leading-tight',
-                    selected ? 'text-primary/80' : 'text-muted-foreground',
-                  )}
-                >
-                  {l.sub}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+              </div>
+            </div>
 
-        {/* "Todas" shortcut card — shown when nothing selected */}
-        {selectedLines.length === 0 && (
-          <button
-            type="button"
-            onClick={selectAll}
-            className="mt-2 w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-muted/20 hover:text-foreground transition-all text-center"
-          >
-            Seleccionar todas las líneas (LATAM completo)
-          </button>
+            <div className="grid grid-cols-3 gap-2">
+              {LINEAS.map((l) => {
+                const selected = selectedLines.includes(l.value);
+                return (
+                  <button
+                    key={l.value}
+                    type="button"
+                    onClick={() => toggleLine(l.value)}
+                    aria-pressed={selected}
+                    className={cn(
+                      'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
+                      selected
+                        ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
+                        : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
+                    )}
+                  >
+                    {selected && (
+                      <span
+                        aria-hidden
+                        className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                      >
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
+                    <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
+                      {l.label}
+                    </span>
+                    <span
+                      className={cn(
+                        'block text-[11px] leading-tight',
+                        selected ? 'text-primary/80' : 'text-muted-foreground',
+                      )}
+                    >
+                      {l.sub}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* "Todas" shortcut — shown when nothing selected */}
+            <button
+              type="button"
+              onClick={selectAll}
+              className="mt-2 w-full rounded-lg border border-dashed border-border px-3 py-2 text-xs text-muted-foreground hover:border-primary/40 hover:bg-muted/20 hover:text-foreground transition-all text-center"
+            >
+              Seleccionar todas las líneas (LATAM completo)
+            </button>
+          </div>
         )}
 
         {/* Sublínea chips — only when 1 line selected */}
