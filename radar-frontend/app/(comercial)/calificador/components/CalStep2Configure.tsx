@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
+import { RagToggle } from '@/components/agent/RagToggle';
 import { CompanySelector } from '../../components/CompanySelector';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
@@ -233,27 +234,12 @@ export function CalStep2Configure({ state, onChange }: Props) {
         </div>
       )}
 
-      {/* RAG toggle */}
-      <div className="flex items-start gap-3 rounded-lg border border-border bg-muted/20 p-3">
-        <input
-          type="checkbox"
-          id="rag-toggle"
-          checked={state.ragEnabled}
-          onChange={e => onChange({ ragEnabled: e.target.checked })}
-          className="mt-0.5 h-4 w-4 accent-primary"
-        />
-        <label htmlFor="rag-toggle" className="cursor-pointer">
-          <p className="text-sm font-medium">Contexto RAG</p>
-          <p className="text-xs text-muted-foreground">
-            Añade contexto de calificaciones pasadas para mejorar precisión
-          </p>
-          {state.ragEnabled && (
-            <Badge variant="secondary" className="mt-1 h-5 text-[10px]">
-              Activo
-            </Badge>
-          )}
-        </label>
-      </div>
+      {/* RAG toggle — componente reusable compartido con Radar */}
+      <RagToggle
+        enabled={state.ragEnabled}
+        onChange={(v) => onChange({ ragEnabled: v })}
+        description="Añade contexto de calificaciones pasadas para mejorar precisión"
+      />
     </div>
   );
 }

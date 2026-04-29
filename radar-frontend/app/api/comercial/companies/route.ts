@@ -81,10 +81,29 @@ export async function GET(req: NextRequest) {
   // Decode URI encoding (e.g. 'BHS%2CCart%C3%B3n' → 'BHS,Cartón') then split on comma
   const lineaRaw = searchParams.get('linea') ?? '';
   const lineaDecoded = decodeURIComponent(lineaRaw);
+  const sublineaRaw = searchParams.get('sublinea') ?? '';
+  const sublineaDecoded = decodeURIComponent(sublineaRaw).trim();
   const limit  = Math.min(Number(searchParams.get('limit') ?? 200), 500);
   const search = searchParams.get('q');
 
   const where: string[] = [];
+
+  // Sublínea filter — case + accent insensitive match against sub_lineas_negocio.nombre.
+  // Soporta multi-select via CSV (`?sublinea=Final de Línea,Solumat`).
+  if (sublineaDecoded) {
+    const subList = sublineaDecoded.split(',').map(s => s.trim()).filter(Boolean);
+    if (subList.length > 0) {
+      const conds = subList.map(
+        s => `lower(${S}.f_unaccent(sl.nombre)) = lower(${S}.f_unaccent(${pgLit(s)}))`,
+      );
+      where.push(`EXISTS (
+        SELECT 1 FROM ${S}.empresa_sub_lineas esl
+        JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+        WHERE esl.empresa_id = e.id
+          AND (${conds.join(' OR ')})
+      )`);
+    }
+  }
 
   if (lineaDecoded && lineaDecoded !== 'ALL') {
     // Support comma-separated multi-line values (e.g. 'BHS,Cartón')

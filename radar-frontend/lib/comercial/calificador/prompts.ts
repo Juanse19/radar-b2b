@@ -60,7 +60,7 @@ ${input.company_domain ? `- Dominio web: ${input.company_domain}` : ''}
 ${ragBlock}
 Perfilá la empresa usando búsqueda web: empleados, plantas, países de operación, sector exacto, capacidades productivas, noticias de inversión recientes. Luego calificá cada dimensión con evidencia concreta.
 
-DEVOLVÉ EXACTAMENTE este JSON (sin texto antes ni después):
+DEVOLVÉ EXACTAMENTE este JSON (sin texto antes ni después). El bloque "dimensiones" es opcional — incluilo cuando tengás evidencia concreta para citar la frase corta y la justificación de cada dimensión:
 {
   "scores": {
     "impacto_presupuesto": <0-10>,
@@ -70,6 +70,15 @@ DEVOLVÉ EXACTAMENTE este JSON (sin texto antes ni después):
     "anio_objetivo": <0-10>,
     "ticket_estimado": <0-10>,
     "prioridad_comercial": <0-10>
+  },
+  "dimensiones": {
+    "impacto_presupuesto": {"valor": "Muy Alto|Alto|Medio|Bajo|Muy Bajo", "justificacion": "1-2 frases con evidencia"},
+    "multiplanta":         {"valor": "Internacional|Regional|Única", "justificacion": "..."},
+    "recurrencia":         {"valor": "Muy Alto|Alto|Medio|Bajo|One-shot", "justificacion": "..."},
+    "referente_mercado":   {"valor": "Internacional|País|Baja", "justificacion": "..."},
+    "anio_objetivo":       {"valor": "2026|2027|2028|Sin año", "justificacion": "..."},
+    "ticket_estimado":     {"valor": "> 5M USD|1-5M|500K-1M|< 500K|Desconocido", "justificacion": "..."},
+    "prioridad_comercial": {"valor": "Muy Alta|Alta|Media|Baja|Muy Baja", "justificacion": "..."}
   },
   "razonamiento": "<markdown 3-5 párrafos con evidencia>",
   "perfilWeb": {

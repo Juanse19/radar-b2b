@@ -1,7 +1,9 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -11,8 +13,12 @@ import { ChevronDown, DollarSign } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AutoCountSlider } from './AutoCountSlider';
 import { CompanySelector } from '../../components/CompanySelector';
+import { RagToggle } from '@/components/agent/RagToggle';
+import type { ParentLineaItem } from '@/app/api/comercial/lineas-tree/route';
 import type { WizardState } from '@/lib/comercial/wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
+
+const PAISES_OPTIONS = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Panamá'];
 
 // Map tier to badge classes
 const TIER_BADGE: Record<string, string> = {
@@ -63,10 +69,12 @@ const FALLBACK_FUENTES = [
   { country: 'Brasil',   sources: ['ANAC', 'Infraestrutura.gov', 'Portal Transparência'] },
 ];
 
-const FALLBACK_KEYWORDS = [
-  'terminal pasajeros', 'sistema BHS', 'carrusel equipaje', 'CUTE CUSS CBIS',
-  'ampliación aeropuerto', 'concesión aeroportuaria', 'self bag drop',
-];
+// Color styles per keyword tipo — matches KeywordChips component
+const TIPO_STYLES: Record<string, string> = {
+  senal:    'bg-blue-50  text-blue-700  border-blue-200  dark:bg-blue-950  dark:text-blue-300  dark:border-blue-800',
+  producto: 'bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-300 dark:border-green-800',
+  sector:   'bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-300 dark:border-amber-800',
+};
 
 interface FuenteApi {
   nombre?:         string;
@@ -79,11 +87,12 @@ interface FuenteApi {
   country?:        string | null;
 }
 
-interface KeywordApi {
-  palabra?:       string;
-  tipo?:          string | null;
-  peso?:          number | null;
-  sub_linea_id?:  number | null;
+interface KeywordResult {
+  id:               number;
+  sub_linea_nombre: string;
+  palabra:          string;
+  tipo:             string;
+  peso:             number;
 }
 
 function groupFuentesByCountry(rows: FuenteApi[]): Array<{ country: string; sources: string[] }> {
@@ -99,12 +108,23 @@ function groupFuentesByCountry(rows: FuenteApi[]): Array<{ country: string; sour
   return Array.from(groups.entries()).map(([country, sources]) => ({ country, sources }));
 }
 
-interface Props {
-  state:    WizardState;
-  onChange: (updates: Partial<WizardState>) => void;
+function resolveSubLineaIds(tree: ParentLineaItem[], line: string | undefined, sublineas: string[]): number[] {
+  if (!line) return [];
+  const parent = tree.find(p => p.label === line);
+  if (!parent) return [];
+  const pool = sublineas.length > 0
+    ? parent.subLineas.filter(s => sublineas.includes(s.value) || sublineas.includes(s.label))
+    : parent.subLineas;
+  return pool.map(s => s.id).filter((id): id is number => id !== null);
 }
 
-export function Step2Configure({ state, onChange }: Props) {
+interface Props {
+  state:      WizardState;
+  onChange:   (updates: Partial<WizardState>) => void;
+  agentMode?: 'empresa' | 'signals';
+}
+
+export function Step2Configure({ state, onChange, agentMode = 'empresa' }: Props) {
   // The CompanySelector needs a full ComercialCompany[] locally — the URL only
   // persists IDs. We re-hydrate from the /api/comercial/companies endpoint.
   const [selectedCompanies, setSelectedCompanies] = useState<ComercialCompany[]>([]);
@@ -117,10 +137,24 @@ export function Step2Configure({ state, onChange }: Props) {
     state.mode === 'manual' ? manualCount : autoCount,
   );
 
-  // Fuentes and Keywords — fetched from admin APIs with graceful fallback
+  // Fuentes — fetched from admin API with graceful fallback
   const [fuentesGroups, setFuentesGroups] = useState<Array<{ country: string; sources: string[] }>>(FALLBACK_FUENTES);
-  const [keywords,      setKeywords]      = useState<string[]>(FALLBACK_KEYWORDS);
+  // Keywords — fetched per selected line/subline from comercial API
+  const [keywords,      setKeywords]      = useState<KeywordResult[]>([]);
+  const [kwLoading,     setKwLoading]     = useState(false);
+  const [lineasTree,    setLineasTree]    = useState<ParentLineaItem[]>([]);
+  // Cache all fuentes so we can re-filter client-side when the line changes
+  const allFuentesRef = useRef<FuenteApi[]>([]);
 
+  // Fetch lineas tree once — needed to resolve sub_linea_id for keyword filtering
+  useEffect(() => {
+    fetch('/api/comercial/lineas-tree')
+      .then((r) => r.ok ? r.json() : [])
+      .then((data: ParentLineaItem[]) => { if (Array.isArray(data)) setLineasTree(data); })
+      .catch(() => {});
+  }, []);
+
+  // Fuentes — fetch once, re-filter client-side whenever selected line changes (T3)
   useEffect(() => {
     let cancelled = false;
     fetch('/api/admin/fuentes')
@@ -132,30 +166,55 @@ export function Step2Configure({ state, onChange }: Props) {
           : (data && typeof data === 'object' && Array.isArray((data as { data?: unknown }).data))
               ? ((data as { data: FuenteApi[] }).data)
               : [];
-        if (rows.length > 0) {
-          const grouped = groupFuentesByCountry(rows);
-          if (grouped.length > 0) setFuentesGroups(grouped);
-        }
+        allFuentesRef.current = rows;
+        applyFuentesFilter(rows, state.line);
       })
       .catch(() => { /* keep fallback */ });
     return () => { cancelled = true; };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Re-filter fuentes when line changes without refetching
   useEffect(() => {
+    if (allFuentesRef.current.length > 0) {
+      applyFuentesFilter(allFuentesRef.current, state.line);
+    }
+  }, [state.line]);
+
+  function applyFuentesFilter(rows: FuenteApi[], line: string | undefined) {
+    const sel = line?.toLowerCase();
+    const filtered = sel
+      ? rows.filter((f) =>
+          !f.lineas || f.lineas.length === 0 ||
+          f.lineas.some((l) => l.toLowerCase().includes(sel) || sel.includes(l.toLowerCase()))
+        )
+      : rows;
+    const grouped = groupFuentesByCountry(filtered.length > 0 ? filtered : rows);
+    if (grouped.length > 0) setFuentesGroups(grouped);
+  }
+
+  // Keywords — re-fetch whenever selected line or sublines change (T2)
+  useEffect(() => {
+    // Fetch keywords specific to the selected line/subline from the comercial API
+    if (!state.line || state.line === 'ALL') {
+      setKeywords([]);
+      return;
+    }
     let cancelled = false;
-    fetch('/api/admin/keywords')
+    setKwLoading(true);
+    const params = new URLSearchParams({ linea: state.line });
+    if (state.sublinea) params.set('sublinea', state.sublinea);
+    fetch(`/api/comercial/keywords?${params.toString()}`)
       .then((r) => r.ok ? r.json() : [])
-      .then((data: KeywordApi[] | unknown) => {
+      .then((data: KeywordResult[] | unknown) => {
         if (cancelled) return;
-        const rows: KeywordApi[] = Array.isArray(data) ? data : [];
-        const words = rows
-          .map((k) => k.palabra ?? '')
-          .filter((w) => w.length > 0);
-        if (words.length > 0) setKeywords(words.slice(0, 40));  // cap to avoid visual overflow
+        const rows: KeywordResult[] = Array.isArray(data) ? data : [];
+        setKeywords(rows);
       })
-      .catch(() => { /* keep fallback */ });
+      .catch(() => { if (!cancelled) setKeywords([]); })
+      .finally(() => { if (!cancelled) setKwLoading(false); });
     return () => { cancelled = true; };
-  }, []);
+  }, [state.line, state.sublinea]);
 
   useEffect(() => {
     if (state.mode !== 'manual' || !state.line || hydrated) return;
@@ -171,6 +230,11 @@ export function Step2Configure({ state, onChange }: Props) {
     }
 
     const params = new URLSearchParams({ linea: state.line, limit: '200' });
+    if (state.sublineas && state.sublineas.length > 0) {
+      params.set('sublinea', state.sublineas.join(','));
+    } else if (state.sublinea) {
+      params.set('sublinea', state.sublinea);
+    }
     fetch(`/api/comercial/companies?${params}`)
       .then((r) => r.ok ? r.json() : [])
       .then((all: ComercialCompany[]) => {
@@ -187,8 +251,128 @@ export function Step2Configure({ state, onChange }: Props) {
   const handleCompaniesChange = (cs: ComercialCompany[]) => {
     setSelectedCompanies(cs);
     onChange({ selectedIds: cs.map((c) => c.id) });
+    try {
+      sessionStorage.setItem('wizard-selected-companies', JSON.stringify(cs));
+    } catch {}
   };
 
+  // ── Signals mode render ────────────────────────────────────────────────────
+  if (agentMode === 'signals') {
+    const togglePais = (p: string) => {
+      const current = state.paises ?? [];
+      const next = current.includes(p) ? current.filter(x => x !== p) : [...current, p];
+      onChange({ paises: next });
+    };
+
+    return (
+      <div className="space-y-5">
+        {/* Fuentes institucionales */}
+        {fuentesGroups.length > 0 && (
+          <Collapsible>
+            <CollapsibleTrigger className={cn(
+              'group flex w-full items-center justify-between rounded-lg border border-border',
+              'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+            )}>
+              <span className="font-medium">Fuentes institucionales</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="h-5 text-[10px]">
+                  {fuentesGroups.reduce((n, g) => n + g.sources.length, 0)} activas
+                </Badge>
+                <ChevronDown size={14} className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="space-y-1 rounded-lg border border-border/50 bg-background p-3 text-xs">
+                {fuentesGroups.map((f) => (
+                  <div key={f.country} className="flex flex-wrap items-baseline gap-1.5">
+                    <span className="font-medium text-foreground">{f.country}:</span>
+                    <span className="text-muted-foreground">{f.sources.join(', ')}</span>
+                  </div>
+                ))}
+                <a href="/admin/fuentes" className="mt-2 inline-block text-primary hover:underline">Editar en admin →</a>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Palabras clave */}
+        <Collapsible>
+          <CollapsibleTrigger className={cn(
+            'group flex w-full items-center justify-between rounded-lg border border-border',
+            'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+          )}>
+            <span className="font-medium">Palabras clave del sector</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="h-5 text-[10px]">{keywords.length}</Badge>
+              <ChevronDown size={14} className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((k) => (
+                  <Badge key={k.id} variant="outline" className="text-[11px]">{k.palabra}</Badge>
+                ))}
+              </div>
+              <div className="mt-3 border-t border-border/40 pt-3">
+                <label className="mb-1 block text-xs font-medium text-foreground">
+                  Palabras clave adicionales
+                  <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={state.customKeywords ?? ''}
+                  onChange={(e) => onChange({ customKeywords: e.target.value || undefined })}
+                  placeholder="ej: nueva concesión aeroportuaria terminal T3 CAPEX 2026"
+                  className="w-full resize-none rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Países */}
+        <div>
+          <Label className="mb-2 block">Países objetivo</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {PAISES_OPTIONS.map((p) => {
+              const active = (state.paises ?? []).includes(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => togglePais(p)}
+                  className={
+                    'rounded-full border px-3 py-1 text-xs transition-all ' +
+                    (active
+                      ? 'border-primary bg-primary/20 font-medium text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/50')
+                  }
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Máximo de señales */}
+        <div>
+          <Label htmlFor="max-senales" className="mb-2 block">Máximo de señales a devolver</Label>
+          <Input
+            id="max-senales"
+            type="number"
+            min={1}
+            max={25}
+            value={state.maxSenales ?? 10}
+            onChange={(e) => onChange({ maxSenales: Math.min(Math.max(Number(e.target.value), 1), 25) })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Empresa mode render ────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {state.mode === 'auto' ? (
@@ -214,6 +398,7 @@ export function Step2Configure({ state, onChange }: Props) {
           ) : (
             <CompanySelector
               line={state.line}
+              sublinea={state.sublineas && state.sublineas.length > 0 ? state.sublineas.join(',') : state.sublinea}
               selected={selectedCompanies}
               onChange={handleCompaniesChange}
               maxSelect={20}
@@ -307,9 +492,11 @@ export function Step2Configure({ state, onChange }: Props) {
         >
           <span className="font-medium">Palabras clave</span>
           <div className="flex items-center gap-2">
-            <Badge variant="secondary" className="h-5 text-[10px]">
-              {keywords.length}
-            </Badge>
+            {!kwLoading && (
+              <Badge variant="secondary" className="h-5 text-[10px]">
+                {keywords.length > 0 ? keywords.length : state.line ? '0' : '—'}
+              </Badge>
+            )}
             <ChevronDown
               size={14}
               className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
@@ -318,23 +505,43 @@ export function Step2Configure({ state, onChange }: Props) {
         </CollapsibleTrigger>
         <CollapsibleContent className="mt-2">
           <div className="rounded-lg border border-border/50 bg-background p-3">
-            <div className="flex flex-wrap gap-1.5">
-              {keywords.map((k) => (
-                <Badge key={k} variant="outline" className="text-[11px]">
-                  {k}
-                </Badge>
-              ))}
-            </div>
-            <a
-              href="/admin/keywords"
-              className="mt-2 inline-block text-xs text-primary hover:underline"
-            >
-              Editar en admin →
-            </a>
+            {kwLoading ? (
+              /* Loading skeleton */
+              <div className="flex flex-wrap gap-1.5">
+                {[60, 80, 50, 70, 55].map((w) => (
+                  <span
+                    key={w}
+                    className="inline-block h-5 animate-pulse rounded-full bg-muted"
+                    style={{ width: w }}
+                  />
+                ))}
+              </div>
+            ) : keywords.length === 0 ? (
+              <p className="text-xs text-muted-foreground">
+                {state.line
+                  ? 'Sin palabras clave registradas para esta selección.'
+                  : 'Selecciona una línea de negocio para ver las palabras clave.'}
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((kw) => (
+                  <span
+                    key={kw.id}
+                    title={kw.sub_linea_nombre}
+                    className={cn(
+                      'inline-flex items-center rounded-full border px-2 py-0.5 text-xs',
+                      TIPO_STYLES[kw.tipo] ?? 'bg-muted text-muted-foreground border-border',
+                    )}
+                  >
+                    {kw.palabra}
+                  </span>
+                ))}
+              </div>
+            )}
             <div className="mt-3 border-t border-border/40 pt-3">
               <label className="mb-1 block text-xs font-medium text-foreground">
                 Palabras clave personalizadas
-                <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
+                <span className="ml-1 font-normal text-muted-foreground">(opcional — se suman a las anteriores)</span>
               </label>
               <textarea
                 rows={2}
@@ -347,6 +554,13 @@ export function Step2Configure({ state, onChange }: Props) {
           </div>
         </CollapsibleContent>
       </Collapsible>
+
+      {/* Contexto RAG — habilita retrieval de señales pasadas para mejorar precisión */}
+      <RagToggle
+        enabled={state.ragEnabled}
+        onChange={(v) => onChange({ ragEnabled: v })}
+        description="Añade contexto de señales de inversión pasadas para mejorar la precisión del agente RADAR"
+      />
     </div>
   );
 }

@@ -36,9 +36,15 @@ export function estimateCost(args: EstimateCostArgs): EstimateCostResult {
     keywords_count:  args.keywords_count,
   });
 
-  // Fuentes / keywords add roughly 50 tokens each to the system prompt
+  // Fuentes / keywords add roughly 50 tokens each to the system prompt.
+  // Derive input price from the base estimate so the extra cost scales with
+  // the active provider (Claude $3/M vs Gemini $0.15/M, etc.) instead of a
+  // hardcoded $3/M that always assumed Claude.
   const extra_tokens_in = (args.fuentes_count ?? 0) * 50 + (args.keywords_count ?? 0) * 30;
-  const extra_cost_usd  = (extra_tokens_in * 3.0) / 1_000_000;
+  const inputPricePerM = base.tokens_in_est > 0
+    ? (base.cost_usd_est / (base.tokens_in_est + base.tokens_out_est * 5)) * 1_000_000
+    : 3.0;
+  const extra_cost_usd  = (extra_tokens_in * inputPricePerM) / 1_000_000;
 
   // Prompt caching saves ~30% of input tokens when empresas_count >= 2
   const cache_saved_usd = base.cached_percentage * base.cost_usd_est;

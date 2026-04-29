@@ -9,6 +9,7 @@ export interface CalWizardState {
   step:        1 | 2 | 3;
   linea:       string;
   subLineaId:  number | null;
+  sublinea?:   string;
   mode:        CalWizardMode;
   count:       number;
   selectedIds: number[];
@@ -31,14 +32,15 @@ export function useCalWizardState() {
     const rawSub  = sp.get('subLineaId');
     return {
       step,
-      linea:       sp.get('linea')    ?? '',
+      linea:       sp.get('linea')      ?? '',
       subLineaId:  rawSub ? Number(rawSub) : null,
+      sublinea:    sp.get('sublinea')   ?? undefined,
       mode,
       count:       Number(sp.get('count') ?? '5'),
       selectedIds: (sp.get('empresas') ?? '').split(',').filter(Boolean).map(Number),
-      provider:    sp.get('provider')  ?? 'claude',
-      ragEnabled:  sp.get('rag')       !== 'false',
-      model:       sp.get('model')     ?? '',
+      provider:    sp.get('provider')   ?? 'claude',
+      ragEnabled:  sp.get('rag')        !== 'false',
+      model:       sp.get('model')      ?? '',
     };
   }, [sp]);
 

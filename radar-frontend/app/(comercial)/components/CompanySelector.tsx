@@ -9,12 +9,13 @@ import type { ComercialCompany } from '@/lib/comercial/types';
 
 interface Props {
   line:     string;
+  sublinea?: string;
   selected: ComercialCompany[];
   onChange: (companies: ComercialCompany[]) => void;
   maxSelect?: number;
 }
 
-export function CompanySelector({ line, selected, onChange, maxSelect = 20 }: Props) {
+export function CompanySelector({ line, sublinea, selected, onChange, maxSelect = 20 }: Props) {
   const [all, setAll]         = useState<ComercialCompany[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError]     = useState<string | null>(null);
@@ -26,6 +27,7 @@ export function CompanySelector({ line, selected, onChange, maxSelect = 20 }: Pr
     setError(null);
     try {
       const params = new URLSearchParams({ linea: line, limit: '200' });
+      if (sublinea) params.set('sublinea', sublinea);
       if (search) params.set('q', search);
       const res = await fetch(`/api/comercial/companies?${params}`);
       if (res.ok) {
@@ -39,7 +41,7 @@ export function CompanySelector({ line, selected, onChange, maxSelect = 20 }: Pr
     } finally {
       setLoading(false);
     }
-  }, [line, search]);
+  }, [line, sublinea, search]);
 
   useEffect(() => { fetchCompanies(); }, [fetchCompanies]);
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -36,6 +36,14 @@ const PROVIDERS = [
   },
 ];
 
+interface EstimateResponse {
+  tokens_in_est:          number;
+  tokens_out_est:         number;
+  cost_usd_est:           number;
+  budget_recommended_usd: number;
+  cached_percentage?:     number;
+}
+
 interface Props {
   state:    CalWizardState;
   onChange: (updates: Partial<CalWizardState>) => void;
@@ -45,6 +53,38 @@ export function CalStep3Review({ state, onChange }: Props) {
   const router  = useRouter();
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState<string | null>(null);
+  const [estimate,        setEstimate]        = useState<EstimateResponse | null>(null);
+  const [estimateLoading, setEstimateLoading] = useState(false);
+
+  const displayCount = state.mode === 'auto' ? state.count : state.selectedIds.length;
+
+  // Fetch cost estimate whenever provider, company count, or line changes
+  useEffect(() => {
+    if (!displayCount || !state.linea || !state.provider) return;
+    let cancelled = false;
+    setEstimateLoading(true);
+    fetch('/api/comercial/estimate', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        provider:       state.provider,
+        empresas_count: displayCount,
+        linea:          state.linea,
+        with_prefilter: false,
+      }),
+    })
+      .then((r) => r.json())
+      .then((data: EstimateResponse) => {
+        if (!cancelled) {
+          setEstimate(data);
+          setEstimateLoading(false);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setEstimateLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [state.provider, displayCount, state.linea]);
 
   async function handleLaunch() {
     setError(null);
@@ -106,8 +146,6 @@ export function CalStep3Review({ state, onChange }: Props) {
     }
   }
 
-  const displayCount = state.mode === 'auto' ? state.count : state.selectedIds.length;
-
   return (
     <div className="space-y-6">
       {/* Summary */}
@@ -162,6 +200,14 @@ export function CalStep3Review({ state, onChange }: Props) {
                     )}
                   </div>
                   <p className="text-xs text-muted-foreground">{sub}</p>
+                  {selected && estimateLoading && (
+                    <p className="text-xs text-muted-foreground mt-0.5">Calculando...</p>
+                  )}
+                  {selected && !estimateLoading && estimate && (
+                    <p className="text-xs text-primary/80 mt-0.5">
+                      ~${estimate.cost_usd_est.toFixed(3)} USD · {estimate.tokens_in_est.toLocaleString()} tokens
+                    </p>
+                  )}
                 </div>
                 {selected && (
                   <div className="h-2 w-2 rounded-full bg-primary" />

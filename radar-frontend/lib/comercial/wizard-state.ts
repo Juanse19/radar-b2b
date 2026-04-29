@@ -14,7 +14,14 @@ export interface WizardState {
   count:    number;          // auto mode (1-20)
   selectedIds: number[];     // manual mode
   customKeywords?: string;   // optional override for AI search keywords
-  sublinea?: string;         // optional sublínea filter (only when single line selected)
+  sublineas: string[];       // multi-select sub-líneas (empty = all when single line)
+  /** Backwards-compat alias — first item of sublineas[] when single, undefined otherwise. */
+  sublinea?: string;
+  /** v5: enables RAG context retrieval from past signals/calificaciones (default true). */
+  ragEnabled: boolean;
+  // Signals mode fields
+  paises: string[];          // selected countries (signals mode)
+  maxSenales: number;        // max signals to return (signals mode, default 10)
   // Step 3 data
   provider: string;          // 'claude' | 'openai' | 'gemini'
   budgetUsd: number;         // user override, default from estimate
@@ -42,9 +49,13 @@ export function useWizardState() {
       count:          Number(sp.get('count') ?? '5'),
       selectedIds:    (sp.get('empresas') ?? '').split(',').filter(Boolean).map(Number),
       customKeywords: sp.get('keywords')  ?? undefined,
-      sublinea:       sp.get('sublinea') ?? undefined,
+      sublineas:      (sp.get('sublineas') ?? sp.get('sublinea') ?? '').split(',').map(s => s.trim()).filter(Boolean),
+      sublinea:       sp.get('sublinea') ?? (sp.get('sublineas')?.split(',')[0]?.trim() || undefined),
+      paises:         (sp.get('paises') ?? '').split(',').map(s => s.trim()).filter(Boolean),
+      maxSenales:     Number(sp.get('maxSenales') ?? '10'),
       provider:       sp.get('provider') ?? 'claude',
       budgetUsd:      Number(sp.get('budget') ?? '0'),
+      ragEnabled:     sp.get('rag') !== 'false',
     };
   }, [sp]);
 
@@ -60,6 +71,32 @@ export function useWizardState() {
         const joined = (v as number[]).join(',');
         if (joined) next.set('empresas', joined);
         else next.delete('empresas');
+        continue;
+      }
+      if (k === 'paises' && Array.isArray(v)) {
+        const joined = (v as string[]).join(',');
+        if (joined) next.set('paises', joined);
+        else next.delete('paises');
+        continue;
+      }
+      if (k === 'sublineas' && Array.isArray(v)) {
+        const joined = (v as string[]).map(s => s.trim()).filter(Boolean).join(',');
+        if (joined) next.set('sublineas', joined);
+        else next.delete('sublineas');
+        next.delete('sublinea'); // legacy alias — drop
+        continue;
+      }
+      if (k === 'sublinea' && typeof v === 'string') {
+        // Legacy alias: write to sublineas[] for forward compat
+        if (v) next.set('sublineas', v);
+        else next.delete('sublineas');
+        next.delete('sublinea');
+        continue;
+      }
+      if (k === 'ragEnabled') {
+        // Default is true; only persist when false to keep URL clean
+        if (v === false) next.set('rag', 'false');
+        else next.delete('rag');
         continue;
       }
       next.set(key, String(v));

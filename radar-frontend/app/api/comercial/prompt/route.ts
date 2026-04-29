@@ -2,7 +2,7 @@ import 'server-only';
 import { NextRequest, NextResponse } from 'next/server';
 import { getCurrentSession } from '@/lib/auth/session';
 import { getAgentPrompt } from '@/lib/db/supabase/agent-prompts';
-import { buildMaoaSystemPrompt } from '@/lib/comercial/providers/shared-prompt';
+import { buildSystemPrompt as buildMaoaSystemPrompt } from '@/lib/comercial/providers/shared-prompt';
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Provider metadata — capabilities and pricing

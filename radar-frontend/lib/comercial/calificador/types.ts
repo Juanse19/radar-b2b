@@ -42,8 +42,17 @@ export interface DimScores {
   prioridad_comercial: number;
 }
 
+/** v5: per-dimension detail produced by the Calificador prompt (optional). */
+export interface DimensionDetail {
+  valor:         string;
+  justificacion: string;
+}
+export type DimensionDetails = Partial<Record<Dimension, DimensionDetail>>;
+
 export interface CalificacionOutput {
   scores: DimScores;
+  /** v5: optional rich per-dimension explanation. */
+  dimensiones?: DimensionDetails;
   scoreTotal: number;
   tier: Tier;
   razonamiento: string;
