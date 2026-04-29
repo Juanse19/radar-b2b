@@ -3,11 +3,27 @@
  * Mirrors the interface of runClaudeWebSearch so scan-signals can use any provider.
  */
 import 'server-only';
+import { pgFirst, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import type { RunResult, RunInput } from './claudeWebSearchClient';
 
 const DEFAULT_MODEL      = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 const PRICE_INPUT_PER_M  = 0.15;
 const PRICE_OUTPUT_PER_M = 0.60;
+
+async function resolveOpenAIKey(override?: string): Promise<string | undefined> {
+  if (override) return override;
+  const env = process.env.OPENAI_API_KEY?.trim();
+  if (env) return env;
+  try {
+    const row = await pgFirst<{ api_key_enc: string }>(
+      `SELECT api_key_enc FROM ${SCHEMA}.ai_provider_configs
+       WHERE provider = ${pgLit('openai')} AND is_active = TRUE LIMIT 1`,
+    );
+    return row?.api_key_enc?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type ResponsesOutputItem =
   | { type: 'web_search_call'; id: string; status: string; queries?: string[] }
@@ -30,8 +46,8 @@ async function fetchWithRetry(url: string, options: RequestInit, maxRetries = 3)
 }
 
 export async function runOpenAIWebSearch(input: RunInput): Promise<RunResult> {
-  const apiKey = input.apiKey ?? process.env.OPENAI_API_KEY;
-  if (!apiKey) throw new Error('OPENAI_API_KEY not configured — add it to .env.local');
+  const apiKey = await resolveOpenAIKey(input.apiKey);
+  if (!apiKey) throw new Error('OPENAI_API_KEY not configured — add it to .env.local or configure it in Admin → API Keys');
 
   const model = input.model ?? DEFAULT_MODEL;
 

@@ -3,12 +3,28 @@
  * Mirrors the interface of runClaudeWebSearch so scan-signals can use any provider.
  */
 import 'server-only';
+import { pgFirst, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import type { RunResult, RunInput } from './claudeWebSearchClient';
 
 const DEFAULT_MODEL      = process.env.GOOGLE_MODEL ?? process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 const PRICE_INPUT_PER_M  = 0.15;
 const PRICE_OUTPUT_PER_M = 0.60;
 const GEMINI_API_BASE    = 'https://generativelanguage.googleapis.com/v1beta/models';
+
+async function resolveGeminiKey(override?: string): Promise<string | undefined> {
+  if (override) return override;
+  const env = (process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY)?.trim();
+  if (env) return env;
+  try {
+    const row = await pgFirst<{ api_key_enc: string }>(
+      `SELECT api_key_enc FROM ${SCHEMA}.ai_provider_configs
+       WHERE provider = ${pgLit('google')} AND is_active = TRUE LIMIT 1`,
+    );
+    return row?.api_key_enc?.trim() || undefined;
+  } catch {
+    return undefined;
+  }
+}
 
 type GeminiResponse = {
   candidates?: Array<{
@@ -22,8 +38,8 @@ type GeminiResponse = {
 };
 
 export async function runGeminiWebSearch(input: RunInput): Promise<RunResult> {
-  const apiKey = input.apiKey ?? process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
-  if (!apiKey) throw new Error('GOOGLE_API_KEY not configured — add it to .env.local');
+  const apiKey = await resolveGeminiKey(input.apiKey);
+  if (!apiKey) throw new Error('GOOGLE_API_KEY not configured — add it to .env.local or configure it in Admin → API Keys');
 
   const model = input.model ?? DEFAULT_MODEL;
   const url   = `${GEMINI_API_BASE}/${model}:generateContent?key=${apiKey}`;

@@ -26,9 +26,12 @@ export interface HistoryTurn {
 }
 
 const LINEAS = [
-  { key: 'BHS',            patterns: [/bhs/i, /aeropuerto/i, /terminal/i, /carrusel/i, /equipaje/i] },
+  { key: 'BHS',            patterns: [/bhs/i, /aeropuerto/i, /terminal/i, /carrusel/i, /equipaje/i, /cargo/i, /uld/i, /sorter/i] },
   { key: 'Cartón',         patterns: [/cart[óo]n/i, /papel/i, /corrugadora/i, /corrugado/i] },
-  { key: 'Intralogística', patterns: [/intralog[íi]stica/i, /cedi/i, /wms/i, /ASRS/i, /almac[eé]n/i, /sortation/i, /log[íi]stica/i, /palletizador/i, /alimentos/i, /bebidas/i] },
+  { key: 'Intralogística', patterns: [/intralog[íi]stica/i, /cedi/i, /wms/i, /ASRS/i, /almac[eé]n/i, /sortation/i, /log[íi]stica/i, /palletizador/i, /conveyor/i, /picking/i] },
+  { key: 'Final de Línea', patterns: [/final\s+de\s+l[íi]nea/i, /alimentos/i, /bebidas/i, /empaque/i, /envase/i, /filling/i, /envasadora/i] },
+  { key: 'Motos',          patterns: [/motos?/i, /motocicleta/i, /ensambladora/i, /ensamble/i] },
+  { key: 'Solumat',        patterns: [/solumat/i, /pl[áa]stico/i, /inyecci[óo]n/i, /materiales\s+pl[áa]st/i] },
 ];
 
 const PAIS_MAP: Array<{ pais: string; patterns: RegExp[] }> = [
@@ -125,7 +128,7 @@ const INTERPRET_TOOL = {
       },
       linea: {
         type:         ['string', 'null'],
-        enum:         ['BHS', 'Cartón', 'Intralogística', null],
+        enum:         ['BHS', 'Cartón', 'Intralogística', 'Final de Línea', 'Motos', 'Solumat', null],
         description:  'Línea Matec mencionada o inferida. null si no aplica.',
       },
       empresa: {
