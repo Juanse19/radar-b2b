@@ -243,13 +243,34 @@ export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
           throw new Error('No hay empresas disponibles para esa línea');
         }
       } else {
-        // Manual mode — re-hydrate full name/country from companies endpoint
-        // Do NOT filter by sublinea here: we need all companies for the line
-        // so we can match the selected IDs regardless of sublinea context.
-        const qs = new URLSearchParams({ linea: state.line, limit: '200' });
-        const lookupRes = await fetch(`/api/comercial/companies?${qs}`);
-        const all: ComercialCompany[] = lookupRes.ok ? await lookupRes.json() : [];
-        companies = all.filter((c) => state.selectedIds.includes(c.id));
+        // Manual mode — read from sessionStorage set by Step2Configure.
+        // This avoids a re-fetch that can miss companies found via search.
+        try {
+          const cached = sessionStorage.getItem('wizard-selected-companies');
+          if (cached) {
+            const raw: unknown = JSON.parse(cached);
+            if (Array.isArray(raw)) {
+              const parsed = raw as ComercialCompany[];
+              // Cross-validate IDs against URL state to guard against stale cache
+              const cachedIds   = parsed.map(c => c.id).sort().join(',');
+              const expectedIds = [...state.selectedIds].sort().join(',');
+              if (cachedIds === expectedIds) {
+                companies = parsed.filter(
+                  (c) => c && typeof c.id === 'number' && state.selectedIds.includes(c.id),
+                );
+              }
+            }
+          }
+        } catch {}
+
+        if (companies.length === 0) {
+          // Fallback: re-fetch from API (sessionStorage unavailable or stale)
+          const qs = new URLSearchParams({ linea: state.line, limit: '200' });
+          const lookupRes = await fetch(`/api/comercial/companies?${qs}`);
+          const all: ComercialCompany[] = lookupRes.ok ? await lookupRes.json() : [];
+          companies = all.filter((c) => state.selectedIds.includes(c.id));
+        }
+
         if (companies.length === 0) {
           throw new Error('No se encontraron las empresas seleccionadas');
         }

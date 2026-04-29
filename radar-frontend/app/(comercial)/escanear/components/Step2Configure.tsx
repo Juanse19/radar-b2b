@@ -273,6 +273,9 @@ export function Step2Configure({ state, onChange, agentMode = 'empresa' }: Props
   const handleCompaniesChange = (cs: ComercialCompany[]) => {
     setSelectedCompanies(cs);
     onChange({ selectedIds: cs.map((c) => c.id) });
+    try {
+      sessionStorage.setItem('wizard-selected-companies', JSON.stringify(cs));
+    } catch {}
   };
 
   // ── Signals mode render ────────────────────────────────────────────────────
