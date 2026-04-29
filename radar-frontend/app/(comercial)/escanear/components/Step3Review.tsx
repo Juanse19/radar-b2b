@@ -244,12 +244,9 @@ export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
         }
       } else {
         // Manual mode — re-hydrate full name/country from companies endpoint
+        // Do NOT filter by sublinea here: we need all companies for the line
+        // so we can match the selected IDs regardless of sublinea context.
         const qs = new URLSearchParams({ linea: state.line, limit: '200' });
-        if (state.sublineas && state.sublineas.length > 0) {
-          qs.set('sublinea', state.sublineas.join(','));
-        } else if (state.sublinea) {
-          qs.set('sublinea', state.sublinea);
-        }
         const lookupRes = await fetch(`/api/comercial/companies?${qs}`);
         const all: ComercialCompany[] = lookupRes.ok ? await lookupRes.json() : [];
         companies = all.filter((c) => state.selectedIds.includes(c.id));
@@ -358,16 +355,55 @@ export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
           </dl>
         </Card>
 
-        {/* Provider — simplified for signals */}
+        {/* Provider cards — same UI as empresa mode */}
         <div>
           <Label className="mb-2 block">Proveedor IA</Label>
-          <select
-            value={state.provider}
-            onChange={(e) => onChange({ provider: e.target.value })}
-            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
-          >
-            <option value="claude">Claude Sonnet 4.6 (recomendado)</option>
-          </select>
+          {loadingProviders ? (
+            <div className="grid grid-cols-3 gap-2">
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 w-full rounded-lg" />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-3 gap-2">
+              {providers.map((p) => {
+                const isActive = state.provider === p.name;
+                return (
+                  <button
+                    key={p.name}
+                    type="button"
+                    onClick={() => p.implemented && onChange({ provider: p.name })}
+                    disabled={!p.implemented}
+                    className={cn(
+                      'relative rounded-lg border-2 p-3 text-left text-xs transition-all duration-200',
+                      isActive && p.implemented
+                        ? 'border-primary bg-primary/25 ring-2 ring-primary/60 shadow-lg shadow-primary/20'
+                        : 'border-border hover:border-primary/60 hover:bg-muted/40',
+                      p.implemented ? '' : 'cursor-not-allowed opacity-60',
+                    )}
+                  >
+                    {isActive && p.implemented && (
+                      <span
+                        aria-hidden
+                        className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                      >
+                        <Check size={10} strokeWidth={3} />
+                      </span>
+                    )}
+                    <p className={cn('font-semibold capitalize', isActive && p.implemented && 'text-primary')}>
+                      {p.name}
+                    </p>
+                    <p className="mt-0.5 leading-tight text-muted-foreground">{p.model}</p>
+                    {!p.implemented && (
+                      <Badge variant="secondary" className="mt-1 h-4 text-[9px]">
+                        Próximamente
+                      </Badge>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         {sigError && (

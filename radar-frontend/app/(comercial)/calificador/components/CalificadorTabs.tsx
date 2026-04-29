@@ -3,7 +3,7 @@
 import { Building2, Sparkles, MessageSquare } from 'lucide-react';
 import { AgentModeTabs, type AgentTab } from '@/components/agent/AgentModeTabs';
 import { CalificadorWizard } from './CalificadorWizard';
-import { Wizard } from '../../escanear/components/Wizard';
+import { SignalsWizardLocal } from '../../senales/components/SignalsWizardLocal';
 import { ChatPanel } from '../../chat/components/ChatPanel';
 
 const TABS: AgentTab[] = [
@@ -17,7 +17,7 @@ const TABS: AgentTab[] = [
     id:    'automatico',
     label: 'Señales',
     icon:  Sparkles,
-    render: () => <Wizard agentMode="signals" />,
+    render: () => <SignalsWizardLocal />,
   },
   {
     id:    'chat',

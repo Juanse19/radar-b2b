@@ -61,9 +61,6 @@ export function CalStep1Target({ state, onChange }: Props) {
                 <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
                   {l.label}
                 </span>
-                <span className={cn('block text-[11px] leading-tight', selected ? 'text-primary/80' : 'text-muted-foreground')}>
-                  {l.sub}
-                </span>
               </button>
             );
           })}
