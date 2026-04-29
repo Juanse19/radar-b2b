@@ -311,7 +311,7 @@ export function Step2Configure({ state, onChange, agentMode = 'empresa' }: Props
             <div className="rounded-lg border border-border/50 bg-background p-3">
               <div className="flex flex-wrap gap-1.5">
                 {keywords.map((k) => (
-                  <Badge key={k.id} variant="outline" className="text-[11px]">{k.palavra}</Badge>
+                  <Badge key={k.id} variant="outline" className="text-[11px]">{k.palabra}</Badge>
                 ))}
               </div>
               <div className="mt-3 border-t border-border/40 pt-3">
