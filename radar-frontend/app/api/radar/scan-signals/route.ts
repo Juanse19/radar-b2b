@@ -27,6 +27,8 @@ import {
   type ScanSignalsInput,
 } from '@/lib/radar/signalsScan';
 import { runClaudeWebSearch } from '@/lib/radar/claudeWebSearchClient';
+import { runOpenAIWebSearch } from '@/lib/radar/openaiWebSearchClient';
+import { runGeminiWebSearch } from '@/lib/radar/geminiWebSearchClient';
 import { createNotification } from '@/lib/notifications';
 
 export const dynamic = 'force-dynamic';
@@ -94,13 +96,6 @@ export async function POST(req: NextRequest) {
 
   const input = validated;
 
-  if (input.provider !== 'claude') {
-    return NextResponse.json(
-      { error: `Provider '${input.provider}' aún no soportado en Modo Señales — usá 'claude' por ahora.` },
-      { status: 501 },
-    );
-  }
-
   // Crear sesión con modo='señales'
   const userSession = await getCurrentSession();
   let sessionId: string | null = null;
@@ -123,10 +118,17 @@ export async function POST(req: NextRequest) {
 
   let runResult;
   try {
-    runResult = await runClaudeWebSearch({ system, user });
+    const runnerInput = { system, user };
+    if (input.provider === 'openai') {
+      runResult = await runOpenAIWebSearch(runnerInput);
+    } else if (input.provider === 'gemini') {
+      runResult = await runGeminiWebSearch(runnerInput);
+    } else {
+      runResult = await runClaudeWebSearch(runnerInput);
+    }
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
-    console.error('[scan-signals] runClaudeWebSearch failed:', msg);
+    console.error(`[scan-signals] ${input.provider} web search failed:`, msg);
     return NextResponse.json({ error: `LLM call failed: ${msg}` }, { status: 502 });
   }
 
@@ -164,7 +166,7 @@ export async function POST(req: NextRequest) {
         user_id: userSession?.id ?? null,
         tipo:    'scan_alta',
         titulo:  `Señal ALTA · ${s.empresa_nombre}`,
-        mensaje: s.descripcion?.slice(0, 200) ?? null,
+        mensaje: s.descripcion?.slice(0, 200) ?? undefined,
         link:    `/portfolio?q=${encodeURIComponent(s.empresa_nombre)}`,
         meta:    { signal_id: s.id, session_id: sessionId, tipo_senal: s.tipo_senal },
       }),
