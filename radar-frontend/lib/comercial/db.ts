@@ -9,12 +9,16 @@ export async function createRadarV2Session(data: {
   user_id?:      string | null;
   linea_negocio: string;
   empresas_count: number;
+  modo?:         'empresa' | 'señales' | 'chat';
+  provider?:     string | null;
 }): Promise<ComercialSession> {
   const cols: string[] = ['linea_negocio', 'empresas_count'];
   const vals: string[] = [pgLit(data.linea_negocio), pgLit(data.empresas_count)];
 
   if (data.id      !== undefined) { cols.unshift('id');      vals.unshift(pgLit(data.id)); }
   if (data.user_id !== undefined) { cols.push('user_id');    vals.push(pgLit(data.user_id)); }
+  if (data.modo    !== undefined) { cols.push('modo');       vals.push(pgLit(data.modo)); }
+  if (data.provider!== undefined) { cols.push('provider');   vals.push(pgLit(data.provider)); }
 
   const [row] = await pgQuery<ComercialSession>(
     `INSERT INTO ${S}.radar_v2_sessions (${cols.join(', ')}) VALUES (${vals.join(', ')}) RETURNING *`

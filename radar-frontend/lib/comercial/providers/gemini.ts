@@ -25,8 +25,9 @@ import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/cali
 
 const GEMINI_MODEL       = process.env.GOOGLE_MODEL ?? process.env.GEMINI_MODEL ?? 'gemini-2.0-flash';
 // Gemini 2.0 Flash pricing (as of 2026-04): $0.075/1M input, $0.30/1M output
-const PRICE_INPUT_PER_M  = 0.075;
-const PRICE_OUTPUT_PER_M = 0.30;
+// Gemini 2.5 Flash pricing (Oct 2026)
+const PRICE_INPUT_PER_M  = 0.15;
+const PRICE_OUTPUT_PER_M = 0.60;
 
 const GEMINI_API_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
 
@@ -306,6 +307,7 @@ function createGeminiProvider(): AIProvider {
 
       return {
         scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        dimensiones: (rawJson as { dimensiones?: CalificacionOutput['dimensiones'] }).dimensiones,
         scoreTotal: 0,
         tier: 'C',
         razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',

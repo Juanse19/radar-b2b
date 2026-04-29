@@ -6,9 +6,13 @@ import { ChevronRight } from 'lucide-react';
 
 const breadcrumbMap: Record<string, string> = {
   escanear:    'Escanear',
+  senales:     'Modo Señales',
+  portfolio:   'Portafolio',
+  chat:        'Chat RADAR',
   'en-vivo':   'En vivo',
   vivo:        'En vivo',
   resultados:  'Resultados',
+  contactos:   'Contactos',
   metricas:    'Métricas',
   cronograma:  'Cronograma',
   informes:    'Informes',
@@ -18,7 +22,7 @@ const breadcrumbMap: Record<string, string> = {
 };
 
 // Wide pages that need more horizontal space
-const widePages = new Set(['resultados', 'investigar', 'metricas', 'calificador']);
+const widePages = new Set(['resultados', 'investigar', 'metricas', 'calificador', 'portfolio']);
 
 export default function ComercialLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

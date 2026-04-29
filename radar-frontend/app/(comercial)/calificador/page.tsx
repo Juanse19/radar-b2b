@@ -1,9 +1,10 @@
 import Link from 'next/link';
-import { Star, TrendingUp, Archive, XCircle, ArrowRight } from 'lucide-react';
+import { Star, TrendingUp, Archive, XCircle, ArrowRight, ClipboardCheck } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { pgQuery, SCHEMA } from '@/lib/db/supabase/pg_client';
+import { CalificadorTabs } from './components/CalificadorTabs';
 
 const S = SCHEMA;
 
@@ -72,17 +73,18 @@ export default async function CalificadorDashboardPage() {
       {/* Header */}
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Calificador</h1>
+          <h1 className="flex items-center gap-2 text-xl font-semibold">
+            <ClipboardCheck size={20} className="text-primary" />
+            Calificar
+          </h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Evalúa empresas en 7 dimensiones y asigna tier comercial con IA
+            Tres modos: por empresa específica, calificación automática por línea o conversación.
           </p>
         </div>
-        <Link href="/calificador/wizard/seleccionar">
-          <Button className="shrink-0 gap-2">
-            Nueva calificación <ArrowRight size={14} />
-          </Button>
-        </Link>
       </div>
+
+      {/* Tabs principales (Empresa / Automático / Chat) */}
+      <CalificadorTabs />
 
       {/* Tier stat cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">

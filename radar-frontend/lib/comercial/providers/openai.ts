@@ -27,8 +27,9 @@ import type { CalificacionInput, CalificacionOutput } from '@/lib/comercial/cali
 // (gpt-4o fallback available via OPENAI_MODEL env var if needed)
 const OPENAI_MODEL       = process.env.OPENAI_MODEL ?? 'gpt-4o-mini';
 // GPT-4o-mini pricing (as of 2026-04): $0.15/1M input, $0.60/1M output
-const PRICE_INPUT_PER_M  = 0.15;
-const PRICE_OUTPUT_PER_M = 0.60;
+// GPT-4o pricing (Oct 2026)
+const PRICE_INPUT_PER_M  = 2.50;
+const PRICE_OUTPUT_PER_M = 10.00;
 
 // ---------------------------------------------------------------------------
 // Responses API types
@@ -336,6 +337,7 @@ function createOpenAIProvider(): AIProvider {
 
       return {
         scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        dimensiones: (rawJson as { dimensiones?: CalificacionOutput['dimensiones'] }).dimensiones,
         scoreTotal: 0,
         tier: 'C',
         razonamiento: (rawJson as { razonamiento?: string }).razonamiento ?? '',
