@@ -19,6 +19,9 @@ export interface WizardState {
   sublinea?: string;
   /** v5: enables RAG context retrieval from past signals/calificaciones (default true). */
   ragEnabled: boolean;
+  // Signals mode fields
+  paises: string[];          // selected countries (signals mode)
+  maxSenales: number;        // max signals to return (signals mode, default 10)
   // Step 3 data
   provider: string;          // 'claude' | 'openai' | 'gemini'
   budgetUsd: number;         // user override, default from estimate
@@ -48,6 +51,8 @@ export function useWizardState() {
       customKeywords: sp.get('keywords')  ?? undefined,
       sublineas:      (sp.get('sublineas') ?? sp.get('sublinea') ?? '').split(',').map(s => s.trim()).filter(Boolean),
       sublinea:       sp.get('sublinea') ?? (sp.get('sublineas')?.split(',')[0]?.trim() || undefined),
+      paises:         (sp.get('paises') ?? '').split(',').map(s => s.trim()).filter(Boolean),
+      maxSenales:     Number(sp.get('maxSenales') ?? '10'),
       provider:       sp.get('provider') ?? 'claude',
       budgetUsd:      Number(sp.get('budget') ?? '0'),
       ragEnabled:     sp.get('rag') !== 'false',
@@ -66,6 +71,12 @@ export function useWizardState() {
         const joined = (v as number[]).join(',');
         if (joined) next.set('empresas', joined);
         else next.delete('empresas');
+        continue;
+      }
+      if (k === 'paises' && Array.isArray(v)) {
+        const joined = (v as string[]).join(',');
+        if (joined) next.set('paises', joined);
+        else next.delete('paises');
         continue;
       }
       if (k === 'sublineas' && Array.isArray(v)) {

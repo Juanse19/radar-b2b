@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Rocket, Loader2, AlertCircle, Check } from 'lucide-react';
+import { Rocket, Loader2, AlertCircle, Check, Radar, Sparkles, X, AlertTriangle } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardState } from '@/lib/comercial/wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
@@ -45,13 +45,42 @@ const FALLBACK_PROVIDERS: ProviderOption[] = [
   { name: 'gemini', model: 'Gemini 2.0 Flash',  implemented: true },
 ];
 
-interface Props {
-  state:    WizardState;
-  onChange: (updates: Partial<WizardState>) => void;
+interface SignalResult {
+  id: string;
+  empresa_id: number | null;
+  empresa_nombre: string;
+  empresa_es_nueva: boolean;
+  tipo_senal: string | null;
+  descripcion: string | null;
+  ventana_compra: string | null;
+  nivel_confianza: 'ALTA' | 'MEDIA' | 'BAJA' | null;
+  pais: string | null;
 }
 
-export function Step3Review({ state, onChange }: Props) {
+interface ScanSignalsResponse {
+  session_id: string | null;
+  total_senales: number;
+  empresas_nuevas: number;
+  signals: SignalResult[];
+  resumen_busqueda: string;
+  cost?: { tokens_input: number; tokens_output: number; cost_usd: number; search_calls: number; model: string };
+}
+
+interface Props {
+  state:      WizardState;
+  onChange:   (updates: Partial<WizardState>) => void;
+  agentMode?: 'empresa' | 'signals';
+}
+
+export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
   const router = useRouter();
+
+  // ── Signals mode local state ──────────────────────────────────────────────
+  const [sigRunning, setSigRunning] = useState(false);
+  const [sigResult,  setSigResult]  = useState<ScanSignalsResponse | null>(null);
+  const [sigError,   setSigError]   = useState<string | null>(null);
+  const allFuentesRef = useRef<Array<{ nombre: string; url_base?: string | null }>>([]);
+
   const [estimate,       setEstimate]       = useState<EstimateResponse | null>(null);
   const [loading,        setLoading]        = useState(true);
   const [error,          setError]          = useState<string | null>(null);
@@ -270,6 +299,102 @@ export function Step3Review({ state, onChange }: Props) {
     }
   }
 
+  // ── Signals mode render ────────────────────────────────────────────────────
+  if (agentMode === 'signals') {
+    async function handleSignalsFire() {
+      setSigError(null);
+      setSigResult(null);
+      setSigRunning(true);
+      try {
+        const customKws = (state.customKeywords ?? '')
+          .split(/[\n,]/).map(s => s.trim()).filter(Boolean);
+        const dbKws = (() => { try { return (sessionStorage.getItem('wizard-db-keywords') ?? '').split(',').filter(Boolean); } catch { return []; } })();
+        const keywords = customKws.length > 0 ? customKws : dbKws;
+
+        const resp = await fetch('/api/radar/scan-signals', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({
+            linea_negocio: state.line,
+            sub_linea:     state.sublineas?.length === 1 ? state.sublineas[0] : undefined,
+            paises:        state.paises ?? [],
+            keywords,
+            fuentes:       allFuentesRef.current,
+            provider:      state.provider,
+            max_senales:   state.maxSenales ?? 10,
+          }),
+        });
+        const data = await resp.json() as ScanSignalsResponse | { error: string };
+        if (!resp.ok || 'error' in data) {
+          setSigError(('error' in data && data.error) || `HTTP ${resp.status}`);
+          return;
+        }
+        setSigResult(data as ScanSignalsResponse);
+      } catch (err) {
+        setSigError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setSigRunning(false);
+      }
+    }
+
+    const canRun = !!state.line && (state.paises ?? []).length > 0 && !sigRunning;
+
+    return (
+      <div className="space-y-5">
+        {/* Resumen */}
+        <Card className="p-4">
+          <h3 className="mb-3 text-sm font-semibold">Resumen del escaneo de señales</h3>
+          <dl className="grid grid-cols-2 gap-y-1.5 text-xs sm:grid-cols-3">
+            <dt className="text-muted-foreground">Línea(s)</dt>
+            <dd className="col-span-1 font-medium sm:col-span-2">
+              {state.line ? state.line.split(',').filter(Boolean).join(', ') : '—'}
+            </dd>
+            <dt className="text-muted-foreground">Países</dt>
+            <dd className="col-span-1 font-medium sm:col-span-2">
+              {(state.paises ?? []).length > 0 ? state.paises.join(', ') : '—'}
+            </dd>
+            <dt className="text-muted-foreground">Máx. señales</dt>
+            <dd className="col-span-1 font-medium sm:col-span-2">{state.maxSenales ?? 10}</dd>
+          </dl>
+        </Card>
+
+        {/* Provider — simplified for signals */}
+        <div>
+          <Label className="mb-2 block">Proveedor IA</Label>
+          <select
+            value={state.provider}
+            onChange={(e) => onChange({ provider: e.target.value })}
+            className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+          >
+            <option value="claude">Claude Sonnet 4.6 (recomendado)</option>
+          </select>
+        </div>
+
+        {sigError && (
+          <Card className="flex items-start gap-3 border-destructive bg-destructive/5 p-4 text-sm">
+            <AlertTriangle size={16} className="mt-0.5 text-destructive" />
+            <div className="flex-1">
+              <p className="font-medium text-destructive">Error</p>
+              <p className="text-muted-foreground">{sigError}</p>
+            </div>
+            <button onClick={() => setSigError(null)} aria-label="Cerrar"><X size={14} /></button>
+          </Card>
+        )}
+
+        <Button size="lg" className="w-full" onClick={handleSignalsFire} disabled={!canRun}>
+          {sigRunning ? (
+            <><Loader2 size={16} className="mr-2 animate-spin" /> Escaneando señales…</>
+          ) : (
+            <><Radar size={16} className="mr-2" /> Ejecutar Modo Señales</>
+          )}
+        </Button>
+
+        {sigResult && <SignalsResultsBlock data={sigResult} />}
+      </div>
+    );
+  }
+
+  // ── Empresa mode render ────────────────────────────────────────────────────
   return (
     <div className="space-y-5">
       {/* Summary */}
@@ -449,6 +574,73 @@ export function Step3Review({ state, onChange }: Props) {
           </>
         )}
       </Button>
+    </div>
+  );
+}
+
+// ── Signals results ────────────────────────────────────────────────────────
+function SignalsResultsBlock({ data }: { data: ScanSignalsResponse }) {
+  return (
+    <div className="space-y-4">
+      <Card className="flex items-center justify-between p-4">
+        <div>
+          <p className="text-sm font-medium">
+            <Sparkles size={14} className="mr-1 inline text-primary" />
+            {data.total_senales} señal{data.total_senales !== 1 ? 'es' : ''} encontrada{data.total_senales !== 1 ? 's' : ''}
+            {data.empresas_nuevas > 0 && (
+              <Badge variant="outline" className="ml-2">
+                {data.empresas_nuevas} empresa{data.empresas_nuevas !== 1 ? 's' : ''} nueva{data.empresas_nuevas !== 1 ? 's' : ''}
+              </Badge>
+            )}
+          </p>
+          {data.resumen_busqueda && (
+            <p className="mt-1 text-xs text-muted-foreground">{data.resumen_busqueda}</p>
+          )}
+        </div>
+        {data.cost && (
+          <div className="text-right text-xs text-muted-foreground">
+            <p>{data.cost.search_calls} búsquedas · {data.cost.tokens_input + data.cost.tokens_output} tokens</p>
+            <p className="font-mono">USD {data.cost.cost_usd.toFixed(4)}</p>
+          </div>
+        )}
+      </Card>
+      <div className="space-y-3">
+        {data.signals.map((s) => {
+          const color =
+            s.nivel_confianza === 'ALTA'  ? 'border-emerald-500 text-emerald-600 bg-emerald-500/10'
+            : s.nivel_confianza === 'MEDIA' ? 'border-amber-500 text-amber-600 bg-amber-500/10'
+            : 'border-muted-foreground text-muted-foreground bg-muted/40';
+          return (
+            <Card key={s.id} className="p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-semibold">{s.empresa_nombre}</h3>
+                    {s.empresa_es_nueva && (
+                      <Badge variant="outline" className="border-primary text-primary">Empresa nueva</Badge>
+                    )}
+                    {s.pais && <span className="text-xs text-muted-foreground">· {s.pais}</span>}
+                  </div>
+                  {s.tipo_senal && <p className="mt-1 text-xs font-medium text-primary">{s.tipo_senal}</p>}
+                  {s.descripcion && <p className="mt-2 text-sm text-muted-foreground line-clamp-3">{s.descripcion}</p>}
+                </div>
+                <div className="flex flex-col items-end gap-1.5">
+                  {s.nivel_confianza && (
+                    <span className={`rounded-full border px-2 py-0.5 text-[10px] font-medium ${color}`}>
+                      {s.nivel_confianza}
+                    </span>
+                  )}
+                  {s.ventana_compra && (
+                    <span className="rounded-full border border-border px-2 py-0.5 text-[10px] text-muted-foreground">
+                      {s.ventana_compra}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </Card>
+          );
+        })}
+      </div>
     </div>
   );
 }

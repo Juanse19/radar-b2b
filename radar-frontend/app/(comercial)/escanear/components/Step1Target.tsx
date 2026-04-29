@@ -16,11 +16,12 @@ const LINEAS = [
 const ALL_VALUES = LINEAS.map((l) => l.value);
 
 interface Props {
-  state:    WizardState;
-  onChange: (updates: Partial<WizardState>) => void;
+  state:     WizardState;
+  onChange:  (updates: Partial<WizardState>) => void;
+  agentMode?: 'empresa' | 'signals';
 }
 
-export function Step1Target({ state, onChange }: Props) {
+export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
   // Multi-line: state.line is comma-separated (e.g. "BHS,Cartón")
   const selectedLines: string[] = state.line
     ? state.line.split(',').filter(Boolean)
@@ -196,8 +197,8 @@ export function Step1Target({ state, onChange }: Props) {
         )}
       </div>
 
-      {/* Modo */}
-      <div>
+      {/* Modo — hidden in signals mode (no company selection needed) */}
+      {agentMode !== 'signals' && <div>
         <Label className="mb-2 block">Modo de escaneo</Label>
         <div className="grid grid-cols-2 gap-2">
           <Card
@@ -265,7 +266,7 @@ export function Step1Target({ state, onChange }: Props) {
             <p className="text-xs text-muted-foreground">Elegir empresas</p>
           </Card>
         </div>
-      </div>
+      </div>}
     </div>
   );
 }

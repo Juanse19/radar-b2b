@@ -2,6 +2,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Collapsible,
   CollapsibleTrigger,
@@ -15,6 +17,8 @@ import { RagToggle } from '@/components/agent/RagToggle';
 import type { ParentLineaItem } from '@/app/api/comercial/lineas-tree/route';
 import type { WizardState } from '@/lib/comercial/wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
+
+const PAISES_OPTIONS = ['Colombia', 'México', 'Chile', 'Perú', 'Argentina', 'Brasil', 'Panamá'];
 
 // Map tier to badge classes
 const TIER_BADGE: Record<string, string> = {
@@ -112,11 +116,12 @@ function resolveSubLineaIds(tree: ParentLineaItem[], line: string | undefined, s
 }
 
 interface Props {
-  state:    WizardState;
-  onChange: (updates: Partial<WizardState>) => void;
+  state:      WizardState;
+  onChange:   (updates: Partial<WizardState>) => void;
+  agentMode?: 'empresa' | 'signals';
 }
 
-export function Step2Configure({ state, onChange }: Props) {
+export function Step2Configure({ state, onChange, agentMode = 'empresa' }: Props) {
   // The CompanySelector needs a full ComercialCompany[] locally — the URL only
   // persists IDs. We re-hydrate from the /api/comercial/companies endpoint.
   const [selectedCompanies, setSelectedCompanies] = useState<ComercialCompany[]>([]);
@@ -270,6 +275,123 @@ export function Step2Configure({ state, onChange }: Props) {
     onChange({ selectedIds: cs.map((c) => c.id) });
   };
 
+  // ── Signals mode render ────────────────────────────────────────────────────
+  if (agentMode === 'signals') {
+    const togglePais = (p: string) => {
+      const current = state.paises ?? [];
+      const next = current.includes(p) ? current.filter(x => x !== p) : [...current, p];
+      onChange({ paises: next });
+    };
+
+    return (
+      <div className="space-y-5">
+        {/* Fuentes institucionales */}
+        {fuentesGroups.length > 0 && (
+          <Collapsible>
+            <CollapsibleTrigger className={cn(
+              'group flex w-full items-center justify-between rounded-lg border border-border',
+              'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+            )}>
+              <span className="font-medium">Fuentes institucionales</span>
+              <div className="flex items-center gap-2">
+                <Badge variant="secondary" className="h-5 text-[10px]">
+                  {fuentesGroups.reduce((n, g) => n + g.sources.length, 0)} activas
+                </Badge>
+                <ChevronDown size={14} className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+              </div>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-2">
+              <div className="space-y-1 rounded-lg border border-border/50 bg-background p-3 text-xs">
+                {fuentesGroups.map((f) => (
+                  <div key={f.country} className="flex flex-wrap items-baseline gap-1.5">
+                    <span className="font-medium text-foreground">{f.country}:</span>
+                    <span className="text-muted-foreground">{f.sources.join(', ')}</span>
+                  </div>
+                ))}
+                <a href="/admin/fuentes" className="mt-2 inline-block text-primary hover:underline">Editar en admin →</a>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
+        )}
+
+        {/* Palabras clave */}
+        <Collapsible>
+          <CollapsibleTrigger className={cn(
+            'group flex w-full items-center justify-between rounded-lg border border-border',
+            'bg-muted/30 px-3 py-2 text-sm hover:bg-muted/60',
+          )}>
+            <span className="font-medium">Palabras clave del sector</span>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="h-5 text-[10px]">{keywords.length}</Badge>
+              <ChevronDown size={14} className="text-muted-foreground transition-transform group-data-[state=open]:rotate-180" />
+            </div>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="mt-2">
+            <div className="rounded-lg border border-border/50 bg-background p-3">
+              <div className="flex flex-wrap gap-1.5">
+                {keywords.map((k) => (
+                  <Badge key={k} variant="outline" className="text-[11px]">{k}</Badge>
+                ))}
+              </div>
+              <div className="mt-3 border-t border-border/40 pt-3">
+                <label className="mb-1 block text-xs font-medium text-foreground">
+                  Palabras clave adicionales
+                  <span className="ml-1 font-normal text-muted-foreground">(opcional — reemplaza las del sector)</span>
+                </label>
+                <textarea
+                  rows={2}
+                  value={state.customKeywords ?? ''}
+                  onChange={(e) => onChange({ customKeywords: e.target.value || undefined })}
+                  placeholder="ej: nueva concesión aeroportuaria terminal T3 CAPEX 2026"
+                  className="w-full resize-none rounded-md border border-border bg-muted/30 px-2 py-1.5 text-xs placeholder:text-muted-foreground focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary/50"
+                />
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Países */}
+        <div>
+          <Label className="mb-2 block">Países objetivo</Label>
+          <div className="flex flex-wrap gap-1.5">
+            {PAISES_OPTIONS.map((p) => {
+              const active = (state.paises ?? []).includes(p);
+              return (
+                <button
+                  key={p}
+                  type="button"
+                  onClick={() => togglePais(p)}
+                  className={
+                    'rounded-full border px-3 py-1 text-xs transition-all ' +
+                    (active
+                      ? 'border-primary bg-primary/20 font-medium text-primary'
+                      : 'border-border text-muted-foreground hover:border-primary/50')
+                  }
+                >
+                  {p}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Máximo de señales */}
+        <div>
+          <Label htmlFor="max-senales" className="mb-2 block">Máximo de señales a devolver</Label>
+          <Input
+            id="max-senales"
+            type="number"
+            min={1}
+            max={25}
+            value={state.maxSenales ?? 10}
+            onChange={(e) => onChange({ maxSenales: Math.min(Math.max(Number(e.target.value), 1), 25) })}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // ── Empresa mode render ────────────────────────────────────────────────────
   return (
     <div className="space-y-6">
       {state.mode === 'auto' ? (

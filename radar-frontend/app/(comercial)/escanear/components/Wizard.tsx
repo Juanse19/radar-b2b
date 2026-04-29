@@ -12,8 +12,20 @@ import { Step1Target } from './Step1Target';
 import { Step2Configure } from './Step2Configure';
 import { Step3Review } from './Step3Review';
 
-export function Wizard() {
-  const { state, patch, goto, next, prev, canNext } = useWizardState();
+interface WizardProps {
+  agentMode?: 'empresa' | 'signals';
+}
+
+export function Wizard({ agentMode = 'empresa' }: WizardProps) {
+  const { state, patch, goto, next, prev, canNext: empresaCanNext } = useWizardState();
+
+  // In signals mode: step 1 needs only line (no mode), step 2 needs at least 1 país
+  const signalsCanNext =
+    state.step === 1 ? !!state.line :
+    state.step === 2 ? (state.paises ?? []).length > 0 :
+    true;
+
+  const canNext = agentMode === 'signals' ? signalsCanNext : empresaCanNext;
   const presetAppliedRef   = useRef(false);
   // true  → auto-advance is suppressed (already advanced, or user clicked Atrás)
   // false → will advance as soon as mode is explicitly clicked with a line set
@@ -33,11 +45,11 @@ export function Wizard() {
   }, [patch]);
 
   // Auto-advance step 1 → 2 ONLY when:
-  //   1. User explicitly clicked a mode card (modeJustClickedRef)
+  //   1. User explicitly clicked a mode card (modeJustClickedRef) — empresa mode
   //   2. A line is already selected
-  // This prevents accidental advance when the user is exploring lines/sublines
-  // while mode is already set from a previous URL visit.
+  // Signals mode has no mode card, so auto-advance is disabled there.
   useEffect(() => {
+    if (agentMode === 'signals')       return;
     if (state.step !== 1)             return;
     if (autoAdvancedRef.current)      return;
     if (!modeJustClickedRef.current)  return;
@@ -77,9 +89,9 @@ export function Wizard() {
       <Stepper current={state.step} onGoto={goto} />
 
       <Card className="p-6">
-        {state.step === 1 && <Step1Target    state={state} onChange={handleChange} />}
-        {state.step === 2 && <Step2Configure state={state} onChange={handleChange} />}
-        {state.step === 3 && <Step3Review    state={state} onChange={handleChange} />}
+        {state.step === 1 && <Step1Target    state={state} onChange={handleChange} agentMode={agentMode} />}
+        {state.step === 2 && <Step2Configure state={state} onChange={handleChange} agentMode={agentMode} />}
+        {state.step === 3 && <Step3Review    state={state} onChange={handleChange} agentMode={agentMode} />}
       </Card>
 
       <div className="flex items-center justify-between">
