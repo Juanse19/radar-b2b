@@ -50,7 +50,12 @@ function VivoInner() {
   if (!sessionId || !line || empresas.length === 0) {
     return (
       <Card className="p-8 text-center">
-        <Activity size={32} className="mx-auto mb-3 text-muted-foreground/40" />
+        <div
+          className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl"
+          style={{ background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)' }}
+        >
+          <Activity size={24} />
+        </div>
         <h1 className="mb-2 text-xl font-semibold">Vista en vivo</h1>
         <p className="mb-4 text-sm text-muted-foreground">
           Inicia un escaneo desde el asistente para ver el streaming en tiempo real.
@@ -64,11 +69,22 @@ function VivoInner() {
 
   return (
     <div className="space-y-4">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">En vivo</h1>
-        <p className="text-sm text-muted-foreground">
-          Seguimiento en tiempo real del escaneo — tipo Perplexity.
-        </p>
+      <div className="flex items-start gap-3">
+        <div
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)' }}
+        >
+          <Activity size={18} />
+        </div>
+        <div>
+          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-radar)' }}>
+            Agente 02 — Radar de Inversión
+          </p>
+          <h1 className="text-xl font-semibold leading-tight text-foreground">En vivo</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Seguimiento en tiempo real del escaneo — tipo Perplexity.
+          </p>
+        </div>
       </div>
       <LiveTimeline
         sessionId={sessionId}

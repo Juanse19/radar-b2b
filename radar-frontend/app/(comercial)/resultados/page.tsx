@@ -45,14 +45,15 @@ interface StatCardProps {
 }
 
 function StatCard({ label, value, sub, accent = 'default', icon, loading }: StatCardProps) {
+  const isSignal = accent === 'green';
   return (
     <div
       className={cn(
         'flex flex-col gap-1 rounded-xl border px-5 py-4 min-w-[110px]',
-        accent === 'green'   && 'border-green-500/25 bg-gradient-to-br from-green-500/8 to-green-500/3',
         accent === 'muted'   && 'border-border bg-muted/20',
         accent === 'default' && 'border-border bg-card',
       )}
+      style={isSignal ? { borderColor: 'var(--agent-radar)', background: 'var(--agent-radar-tint)' } : undefined}
     >
       <div className="flex items-center justify-between gap-2">
         {loading ? (
@@ -61,21 +62,23 @@ function StatCard({ label, value, sub, accent = 'default', icon, loading }: Stat
           <span
             className={cn(
               'text-3xl font-bold tabular-nums leading-none tracking-tight',
-              accent === 'green'   && 'text-green-600 dark:text-green-400',
               accent === 'muted'   && 'text-muted-foreground',
               accent === 'default' && 'text-foreground',
             )}
+            style={isSignal ? { color: 'var(--agent-radar)' } : undefined}
           >
             {value}
           </span>
         )}
         {icon && (
-          <div className={cn(
-            'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
-            accent === 'green'   && 'bg-green-500/15 text-green-600 dark:text-green-400',
-            accent === 'muted'   && 'bg-muted text-muted-foreground',
-            accent === 'default' && 'bg-muted/60 text-muted-foreground',
-          )}>
+          <div
+            className={cn(
+              'flex h-8 w-8 shrink-0 items-center justify-center rounded-lg',
+              accent === 'muted'   && 'bg-muted text-muted-foreground',
+              accent === 'default' && 'bg-muted/60 text-muted-foreground',
+            )}
+            style={isSignal ? { background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)' } : undefined}
+          >
             {icon}
           </div>
         )}
@@ -178,15 +181,23 @@ export default function ResultadosV2Page() {
     <div className="flex flex-col gap-5">
 
       {/* ── Page header ────────────────────────────────────────────────────── */}
-      <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <TrendingUp size={20} className="text-primary" />
-            Resultados
-          </h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Señales de inversión detectadas por el Agente RADAR
-          </p>
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <div
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)' }}
+          >
+            <TrendingUp size={18} />
+          </div>
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-radar)' }}>
+              Agente 02 — Radar de Inversión
+            </p>
+            <h1 className="text-xl font-semibold leading-tight text-foreground">Resultados</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Señales de inversión detectadas por el Agente RADAR
+            </p>
+          </div>
         </div>
         <a
           href={`/api/comercial/export/csv?${buildExportParams()}`}
@@ -240,8 +251,8 @@ export default function ResultadosV2Page() {
                     </div>
                     <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
                       <div
-                        className="h-full rounded-full bg-green-500 transition-all duration-700"
-                        style={{ width: `${activaPct}%` }}
+                        className="h-full rounded-full transition-all duration-700"
+                        style={{ width: `${activaPct}%`, background: 'var(--agent-radar)' }}
                       />
                     </div>
                   </div>

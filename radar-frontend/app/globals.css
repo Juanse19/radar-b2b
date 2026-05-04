@@ -71,6 +71,21 @@
   --chart-4: #9a3d2d;
   --chart-5: #941941;
 
+  /* Oro / dorado Matec */
+  --gold: #b9842a;
+  --gold-fg: #ffffff;
+
+  /* Identidad por agente */
+  --agent-radar:            #71acd2;
+  --agent-radar-tint:       rgba(113, 172, 210, 0.14);
+  --agent-calificador:      #b9842a;
+  --agent-calificador-tint: rgba(185, 132, 42, 0.14);
+  --agent-contactos:        #19816a;
+  --agent-contactos-tint:   rgba(25, 129, 106, 0.14);
+
+  /* alias corto para CSS inline */
+  --muted-fg: #60758a;
+
   /* Radios */
   --radius: 0.625rem;
 
@@ -410,6 +425,39 @@ button, input, select, textarea { font: inherit; }
 .linea-card-active {
   @apply shadow-sm;
 }
+
+/* ═══════════════════════════════════════════
+   Agent chip — pill badge por agente / tier
+═══════════════════════════════════════════ */
+.agent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid transparent;
+}
+
+/* Tier chips — colores del sistema Matec */
+.tier-oro       { background: #fbf2d6; color: #8a5e0f; border-color: #f1d97e; }
+.tier-monitoreo { background: #dde8f3; color: #1f5d8d; border-color: #b8cee4; }
+.tier-archivo   { background: #e1e6ec; color: #5c6f81; border-color: #c5cdd6; }
+.tier-descartar { background: #f3d9e1; color: #7d1837; border-color: #e1b1bf; }
+
+/* Agent accent chips */
+.chip-radar       { background: var(--agent-radar-tint);       color: var(--agent-radar);       border-color: rgba(113,172,210,0.35); }
+.chip-calificador { background: var(--agent-calificador-tint); color: var(--agent-calificador); border-color: rgba(185,132,42,0.35);  }
+.chip-contactos   { background: var(--agent-contactos-tint);   color: var(--agent-contactos);   border-color: rgba(25,129,106,0.35);  }
+
+/* Pulse dot — indicador de actividad en vivo */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.3; }
+}
+.pulse-dot { animation: pulse-dot 1.4s ease-in-out infinite; }
 
 /* ═══════════════════════════════════════════
    Animaciones de entrada

@@ -16,14 +16,20 @@ function WizardFallback() {
 export default function EscanearPage() {
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex items-start gap-3">
+        <div
+          className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+          style={{ background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)' }}
+        >
+          <ScanLine size={18} />
+        </div>
         <div>
-          <h1 className="flex items-center gap-2 text-xl font-semibold">
-            <ScanLine size={20} className="text-primary" />
-            Escanear
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Tres modos de detección de señales: por empresa específica, búsqueda libre o conversación.
+          <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-radar)' }}>
+            Agente 02 — Radar de Inversión
+          </p>
+          <h1 className="text-xl font-semibold leading-tight text-foreground">Escanear señales</h1>
+          <p className="mt-0.5 text-sm text-muted-foreground">
+            Detecta señales CAPEX por empresa específica, por línea o en conversación con IA.
           </p>
         </div>
       </div>
