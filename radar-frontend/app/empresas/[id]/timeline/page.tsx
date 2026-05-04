@@ -1,5 +1,7 @@
 'use client';
 
+import { use } from 'react';
+
 import { useQuery } from '@tanstack/react-query';
 import { Loader2, Star, Radio, Users, ChevronLeft } from 'lucide-react';
 import Link from 'next/link';
@@ -65,9 +67,10 @@ function fmtDate(iso: string) {
 export default function EmpresaTimelinePage({
   params,
 }: {
-  params: { id: string };
+  params: Promise<{ id: string }>;
 }) {
-  const empresaId = Number(params.id);
+  const { id } = use(params);
+  const empresaId = Number(id);
 
   const { data: calificaciones = [], isLoading: lcal } = useQuery<CalificacionRow[]>({
     queryKey: ['calificaciones', empresaId],
