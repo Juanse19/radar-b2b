@@ -59,8 +59,9 @@ export async function setAppSession(session: SessionUser): Promise<void> {
   ironSession.user = session;
   await ironSession.save();
 
-  // Non-httpOnly companion so AppShellLoader can read it via document.cookie.
-  store.set(SESSION_COOKIE_PUB, JSON.stringify(session), {
+  // Non-httpOnly companion — readable by client JS for UI rendering.
+  // Omits id and email (sensitive) — client only needs name, role, accessState.
+  store.set(SESSION_COOKIE_PUB, JSON.stringify({ name: session.name, role: session.role, accessState: session.accessState }), {
     sameSite: 'lax' as const,
     secure:   process.env.NODE_ENV === 'production',
     path:     '/',
