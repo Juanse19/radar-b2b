@@ -34,20 +34,20 @@ export function Stepper({ current, onGoto }: Props) {
                 aria-current={isCurrent ? 'step' : undefined}
                 className={cn(
                   'flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-semibold transition-all',
-                  isCurrent   && 'bg-primary text-primary-foreground shadow-md shadow-primary/20',
-                  isCompleted && 'bg-primary/20 text-primary ring-1 ring-primary/40',
                   !isCurrent && !isCompleted && 'bg-muted text-muted-foreground',
-                  isClickable && 'cursor-pointer hover:bg-primary/30',
                 )}
+                style={
+                  isCurrent   ? { background: 'var(--agent-radar)', color: '#fff', boxShadow: '0 2px 8px color-mix(in srgb, var(--agent-radar) 30%, transparent)' } :
+                  isCompleted ? { background: 'var(--agent-radar-tint)', color: 'var(--agent-radar)', outline: '1px solid color-mix(in srgb, var(--agent-radar) 40%, transparent)' } :
+                  undefined
+                }
               >
                 {isCompleted ? <Check size={14} /> : s.step}
               </button>
               {!isLast && (
                 <div
-                  className={cn(
-                    'h-0.5 flex-1 transition-all duration-300',
-                    s.step < current ? 'bg-primary' : 'bg-border',
-                  )}
+                  className="h-0.5 flex-1 transition-all duration-300 bg-border"
+                  style={s.step < current ? { background: 'var(--agent-radar)' } : undefined}
                 />
               )}
             </Fragment>

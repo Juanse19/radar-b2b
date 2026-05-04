@@ -22,6 +22,7 @@ import {
 import { LineaBadge } from '@/components/LineaBadge';
 import { TierBadge }  from '@/components/TierBadge';
 import { EmptyState } from '@/components/EmptyState';
+import { CompanyDetailDrawer } from './components/CompanyDetailDrawer';
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
 
@@ -304,9 +305,10 @@ export default function EmpresasPage() {
   const [lineaFiltro, setLineaFiltro] = useState<LineaFiltro>('ALL');
   const [page, setPage]               = useState(0);
   const [search, setSearch]           = useState('');
-  const [modalOpen, setModalOpen]     = useState(false);
-  const [editTarget, setEditTarget]   = useState<EmpresaRow | null>(null);
-  const [deleteId, setDeleteId]       = useState<string | null>(null);
+  const [modalOpen, setModalOpen]         = useState(false);
+  const [editTarget, setEditTarget]       = useState<EmpresaRow | null>(null);
+  const [deleteId, setDeleteId]           = useState<string | null>(null);
+  const [drawerEmpresa, setDrawerEmpresa] = useState<EmpresaRow | null>(null);
 
   // ── Conteos por línea ─────────────────────────────────────────────────────
 
@@ -612,7 +614,11 @@ export default function EmpresasPage() {
               {filtered.map(empresa => (
                 <div
                   key={empresa.id}
-                  className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-surface-muted/40 transition-colors group"
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setDrawerEmpresa(empresa)}
+                  onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDrawerEmpresa(empresa); } }}
+                  className="grid grid-cols-[1fr_110px_170px_150px_110px_96px] gap-4 px-5 py-4 items-center hover:bg-surface-muted/40 transition-colors group cursor-pointer"
                 >
                   {/* Nombre con indicador de línea */}
                   <div className="flex items-center gap-2 min-w-0">
@@ -652,17 +658,19 @@ export default function EmpresasPage() {
                   </span>
 
                   <div className="flex gap-1 justify-end">
-                    <Link
-                      href={`/empresas/${empresa.id}`}
-                      title="Ver detalle"
-                      className="h-7 w-7 flex items-center justify-center rounded-lg text-muted-foreground hover:text-blue-600 hover:bg-blue-50 transition-colors opacity-0 group-hover:opacity-100"
-                    >
-                      <Eye size={13} />
-                    </Link>
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => openEdit(empresa)}
+                      onClick={e => { e.stopPropagation(); setDrawerEmpresa(empresa); }}
+                      className="h-7 w-7 p-0 text-muted-foreground hover:text-blue-600 hover:bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity"
+                      title="Ver detalle"
+                    >
+                      <Eye size={13} />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={e => { e.stopPropagation(); openEdit(empresa); }}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground hover:bg-surface-muted opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Editar"
                     >
@@ -671,7 +679,7 @@ export default function EmpresasPage() {
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => setDeleteId(empresa.id)}
+                      onClick={e => { e.stopPropagation(); setDeleteId(empresa.id); }}
                       className="h-7 w-7 p-0 text-muted-foreground hover:text-red-600 hover:bg-red-50 opacity-0 group-hover:opacity-100 transition-opacity"
                       title="Eliminar"
                     >
@@ -758,6 +766,14 @@ export default function EmpresasPage() {
         </Dialog>
 
       </div>
+
+      {/* ── Company detail drawer ────────────────────────────────────────── */}
+      <CompanyDetailDrawer
+        empresa={drawerEmpresa}
+        open={!!drawerEmpresa}
+        onClose={() => setDrawerEmpresa(null)}
+      />
+
     </div>
   );
 }

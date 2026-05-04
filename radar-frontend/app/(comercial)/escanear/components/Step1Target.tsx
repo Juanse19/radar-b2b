@@ -34,6 +34,15 @@ export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
     onChange({ sublineas: [] });
   }
 
+  const LINE_ACCENT: Record<string, string> = {
+    BHS:            'var(--agent-radar)',
+    Cartón:         'var(--agent-calificador)',
+    Intralogística: 'var(--agent-contactos)',
+  };
+
+  const lineAccent = (selectedLines.length === 1 ? LINE_ACCENT[selectedLines[0]!] : undefined)
+    ?? 'var(--agent-radar)';
+
   // Sublínea chips — only shown when exactly 1 line is selected
   const singleLineSubs: string[] = (() => {
     if (selectedLines.length !== 1) return [];
@@ -51,6 +60,7 @@ export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
           <Label className="mb-3 block">Línea de negocio</Label>
           <LineaLandingCards
             onSelect={(linea) => onChange({ line: linea, sublinea: undefined })}
+            selected={state.line}
           />
         </div>
       </div>
@@ -114,9 +124,13 @@ export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
                   className={cn(
                     'rounded-full border px-2.5 py-0.5 text-xs transition-all duration-150',
                     isActive
-                      ? 'border-primary bg-primary/20 font-medium text-primary'
-                      : 'border-border text-muted-foreground hover:border-primary/50 hover:text-foreground',
+                      ? 'font-medium'
+                      : 'border-border text-muted-foreground hover:text-foreground',
                   )}
+                  style={isActive
+                    ? { borderColor: lineAccent, color: lineAccent, background: `color-mix(in srgb, ${lineAccent} 12%, transparent)` }
+                    : undefined
+                  }
                 >
                   {sub}
                 </button>
@@ -144,21 +158,31 @@ export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
               }}
               className={cn(
                 'relative cursor-pointer border-2 p-4 text-center transition-all',
-                state.mode === 'auto'
-                  ? 'border-primary bg-primary/30 shadow-lg shadow-primary/20 ring-2 ring-primary'
-                  : 'border-border hover:border-primary/60 hover:bg-muted/40',
+                state.mode !== 'auto' && 'border-border hover:bg-muted/40',
               )}
+              style={state.mode === 'auto'
+                ? { borderColor: 'var(--agent-radar)', background: 'var(--agent-radar-tint)' }
+                : undefined
+              }
             >
               {state.mode === 'auto' && (
                 <span
                   aria-hidden
-                  className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-white"
+                  style={{ background: 'var(--agent-radar)' }}
                 >
                   <Check size={12} strokeWidth={3} />
                 </span>
               )}
-              <Zap size={24} className="mx-auto mb-1 text-primary" />
-              <p className={cn('text-sm font-semibold', state.mode === 'auto' && 'text-primary')}>
+              <Zap
+                size={24}
+                className="mx-auto mb-1"
+                style={{ color: state.mode === 'auto' ? 'var(--agent-radar)' : undefined }}
+              />
+              <p
+                className="text-sm font-semibold"
+                style={{ color: state.mode === 'auto' ? 'var(--agent-radar)' : undefined }}
+              >
                 Automático
               </p>
               <p className="text-xs text-muted-foreground">Seleccionar N empresas</p>
@@ -177,24 +201,31 @@ export function Step1Target({ state, onChange, agentMode = 'empresa' }: Props) {
               }}
               className={cn(
                 'relative cursor-pointer border-2 p-4 text-center transition-all',
-                state.mode === 'manual'
-                  ? 'border-primary bg-primary/30 shadow-lg shadow-primary/20 ring-2 ring-primary'
-                  : 'border-border hover:border-primary/60 hover:bg-muted/40',
+                state.mode !== 'manual' && 'border-border hover:bg-muted/40',
               )}
+              style={state.mode === 'manual'
+                ? { borderColor: 'var(--agent-radar)', background: 'var(--agent-radar-tint)' }
+                : undefined
+              }
             >
               {state.mode === 'manual' && (
                 <span
                   aria-hidden
-                  className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full bg-primary text-primary-foreground"
+                  className="absolute top-2 right-2 flex h-5 w-5 items-center justify-center rounded-full text-white"
+                  style={{ background: 'var(--agent-radar)' }}
                 >
                   <Check size={12} strokeWidth={3} />
                 </span>
               )}
               <Target
                 size={24}
-                className={cn('mx-auto mb-1', state.mode === 'manual' ? 'text-primary' : 'text-foreground')}
+                className="mx-auto mb-1"
+                style={{ color: state.mode === 'manual' ? 'var(--agent-radar)' : undefined }}
               />
-              <p className={cn('text-sm font-semibold', state.mode === 'manual' && 'text-primary')}>
+              <p
+                className="text-sm font-semibold"
+                style={{ color: state.mode === 'manual' ? 'var(--agent-radar)' : undefined }}
+              >
                 Manual
               </p>
               <p className="text-xs text-muted-foreground">Elegir empresas</p>
