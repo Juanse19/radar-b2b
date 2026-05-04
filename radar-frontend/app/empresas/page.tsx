@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   Building2, Plus, Pencil, Trash2,
@@ -305,6 +305,16 @@ export default function EmpresasPage() {
   const [lineaFiltro, setLineaFiltro] = useState<LineaFiltro>('ALL');
   const [page, setPage]               = useState(0);
   const [search, setSearch]           = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+
+  // Debounce search — reset page on change
+  useEffect(() => {
+    const t = setTimeout(() => {
+      setDebouncedSearch(search);
+      setPage(0);
+    }, 350);
+    return () => clearTimeout(t);
+  }, [search]);
   const [modalOpen, setModalOpen]         = useState(false);
   const [editTarget, setEditTarget]       = useState<EmpresaRow | null>(null);
   const [deleteId, setDeleteId]           = useState<string | null>(null);
@@ -327,22 +337,22 @@ export default function EmpresasPage() {
   const offset = page * PAGE_SIZE;
 
   const { data: rawEmpresas, isFetching } = useQuery<EmpresaRow[]>({
-    queryKey: ['empresas', lineaFiltro, offset],
-    queryFn:  () =>
-      fetch(
-        `/api/companies?linea=${encodeURIComponent(lineaFiltro)}&limit=${PAGE_SIZE}&offset=${offset}`,
-      ).then(r => r.json()),
+    queryKey: ['empresas', lineaFiltro, offset, debouncedSearch],
+    queryFn:  () => {
+      const params = new URLSearchParams({
+        linea:  lineaFiltro,
+        limit:  String(PAGE_SIZE),
+        offset: String(offset),
+      });
+      if (debouncedSearch) params.set('busqueda', debouncedSearch);
+      return fetch(`/api/companies?${params}`).then(r => r.json());
+    },
     staleTime: 30_000,
     placeholderData: prev => prev,
   });
 
   const empresas: EmpresaRow[] = Array.isArray(rawEmpresas) ? rawEmpresas : [];
-
-  const filtered = useMemo(() => {
-    if (!search.trim()) return empresas;
-    const q = search.toLowerCase();
-    return empresas.filter(e => e.nombre.toLowerCase().includes(q));
-  }, [empresas, search]);
+  const filtered = empresas;
 
   // ── Mutaciones ────────────────────────────────────────────────────────────
 

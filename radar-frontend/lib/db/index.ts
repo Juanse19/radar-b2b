@@ -31,8 +31,8 @@ export type {
 
 // ── Empresas ──────────────────────────────────────────────────────────────────
 
-export function getEmpresasByLinea(linea: string, limit?: number, offset?: number) {
-  return Sup.getEmpresasByLinea(linea, limit, offset);
+export function getEmpresasByLinea(linea: string, limit?: number, offset?: number, busqueda?: string) {
+  return Sup.getEmpresasByLinea(linea, limit, offset, busqueda);
 }
 
 export function getEmpresasCount() {

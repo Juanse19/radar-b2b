@@ -67,11 +67,18 @@ export async function getEmpresas(filter: GetEmpresasFilter = {}): Promise<Empre
     const codes = resolveLineaCodes(filter.linea);
     if (codes.length > 0) {
       const codeList = codes.map(c => pgLit(c)).join(', ');
+      // Check both the pivot table AND sub_linea_principal_id so companies
+      // imported without a pivot entry (old scripts) are still visible.
       conditions.push(
-        `e.id IN (
-          SELECT esl.empresa_id FROM ${S}.empresa_sub_lineas esl
-          JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
-          WHERE sl.codigo IN (${codeList})
+        `(
+          e.id IN (
+            SELECT esl.empresa_id FROM ${S}.empresa_sub_lineas esl
+            JOIN ${S}.sub_lineas_negocio sl ON sl.id = esl.sub_linea_id
+            WHERE sl.codigo IN (${codeList})
+          )
+          OR e.sub_linea_principal_id IN (
+            SELECT id FROM ${S}.sub_lineas_negocio WHERE codigo IN (${codeList})
+          )
         )`
       );
     }
@@ -99,8 +106,8 @@ export async function getEmpresas(filter: GetEmpresasFilter = {}): Promise<Empre
   `);
 }
 
-export async function getEmpresasByLinea(linea: string, limit = 50, offset = 0): Promise<EmpresaRow[]> {
-  return getEmpresas({ linea, limit, offset });
+export async function getEmpresasByLinea(linea: string, limit = 50, offset = 0, busqueda?: string): Promise<EmpresaRow[]> {
+  return getEmpresas({ linea, limit, offset, busqueda });
 }
 
 export async function getEmpresasCount(): Promise<Record<string, number>> {

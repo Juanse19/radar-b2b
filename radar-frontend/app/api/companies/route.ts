@@ -12,8 +12,9 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const count  = searchParams.get('count');
   const linea  = searchParams.get('linea') ?? 'ALL';
-  const limit  = Math.min(Number(searchParams.get('limit') ?? '50'), 500);
-  const offset = Number(searchParams.get('offset') ?? '0');
+  const limit    = Math.min(Number(searchParams.get('limit') ?? '50'), 500);
+  const offset   = Number(searchParams.get('offset') ?? '0');
+  const busqueda = searchParams.get('busqueda') ?? undefined;
 
   try {
     if (count === 'true') {
@@ -36,7 +37,7 @@ export async function GET(req: NextRequest) {
       return NextResponse.json(counts);
     }
 
-    const empresas = await getEmpresasByLinea(linea, limit, offset);
+    const empresas = await getEmpresasByLinea(linea, limit, offset, busqueda);
     const mapped = empresas.map((e) => {
       const raw = e as unknown as Record<string, unknown>;
       const subLinea = raw.sub_linea_principal as Record<string, unknown> | null;
