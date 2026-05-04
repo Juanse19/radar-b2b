@@ -30,6 +30,20 @@ if (!SUPABASE_URL || !SERVICE_KEY) {
 // Ajusta los emails y nombres según los datos reales del equipo.
 // Contraseñas: cámbialas INMEDIATAMENTE después de la primera prueba.
 const USUARIOS = [
+  // ── Admin ──
+  {
+    nombre:   'Juan Sebastian Losada',
+    email:    'juan.losada@matec.com.co',
+    password: 'Matec2026!Admin',
+    rol:      'ADMIN',
+  },
+  {
+    nombre:   'Felipe Gaviria',
+    email:    'felipe.gaviria@matec.com.co',
+    password: 'Matec2026!Admin',
+    rol:      'ADMIN',
+  },
+  // ── Comercial ──
   {
     nombre:   'Paola Vaquero',
     email:    'paola.vaquero@matec.com.co',
