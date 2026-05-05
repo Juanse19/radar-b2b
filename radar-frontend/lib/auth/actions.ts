@@ -39,7 +39,7 @@ export async function loginAction(
     });
     // NO redirect() here — let the client navigate after the POST completes
     // so Set-Cookie headers are processed before useLayoutEffect fires.
-    return { success: true, redirectTo: '/escanear' };
+    return { success: true, redirectTo: '/admin' };
   }
   // ──────────────────────────────────────────────────────────────────────────
 
@@ -88,7 +88,7 @@ export async function loginAction(
 
   // Return success — client navigates after the POST response is fully
   // processed, ensuring Set-Cookie headers are stored before useLayoutEffect.
-  return { success: true, redirectTo: '/escanear' };
+  return { success: true, redirectTo: '/admin' };
 }
 
 export async function logoutAction(): Promise<void> {
