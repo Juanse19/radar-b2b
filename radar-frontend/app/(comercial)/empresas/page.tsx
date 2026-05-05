@@ -20,7 +20,7 @@ import {
   X,
   Loader2,
 } from 'lucide-react';
-import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
+import { LINEAS_CONFIG, getMainLineas } from '@/lib/comercial/lineas-config';
 import { CompanyDetailDrawer } from './components/CompanyDetailDrawer';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
@@ -286,7 +286,7 @@ function EmpresaModal({
                 color: 'var(--foreground)', fontSize: 13, outline: 'none', boxSizing: 'border-box', width: '100%',
               }}
             >
-              {LINEAS_CONFIG.map(l => (
+              {getMainLineas().map(l => (
                 <option key={l.key} value={l.key}>{l.label}</option>
               ))}
             </select>
@@ -903,8 +903,9 @@ export default function EmpresasComercialPage() {
     return matchesSearch && matchesTier;
   });
 
-  // Group by all 6 lineas, resolving the parent from API linea field
-  const byLinea = LINEAS_CONFIG.reduce<Record<string, EmpresaItem[]>>((acc, l) => {
+  // Group by the 3 main líneas — resolveParentLinea maps API values to a parent key.
+  const mainLineas = getMainLineas();
+  const byLinea = mainLineas.reduce<Record<string, EmpresaItem[]>>((acc, l) => {
     const rows = filtered.filter(e => resolveParentLinea(e.linea ?? '') === l.key);
     return { ...acc, [l.key]: rows };
   }, {});
@@ -973,7 +974,7 @@ export default function EmpresasComercialPage() {
           <SummaryCard
             kicker="Empresas totales"
             value={loading ? '…' : totalEmpresas}
-            sub={`en ${LINEAS_CONFIG.length} líneas`}
+            sub={`en ${mainLineas.length} líneas`}
             icon={Building2}
             color="#0ea5e9"
           />
@@ -1052,7 +1053,7 @@ export default function EmpresasComercialPage() {
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {LINEAS_CONFIG.map(linea => {
+            {mainLineas.map(linea => {
               const rows = byLinea[linea.key] ?? [];
               if (rows.length === 0 && (search || tierFilter !== 'ALL')) return null;
               return (

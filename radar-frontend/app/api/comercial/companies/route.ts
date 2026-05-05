@@ -161,7 +161,6 @@ export async function GET(req: NextRequest) {
       sublinea: string | null;
       linea: string | null;
       contactos: string;
-      senales: string;
     }>(
       `SELECT
          e.id,
@@ -182,10 +181,7 @@ export async function GET(req: NextRequest) {
            LIMIT 1) AS linea,
          (SELECT COUNT(*)::text
             FROM ${S}.contactos c
-           WHERE c.empresa_id = e.id) AS contactos,
-         (SELECT COUNT(*)::text
-            FROM ${S}.senales_radar sr
-           WHERE sr.empresa_id = e.id) AS senales
+           WHERE c.empresa_id = e.id) AS contactos
        FROM ${S}.empresas e
        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
        ORDER BY e.company_name ASC
@@ -201,7 +197,7 @@ export async function GET(req: NextRequest) {
       sublinea: r.sublinea ?? '',
       linea:    r.linea ?? '',
       contactos: Number(r.contactos ?? 0),
-      senales:   Number(r.senales ?? 0),
+      senales:   0,
     })));
   } catch (err) {
     const msg   = err instanceof Error ? err.message : String(err);

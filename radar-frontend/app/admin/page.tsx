@@ -160,7 +160,7 @@ export default async function AdminPage() {
             PANEL DE CONTROL · LATAM
           </p>
           <h1 className="text-3xl font-bold tracking-tight">
-            Panel Admin
+            Panel
           </h1>
           <p className="mt-1.5 text-sm text-muted-foreground">
             Visión global de los 3 agentes IA y el estado de la inteligencia comercial.
