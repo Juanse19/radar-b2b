@@ -8,6 +8,7 @@
  */
 import 'server-only';
 import { parseAgente1Response } from '@/lib/comercial/schema';
+import { validateAgente1Result } from '@/lib/comercial/validation';
 import type {
   AIProvider,
   CostEstimate,
@@ -76,26 +77,41 @@ async function scanImpl(
 
   const keywords = params.keywords ?? resolveLineKeywords(line);
 
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  const todayStr = today.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const cutoffStr = cutoff.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}${params.sublinea ? `\nSub-línea: ${params.sublinea}` : ''}
 Palabras clave de búsqueda: ${keywords}
 
-TAREA: Busca señales de inversión FUTURA de esta empresa en LATAM para 2026-2028.
-Ejecuta estas búsquedas en orden:
-1. "${company.name}" ${keywords} 2026 2027
-2. "${company.name}" licitación contratación pública ${company.country}
-3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
-4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+═══ VENTANA TEMPORAL — REGLA DURA ═══
+Fecha de hoy: ${todayStr}
+Fecha de corte de recencia: ${cutoffStr} (180 días atrás).
+SOLO considera fuentes posteriores a ${cutoffStr}. Cualquier nota anterior, sin fase futura
+verificable aún no iniciada, debe DESCARTARSE (radar_activo="No").
+Si la fuente describe la obra como ya inaugurada / abierta / operando → DESCARTE.
 
-Usa solo fuentes con proyectos confirmados. Ignora Wikipedia, redes sociales y ofertas de empleo.`;
+TAREA: Busca señales de inversión FUTURA de esta empresa en LATAM para 2026-2028.
+Ejecuta estas búsquedas en orden (incluye el operador after: para limitar recencia):
+1. "${company.name}" ${keywords} 2026 2027 after:${cutoffISO}
+2. "${company.name}" licitación contratación pública ${company.country} after:${cutoffISO}
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo after:${cutoffISO}
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country} after:${cutoffISO}
+
+Usa solo fuentes con proyectos confirmados POSTERIORES a ${cutoffStr}.
+Ignora Wikipedia, redes sociales y ofertas de empleo. NO uses notas de 2024 o anteriores
+salvo que mencionen explícitamente una fase futura aún no iniciada.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
     : basePrompt;
 
   // DB override: admin can edit the prompt from the UI; fall back to hardcoded if unavailable
-  let systemPromptText = buildSystemPrompt(line);
+  let systemPromptText = buildSystemPrompt(line, today);
   try {
     const { getAgentPrompt } = await import('@/lib/db/supabase/agent-prompts');
     const dbOverride = await getAgentPrompt('claude');
@@ -214,7 +230,7 @@ Usa solo fuentes con proyectos confirmados. Ignora Wikipedia, redes sociales y o
   const rawText    = textBlocks[textBlocks.length - 1]?.text ?? '';
   if (!rawText) throw new Error('No text block in Claude response');
 
-  const result = parseAgente1Response(rawText);
+  const result = validateAgente1Result(parseAgente1Response(rawText), today);
   const cost   = (totalInput * PRICE_INPUT_PER_M / 1_000_000)
                + (totalOutput * PRICE_OUTPUT_PER_M / 1_000_000);
 

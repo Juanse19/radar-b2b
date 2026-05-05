@@ -8,6 +8,7 @@
  */
 import 'server-only';
 import { parseAgente1Response } from '@/lib/comercial/schema';
+import { validateAgente1Result } from '@/lib/comercial/validation';
 import type {
   AIProvider,
   CostEstimate,
@@ -65,19 +66,34 @@ async function scanImpl(
 
   const keywords = params.keywords ?? resolveLineKeywords(line);
 
+  const today = new Date();
+  const cutoff = new Date(today.getTime() - 180 * 24 * 60 * 60 * 1000);
+  const cutoffISO = cutoff.toISOString().slice(0, 10);
+  const todayStr = today.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  const cutoffStr = cutoff.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
   const basePrompt = `Empresa: ${company.name}
 País: ${company.country}
 Línea de negocio: ${line}${params.sublinea ? `\nSub-línea: ${params.sublinea}` : ''}
 Palabras clave del sector: ${keywords}
 
-TAREA: Busca señales de inversión FUTURA para esta empresa en LATAM 2026-2028 usando Google Search.
-Ejecuta estas búsquedas en orden:
-1. "${company.name}" ${keywords} 2026 2027
-2. "${company.name}" licitación contratación pública ${company.country}
-3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo
-4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country}
+═══ VENTANA TEMPORAL — REGLA DURA ═══
+Fecha de hoy: ${todayStr}
+Fecha de corte de recencia: ${cutoffStr} (180 días atrás).
+SOLO considera fuentes posteriores a ${cutoffStr}. Cualquier nota anterior, sin fase futura
+verificable aún no iniciada, debe DESCARTARSE (radar_activo="No").
+Si la fuente describe la obra como ya inaugurada / abierta / operando → DESCARTE.
 
-IMPORTANTE: Usa solo fuentes primarias con proyectos documentados (SECOP, Reuters, reportes anuales). NO cites Wikipedia, redes sociales ni portales de empleo.`;
+TAREA: Busca señales de inversión FUTURA para esta empresa en LATAM 2026-2028 usando Google Search.
+Ejecuta estas búsquedas en orden (incluye el operador after: para acotar recencia):
+1. "${company.name}" ${keywords} 2026 2027 after:${cutoffISO}
+2. "${company.name}" licitación contratación pública ${company.country} after:${cutoffISO}
+3. "${company.name}" plan expansión CAPEX informe anual 2025 2026 prospectivo after:${cutoffISO}
+4. "${company.name}" "nueva planta" OR "nueva sede" OR "ampliación" ${company.country} after:${cutoffISO}
+
+IMPORTANTE: Usa solo fuentes primarias con proyectos documentados POSTERIORES a ${cutoffStr}
+(SECOP, Reuters, reportes anuales). NO cites Wikipedia, redes sociales ni portales de empleo.
+NO uses notas de 2024 o anteriores salvo que mencionen una fase futura aún no iniciada.`;
 
   const userMessage = ragBlock
     ? `${ragBlock}\n\n---\n\n${basePrompt}`
@@ -85,7 +101,7 @@ IMPORTANTE: Usa solo fuentes primarias con proyectos documentados (SECOP, Reuter
 
   emit?.emit('thinking', { empresa: company.name, linea: line });
 
-  let systemPromptText = buildSystemPrompt(line);
+  let systemPromptText = buildSystemPrompt(line, today);
   try {
     const { getAgentPrompt } = await import('@/lib/db/supabase/agent-prompts');
     const dbOverride = await getAgentPrompt('gemini');
@@ -179,7 +195,7 @@ IMPORTANTE: Usa solo fuentes primarias con proyectos documentados (SECOP, Reuter
     cost_usd_total: cost,
   });
 
-  const result = parseAgente1Response(rawText);
+  const result = validateAgente1Result(parseAgente1Response(rawText), today);
 
   if (result.radar_activo === 'Sí') {
     emit?.emit('signal_detected', {

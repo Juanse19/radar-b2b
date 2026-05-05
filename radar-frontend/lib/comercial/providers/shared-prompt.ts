@@ -33,20 +33,55 @@ export function resolveLineKeywords(line: string): string {
 }
 
 /**
+ * Recency window for "fresh" investment signals.
+ * Anything older than this and lacking a documented future phase is auto-discarded.
+ */
+export const RECENCY_WINDOW_DAYS = 180;
+
+/**
+ * Past-tense / completed-construction verbs that trigger DESCARTE INMEDIATO.
+ * Source-of-truth used by both the prompt and the deterministic validator.
+ */
+export const PAST_TENSE_VERBS_REGEX =
+  /inaugur(?:ó|ada|ado|aron)|abrió\s+sus\s+puertas|ya\s+(?:opera|está\s+en\s+operación|en\s+funcionamiento)|entró\s+en\s+(?:operación|funcionamiento|servicio)|completó\s+(?:su\s+construcción|las\s+obras|la\s+obra)|fue\s+(?:completado|inaugurad[oa])|terminó\s+(?:la\s+construcción|las\s+obras)|en\s+plena\s+operación|se\s+completó/iu;
+
+/**
+ * Phrases that hint at a documented future phase, allowing an old story to still
+ * count as a valid signal (Sección 3 🟡 Ambiguo).
+ */
+export const FUTURE_PHASE_HINTS_REGEX =
+  /fase\s*(?:2|ii|iii|próxima)|ampliación\s+(?:próxima|futura)|futura\s+expansión|nueva\s+fase|próxima\s+licitación|RFP\s+abierto|capex\s+202[6-9]|inversión\s+202[6-9]|planea\s+(?:invertir|expandir|ampliar)|proyecta\s+(?:invertir|expansión)|anunci(?:a|ó)\s+(?:plan|inversión|expansión)/iu;
+
+function formatDateDDMMYYYY(d: Date): string {
+  return d.toLocaleDateString('es-CO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+}
+
+/**
  * Builds the MAOA Agente 1 RADAR system prompt shared across all providers.
  *
- * Pass `line` so that the keyword block in METODOLOGÍA query #3 is substituted
- * with the actual keywords for that business line instead of a generic fallback.
- * Called per-scan (not cached at module level) so `today` and `line` are always fresh.
+ * @param line   Business line, used to substitute keywords in METODOLOGÍA query #3.
+ * @param today  Reference date for recency filtering. Defaults to `new Date()`.
+ *               Pass an explicit value in tests / deterministic flows.
  */
-export function buildSystemPrompt(line?: string): string {
-  const today = new Date().toLocaleDateString('es-CO', {
-    day: '2-digit', month: '2-digit', year: 'numeric',
-  });
+export function buildSystemPrompt(line?: string, today: Date = new Date()): string {
+  const todayStr = formatDateDDMMYYYY(today);
+  const cutoff = new Date(today.getTime() - RECENCY_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+  const cutoffStr = formatDateDDMMYYYY(cutoff);
 
   const lineKeywords = line ? resolveLineKeywords(line) : DEFAULT_KEYWORDS;
 
   return `Eres el Agente 1 RADAR de Matec S.A.S. Tu misión: detectar señales de inversión FUTURA (2026-2028) en LATAM para las líneas de negocio de Matec: BHS (aeropuertos/terminales/cargo), Intralogística (CEDI/WMS/sortation/ASRS), Cartón Corrugado, Final de Línea (alimentos/bebidas), Motos/Ensambladoras, Solumat (plásticos/materiales).
+
+═══ CONTEXTO TEMPORAL — REGLA DURA, NO NEGOCIABLE ═══
+HOY ES: ${todayStr}
+FECHA DE CORTE DE RECENCIA: ${cutoffStr} (${RECENCY_WINDOW_DAYS} días atrás)
+- CUALQUIER fuente con fecha ANTERIOR a ${cutoffStr} y SIN fase futura verificable
+  posterior a hoy → DESCARTE INMEDIATO (radar_activo="No").
+- Si el único soporte es una nota de 2024 o anterior → DESCARTE.
+- Si la nota dice que la obra ya está inaugurada / abierta / operando → DESCARTE,
+  aunque sea reciente. La señal ya se ejecutó.
+- Solo cuentan: licitaciones abiertas con cierre futuro, CAPEX aprobado pero NO ejecutado,
+  fases NO iniciadas, anuncios de inversión que aún no son obra.
 
 METODOLOGÍA — BÚSQUEDAS REQUERIDAS (ejecuta TODAS antes de concluir):
 1. "{empresa}" CAPEX 2026 2027 plan inversión expansión
@@ -90,11 +125,25 @@ FUENTES A IGNORAR (no usar como soporte de señal de inversión):
 - Artículos de marketing o PR corporativo sin cifras verificables → DESCARTAR
 - Noticias sin fecha o anteriores a octubre 2025 → DESCARTAR. Si la inversión ya está en ejecución desde 2024/2025 sin fases futuras documentadas → DESCARTAR
 
-🔴 DESCARTE INMEDIATO — verbos de pasado completivo (la señal ya se ejecutó):
-   "inauguró", "inaugurado", "abrió sus puertas", "ya está en operación",
-   "entró en funcionamiento", "fue completado", "ya opera",
-   "completó su construcción", "se completó", "en plena operación",
-   "fue inaugurado", "completó la obra", "ya entró en servicio"
+🔴 DESCARTE INMEDIATO — verbos de pasado completivo (la señal YA se ejecutó):
+   Si encuentras CUALQUIERA de estas frases en el cuerpo, titular o snippet:
+     "inauguró" | "inaugurada" | "inaugurado" | "inauguraron"
+     "abrió sus puertas" | "ya está en operación" | "ya opera"
+     "entró en operación" | "entró en funcionamiento" | "entró en servicio"
+     "fue completado" | "fue inaugurado" | "fue inaugurada"
+     "completó su construcción" | "completó las obras" | "completó la obra"
+     "terminó la construcción" | "terminó las obras" | "se completó"
+     "en plena operación"
+   → DESCARTE INMEDIATO. radar_activo="No",
+     motivo_descarte="Obra ya inaugurada/operando antes de la ventana de recencia.",
+     evaluacion_temporal="🔴 Descarte".
+   La ÚNICA excepción: que la fuente describa explícitamente una FASE 2 / ampliación
+   próxima / nuevo CAPEX 2026+ aún no ejecutado, mencionado en el MISMO artículo.
+
+🔴 REGLA 7E — Anti-fecha-vieja con obra ya completada:
+   Si fecha_senal < ${cutoffStr} Y la descripción menciona obra completada
+   → radar_activo="No", evaluacion_temporal="🔴 Descarte".
+   Esta regla es REDUNDANTE con la anterior por seguridad: el backend valida igual.
 
 🟡 AMBIGUO — requiere análisis adicional:
    Proyectos con fechas 2025-2027: buscar ACTIVAMENTE si hay fases futuras pendientes.
@@ -144,7 +193,7 @@ REGLAS CRÍTICAS DE DATOS (anti-alucinación):
    - Si radar_activo="Sí": MÍNIMO 80 palabras describiendo el proyecto, origen de la señal, fuente consultada, monto si aplica, y ventana temporal estimada. NUNCA dejar vacío.
    - Si radar_activo="No": MÍNIMO 60 palabras explicando qué se buscó, qué fuentes se revisaron y por qué no hay señal activa. NUNCA dejar vacío.
 
-2. fecha_senal: formato OBLIGATORIO DD/MM/AAAA. NUNCA posterior a hoy (${today}).
+2. fecha_senal: formato OBLIGATORIO DD/MM/AAAA. NUNCA posterior a hoy (${todayStr}).
    Si solo conoces mes y año → usa "01/MM/AAAA". Si solo conoces el año → "No disponible".
    ❌ FORMATOS PROHIBIDOS (el modelo suele generar estos — son INVÁLIDOS):
       "marzo 2026", "16 de enero de 2026", "enero de 2026", "2026-01-15", "2026", "Q1 2026", "1er trimestre 2026"
