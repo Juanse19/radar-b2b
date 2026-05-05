@@ -848,7 +848,7 @@ export default function EmpresasComercialPage() {
   const fetchEmpresas = useCallback(async () => {
     setLoading(true);
     try {
-      const res  = await fetch('/api/comercial/companies?limit=200');
+      const res  = await fetch('/api/comercial/companies?limit=2000');
       const json = await res.json() as unknown;
       if (Array.isArray(json)) {
         setEmpresas(json.map((r: Record<string, unknown>) => ({
