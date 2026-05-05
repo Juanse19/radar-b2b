@@ -198,11 +198,11 @@ export function ContactosPanel() {
           {/* Lote content */}
           {modo === 'lote' && (
             <div style={{ padding: 14, borderRadius: 11, background: 'var(--surface-muted)' }}>
-              <p style={{ margin: '0 0 12px', fontSize: 12.5 }}>
+              <p style={{ margin: 0, fontSize: 12.5 }}>
                 Toma las <strong>{batch} empresas</strong> con mayor prioridad en línea{' '}
                 <strong style={{ color: accentColor }}>{linea}</strong> y extrae contactos vía Apollo.
               </p>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 12 }}>
                 <button onClick={() => setBatch(b => Math.max(1, b - 1))} style={MINI_BTN}>−</button>
                 <span style={{ fontFamily: 'var(--font-mono)', fontSize: 22, fontWeight: 700, width: 36, textAlign: 'center' }}>{batch}</span>
                 <button onClick={() => setBatch(b => Math.min(50, b + 1))} style={MINI_BTN}>+</button>
@@ -248,11 +248,13 @@ export function ContactosPanel() {
                 <div>
                   <p style={{ margin: '0 0 6px', fontSize: 12, fontWeight: 600 }}>Cargos a buscar</p>
                   <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
-                    {jobTitles.slice(0, 24).map(jt => {
+                    {Array.from(new Map(jobTitles.map(jt => [jt.titulo, jt])).values())
+                      .slice(0, 24)
+                      .map(jt => {
                       const active = selectedTitles.includes(jt.titulo);
                       return (
                         <button
-                          key={jt.id}
+                          key={jt.titulo}
                           onClick={() => toggleTitle(jt.titulo)}
                           style={{
                             padding: '4px 10px', borderRadius: 7, fontSize: 11.5,
