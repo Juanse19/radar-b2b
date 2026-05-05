@@ -85,7 +85,7 @@ export async function GET(req: NextRequest) {
   const lineaDecoded = decodeURIComponent(lineaRaw);
   const sublineaRaw = searchParams.get('sublinea') ?? '';
   const sublineaDecoded = decodeURIComponent(sublineaRaw).trim();
-  const limit  = Math.min(Number(searchParams.get('limit') ?? 200), 500);
+  const limit  = Math.min(Number(searchParams.get('limit') ?? 2000), 2000);
   const search = searchParams.get('q');
 
   const where: string[] = [];
@@ -152,6 +152,8 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    // LATERAL JOINs resolve sublinea + parent linea in one pass per row,
+    // avoiding N correlated subqueries when loading 1 000+ companies.
     const rows = await pgQuery<{
       id: number;
       company_name: string;
@@ -168,21 +170,23 @@ export async function GET(req: NextRequest) {
          e.pais::text,
          e.tier_actual::text,
          e.company_domain,
-         (SELECT sl2.nombre
-            FROM ${S}.empresa_sub_lineas esl2
-            JOIN ${S}.sub_lineas_negocio sl2 ON sl2.id = esl2.sub_linea_id
-           WHERE esl2.empresa_id = e.id
-           LIMIT 1) AS sublinea,
-         (SELECT ln2.nombre
-            FROM ${S}.empresa_sub_lineas esl2
-            JOIN ${S}.sub_lineas_negocio sl2 ON sl2.id = esl2.sub_linea_id
-            JOIN ${S}.lineas_negocio ln2 ON ln2.id = sl2.linea_id
-           WHERE esl2.empresa_id = e.id
-           LIMIT 1) AS linea,
-         (SELECT COUNT(*)::text
-            FROM ${S}.contactos c
-           WHERE c.empresa_id = e.id) AS contactos
+         sub.sl_nombre  AS sublinea,
+         ln.nombre      AS linea,
+         COALESCE(cnt.n, '0') AS contactos
        FROM ${S}.empresas e
+       LEFT JOIN LATERAL (
+         SELECT sl2.nombre AS sl_nombre, sl2.linea_id
+           FROM ${S}.empresa_sub_lineas esl2
+           JOIN ${S}.sub_lineas_negocio sl2 ON sl2.id = esl2.sub_linea_id
+          WHERE esl2.empresa_id = e.id
+          LIMIT 1
+       ) sub ON TRUE
+       LEFT JOIN ${S}.lineas_negocio ln ON ln.id = sub.linea_id
+       LEFT JOIN LATERAL (
+         SELECT COUNT(*)::text AS n
+           FROM ${S}.contactos c
+          WHERE c.empresa_id = e.id
+       ) cnt ON TRUE
        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
        ORDER BY e.company_name ASC
        LIMIT ${pgLit(limit)}`
