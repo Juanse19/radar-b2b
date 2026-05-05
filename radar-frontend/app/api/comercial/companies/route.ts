@@ -6,14 +6,16 @@ const S = SCHEMA;
 
 // Mock data returned when Supabase is not configured (local dev without DB).
 const MOCK_COMPANIES = [
-  { id: 1, name: 'Empresa Demo 1', country: 'Colombia', tier: 'ORO',       linea: 'BHS' },
-  { id: 2, name: 'Empresa Demo 2', country: 'México',   tier: 'MONITOREO', linea: 'BHS' },
-  { id: 3, name: 'Empresa Demo 3', country: 'Chile',    tier: '',          linea: 'Intralogística' },
-  { id: 4, name: 'Empresa Demo 4', country: 'Colombia', tier: 'ORO',       linea: 'Intralogística' },
-  { id: 5, name: 'Empresa Demo 5', country: 'Perú',     tier: '',          linea: 'Cartón' },
-  { id: 6, name: 'Empresa Demo 6', country: 'Colombia', tier: 'MONITOREO', linea: 'Final de Línea' },
-  { id: 7, name: 'Empresa Demo 7', country: 'México',   tier: '',          linea: 'Motos' },
-  { id: 8, name: 'Empresa Demo 8', country: 'Colombia', tier: 'ORO',       linea: 'SOLUMAT' },
+  { id: 1,  name: 'Empresa Demo 1',  country: 'Colombia', tier: 'ORO',       linea: 'BHS',            sublinea: 'Aeropuertos',            domain: 'demo1.com',   contactos: 3, senales: 2 },
+  { id: 2,  name: 'Empresa Demo 2',  country: 'México',   tier: 'MONITOREO', linea: 'BHS',            sublinea: 'Cargo / ULD',            domain: 'demo2.com',   contactos: 0, senales: 1 },
+  { id: 3,  name: 'Empresa Demo 3',  country: 'Chile',    tier: '',          linea: 'Intralogística', sublinea: 'Logística',              domain: 'demo3.com',   contactos: 0, senales: 0 },
+  { id: 4,  name: 'Empresa Demo 4',  country: 'Colombia', tier: 'ORO',       linea: 'Intralogística', sublinea: 'Logística',              domain: 'demo4.com',   contactos: 5, senales: 3 },
+  { id: 5,  name: 'Empresa Demo 5',  country: 'Perú',     tier: '',          linea: 'Cartón',         sublinea: 'Cartón Corrugado',       domain: 'demo5.com',   contactos: 0, senales: 0 },
+  { id: 6,  name: 'Empresa Demo 6',  country: 'Colombia', tier: 'MONITOREO', linea: 'Final de Línea', sublinea: 'Alimentos & Bebidas',    domain: 'demo6.com',   contactos: 2, senales: 1 },
+  { id: 7,  name: 'Empresa Demo 7',  country: 'México',   tier: '',          linea: 'Motos',          sublinea: 'Ensambladoras',          domain: 'demo7.com',   contactos: 0, senales: 0 },
+  { id: 8,  name: 'Empresa Demo 8',  country: 'Colombia', tier: 'ORO',       linea: 'Solumat',        sublinea: 'Plásticos Industriales', domain: 'demo8.com',   contactos: 4, senales: 2 },
+  { id: 9,  name: 'Empresa Demo 9',  country: 'Argentina',tier: 'MONITOREO', linea: 'Final de Línea', sublinea: 'Consumo Masivo',         domain: 'demo9.com',   contactos: 1, senales: 1 },
+  { id: 10, name: 'Empresa Demo 10', country: 'Brasil',   tier: '',          linea: 'Solumat',        sublinea: 'Polímeros',              domain: 'demo10.com',  contactos: 0, senales: 0 },
 ];
 
 // Maps UI line labels to DB identifiers.
@@ -69,7 +71,7 @@ export async function GET(req: NextRequest) {
       }
     }
     if (q) mock = mock.filter(c => c.name.toLowerCase().includes(q));
-    return NextResponse.json(mock.map(({ linea: _l, ...rest }) => rest));
+    return NextResponse.json(mock);
   }
 
   const session = await getCurrentSession();
@@ -155,18 +157,35 @@ export async function GET(req: NextRequest) {
       company_name: string;
       pais: string;
       tier_actual: string | null;
-      linea_negocio: string | null;
+      company_domain: string | null;
+      sublinea: string | null;
+      linea: string | null;
+      contactos: string;
+      senales: string;
     }>(
       `SELECT
          e.id,
          e.company_name,
          e.pais::text,
          e.tier_actual::text,
+         e.company_domain,
          (SELECT sl2.nombre
             FROM ${S}.empresa_sub_lineas esl2
             JOIN ${S}.sub_lineas_negocio sl2 ON sl2.id = esl2.sub_linea_id
            WHERE esl2.empresa_id = e.id
-           LIMIT 1) AS linea_negocio
+           LIMIT 1) AS sublinea,
+         (SELECT ln2.nombre
+            FROM ${S}.empresa_sub_lineas esl2
+            JOIN ${S}.sub_lineas_negocio sl2 ON sl2.id = esl2.sub_linea_id
+            JOIN ${S}.lineas_negocio ln2 ON ln2.id = sl2.linea_id
+           WHERE esl2.empresa_id = e.id
+           LIMIT 1) AS linea,
+         (SELECT COUNT(*)::text
+            FROM ${S}.contactos c
+           WHERE c.empresa_id = e.id) AS contactos,
+         (SELECT COUNT(*)::text
+            FROM ${S}.senales_radar sr
+           WHERE sr.empresa_id = e.id) AS senales
        FROM ${S}.empresas e
        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
        ORDER BY e.company_name ASC
@@ -174,11 +193,15 @@ export async function GET(req: NextRequest) {
     );
 
     return NextResponse.json(rows.map(r => ({
-      id:      r.id,
-      name:    r.company_name,
-      country: r.pais ?? '',
-      tier:    r.tier_actual ?? '',
-      linea:   r.linea_negocio ?? '',
+      id:       r.id,
+      name:     r.company_name,
+      country:  r.pais ?? '',
+      tier:     r.tier_actual ?? '',
+      domain:   r.company_domain ?? '',
+      sublinea: r.sublinea ?? '',
+      linea:    r.linea ?? '',
+      contactos: Number(r.contactos ?? 0),
+      senales:   Number(r.senales ?? 0),
     })));
   } catch (err) {
     const msg   = err instanceof Error ? err.message : String(err);
