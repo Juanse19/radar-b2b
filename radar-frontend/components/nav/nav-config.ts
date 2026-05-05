@@ -61,6 +61,7 @@ export const navTree: NavNode[] = [
       { label: 'Escanear', href: '/escanear', icon: Zap },
       { label: 'En vivo', href: '/en-vivo', icon: Activity },
       { label: 'Calificador', href: '/calificador', icon: CheckCircle2 },
+      { label: 'Empresas', href: '/empresas', icon: Building2 },
       { label: 'Contactos', href: '/contactos', icon: Users },
       { label: 'Investigar', href: '/investigar', icon: Search },
       { label: 'Portafolio', href: '/portfolio', icon: Briefcase, badge: 'v5' },
