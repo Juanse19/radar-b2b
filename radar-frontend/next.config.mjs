@@ -28,10 +28,9 @@ const nextConfig = {
         poll: false,
       };
 
-      // Reduce in-memory cache size per compilation (default is unlimited)
+      // Use memory cache in worktrees to avoid EPERM on Junction node_modules
       config.cache = {
-        type: 'filesystem',
-        maxMemoryGenerations: 1,
+        type: 'memory',
       };
     }
     return config;

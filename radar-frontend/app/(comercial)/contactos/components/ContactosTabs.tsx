@@ -2,7 +2,7 @@
 
 import { Building2, Layers, MessageSquare } from 'lucide-react';
 import { AgentModeTabs, type AgentTab } from '@/components/agent/AgentModeTabs';
-import { ContactosEmpresaForm } from './ContactosEmpresaForm';
+import { ContactosPanel } from './ContactosPanel';
 import { ContactosMasivoForm } from './ContactosMasivoForm';
 import { ChatPanel } from '../../chat/components/ChatPanel';
 
@@ -11,7 +11,7 @@ const TABS: AgentTab[] = [
     id:    'empresa',
     label: 'Empresa',
     icon:  Building2,
-    render: () => <ContactosEmpresaForm />,
+    render: () => <ContactosPanel />,
   },
   {
     id:    'masivo',

@@ -61,6 +61,7 @@ export const navTree: NavNode[] = [
       { label: 'Escanear', href: '/escanear', icon: Zap },
       { label: 'En vivo', href: '/en-vivo', icon: Activity },
       { label: 'Calificador', href: '/calificador', icon: CheckCircle2 },
+      { label: 'Empresas', href: '/empresas', icon: Building2 },
       { label: 'Contactos', href: '/contactos', icon: Users },
       { label: 'Investigar', href: '/investigar', icon: Search },
       { label: 'Portafolio', href: '/portfolio', icon: Briefcase, badge: 'v5' },
@@ -70,15 +71,16 @@ export const navTree: NavNode[] = [
     ],
   },
 
-  // Administración — gate por rol ADMIN. Incluye Empresas y Líneas.
+  // Panel — gate por rol ADMIN. Incluye Empresas y Líneas.
   {
-    label: 'Administración',
+    label: 'Panel',
+    href: '/admin',
     icon: Shield,
     adminOnly: true,
     children: [
       { label: 'Usuarios', href: '/admin/usuarios', icon: Users },
       { label: 'Roles', href: '/admin/roles', icon: Shield },
-      { label: 'Empresas', href: '/empresas', icon: Building2 },
+      { label: 'Empresas', href: '/admin/empresas', icon: Building2 },
       { label: 'Líneas', href: '/admin/lineas', icon: Activity },
       { label: 'Fuentes', href: '/admin/fuentes', icon: FileText },
       { label: 'Keywords', href: '/admin/keywords', icon: Key },

@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   CalendarClock, Settings2, PlayCircle, PauseCircle,
   Loader2, CheckCircle2, Clock, Calendar, List,
+  Building2, CheckCircle, CalendarDays, Zap, Pencil,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -85,6 +86,10 @@ function formatDate(d: Date): string {
   return d.toLocaleDateString('es-CO', { weekday: 'short', day: 'numeric', month: 'short' });
 }
 
+function formatDateShort(d: Date): string {
+  return d.toLocaleDateString('es-CO', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
+}
+
 function getDaysInMonth(year: number, month: number): Date[] {
   const days: Date[] = [];
   const d = new Date(year, month, 1);
@@ -93,6 +98,72 @@ function getDaysInMonth(year: number, month: number): Date[] {
     d.setDate(d.getDate() + 1);
   }
   return days;
+}
+
+// Derive frequency label from the rotation pattern
+function getFrequency(rotacion: Partial<Record<DiaSemana, LineaSchedule>>): string {
+  const activeDays = DIAS.filter(d => rotacion[d] && rotacion[d] !== 'Descanso').length;
+  if (activeDays >= 5) return 'diaria';
+  if (activeDays >= 2) return 'semanal';
+  if (activeDays === 1) return 'semanal';
+  return 'mensual';
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+
+interface StatCardProps {
+  kicker: string;
+  value: string | number;
+  sub: string;
+  icon: React.ReactNode;
+  color: string;
+}
+
+function StatCard({ kicker, value, sub, icon, color }: StatCardProps) {
+  return (
+    <div
+      className="rounded-xl border border-border bg-card p-4 flex flex-col gap-2"
+      style={{ background: 'var(--card, hsl(var(--background)))' }}
+    >
+      <div className="flex items-center justify-between">
+        <p
+          className="text-[10px] font-bold tracking-[0.14em] uppercase"
+          style={{ color: 'var(--muted-foreground)' }}
+        >
+          {kicker}
+        </p>
+        <div
+          className="flex h-7 w-7 items-center justify-center rounded-lg"
+          style={{ background: `${color}1a`, color }}
+        >
+          {icon}
+        </div>
+      </div>
+      <p className="text-2xl font-bold leading-none text-foreground">{value}</p>
+      <p className="text-[11px]" style={{ color: 'var(--muted-foreground)' }}>{sub}</p>
+    </div>
+  );
+}
+
+// ── Freq Badge ────────────────────────────────────────────────────────────────
+
+function FreqBadge({ freq }: { freq: string }) {
+  const colors: Record<string, { bg: string; c: string }> = {
+    diaria:    { bg: 'rgba(25,129,106,0.10)',  c: '#19816a' },
+    semanal:   { bg: 'rgba(113,172,210,0.12)', c: '#4a90c4' },
+    quincenal: { bg: 'rgba(185,132,42,0.10)',  c: '#b9842a' },
+    mensual:   { bg: 'rgba(99,102,241,0.10)',  c: '#6366f1' },
+  };
+  const style = colors[freq] ?? { bg: 'var(--muted)', c: 'var(--muted-foreground)' };
+  const label = freq.charAt(0).toUpperCase() + freq.slice(1);
+  return (
+    <span
+      className="inline-block rounded-md text-[10.5px] font-bold"
+      style={{ padding: '3px 8px', background: style.bg, color: style.c }}
+    >
+      {label}
+    </span>
+  );
 }
 
 // ── Day card ─────────────────────────────────────────────────────────────────
@@ -233,6 +304,35 @@ export default function CronogramaPage() {
     return getNextDays(config.rotacion, config.hora, 14);
   }, [config]);
 
+  // Derived stats from config
+  const activeDaysCount = useMemo(() => {
+    if (!config) return 0;
+    return DIAS.filter(d => config.rotacion[d] && config.rotacion[d] !== 'Descanso').length;
+  }, [config]);
+
+  const empresasPorMes = useMemo(() => {
+    if (!config) return 0;
+    // ~4.3 weeks/month × active days × batchSize
+    return Math.round(activeDaysCount * 4.3 * (config.batchSize ?? 10));
+  }, [config, activeDaysCount]);
+
+  const nextRunDate = useMemo(() => {
+    if (!config) return null;
+    const runs = getNextDays(config.rotacion, config.hora, 1);
+    return runs[0] ?? null;
+  }, [config]);
+
+  const ejecucionesEsteMes = useMemo(() => {
+    if (!config) return 0;
+    return Math.round(activeDaysCount * 4.3);
+  }, [activeDaysCount, config]);
+
+  // Frequency label
+  const freqLabel = useMemo(() => {
+    if (!config) return 'semanal';
+    return getFrequency(config.rotacion);
+  }, [config]);
+
   // Mes view data
   const now = new Date();
   const [mesYear, setMesYear] = useState(now.getFullYear());
@@ -320,11 +420,47 @@ export default function CronogramaPage() {
         </div>
       </div>
 
+      {/* ── Stat cards ────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+        <StatCard
+          kicker="Días activos / semana"
+          value={activeDaysCount}
+          sub="en ejecución automática"
+          icon={<Calendar size={14} />}
+          color="#71acd2"
+        />
+        <StatCard
+          kicker="Empresas / mes"
+          value={empresasPorMes.toLocaleString('es-CO')}
+          sub={`batch ${config?.batchSize ?? 10} empresas por día`}
+          icon={<Building2 size={14} />}
+          color="#b9842a"
+        />
+        <StatCard
+          kicker="Próxima ejecución"
+          value={
+            nextRunDate
+              ? formatDateShort(nextRunDate.date)
+              : activo ? 'Sin programar' : 'Pausado'
+          }
+          sub={nextRunDate ? `${nextRunDate.linea} · ${hora}` : 'configura la rotación'}
+          icon={<Clock size={14} />}
+          color="#19816a"
+        />
+        <StatCard
+          kicker="Este mes"
+          value={ejecucionesEsteMes}
+          sub="ejecuciones estimadas"
+          icon={<CheckCircle size={14} />}
+          color="#142e47"
+        />
+      </div>
+
       {/* ── View toggle ────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1 rounded-lg border border-border bg-muted/20 p-1 w-fit">
         {([
           { id: 'semana', label: 'Semana', icon: Calendar },
-          { id: 'mes',    label: 'Mes',    icon: CalendarClock },
+          { id: 'mes',    label: 'Mes',    icon: CalendarDays },
           { id: 'lista',  label: 'Lista',  icon: List },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
@@ -415,12 +551,20 @@ export default function CronogramaPage() {
       {/* ── Lista view ─────────────────────────────────────────────────────── */}
       {view === 'lista' && (
         <div className="rounded-xl border border-border overflow-hidden">
-          <div className="grid grid-cols-[1fr_100px_120px_80px] gap-3 border-b border-border bg-muted/40 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-            <span>Fecha</span>
-            <span>Día</span>
-            <span>Línea</span>
-            <span>Hora</span>
+          {/* Table header */}
+          <div
+            className="grid gap-3 border-b border-border px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground"
+            style={{ gridTemplateColumns: '32px 1fr 110px 90px 90px 90px 80px' }}
+          >
+            <span />
+            <span>Fecha · Línea</span>
+            <span>Frecuencia</span>
+            <span>Batch</span>
+            <span>Estado</span>
+            <span>Próxima</span>
+            <span>Acciones</span>
           </div>
+
           {nextRuns.length === 0 ? (
             <div className="px-4 py-8 text-center text-sm text-muted-foreground">
               No hay escaneos programados próximamente.
@@ -434,35 +578,110 @@ export default function CronogramaPage() {
                   <div
                     key={i}
                     className={cn(
-                      'grid grid-cols-[1fr_100px_120px_80px] gap-3 items-center px-4 py-3 transition-colors',
+                      'grid gap-3 items-center px-4 py-3 transition-colors group',
                       isToday ? 'bg-muted/20' : 'hover:bg-muted/10',
                     )}
+                    style={{ gridTemplateColumns: '32px 1fr 110px 90px 90px 90px 80px' }}
                   >
-                    <div className="flex items-center gap-2">
-                      {isToday && (
-                        <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
-                          HOY
+                    {/* On/off toggle indicator */}
+                    <div className="flex items-center justify-center">
+                      <div
+                        className="h-2 w-2 rounded-full"
+                        style={{ background: activo ? '#19816a' : 'var(--muted-foreground)' }}
+                      />
+                    </div>
+
+                    {/* Date + Linea */}
+                    <div className="flex flex-col gap-0.5 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        {isToday && (
+                          <span className="rounded-full bg-primary px-1.5 py-0.5 text-[9px] font-bold text-primary-foreground">
+                            HOY
+                          </span>
+                        )}
+                        <span className="text-sm font-medium text-foreground capitalize truncate">
+                          {formatDate(date)}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-1.5">
+                        <div
+                          className="h-1.5 w-1.5 rounded-full shrink-0"
+                          style={{ background: accent.color }}
+                        />
+                        <span
+                          className="inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-medium"
+                          style={{ background: accent.bg, color: accent.color, border: `1px solid ${accent.border}` }}
+                        >
+                          {linea}
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-mono">{dia}</span>
+                      </div>
+                    </div>
+
+                    {/* Frequency */}
+                    <div>
+                      <FreqBadge freq={freqLabel} />
+                    </div>
+
+                    {/* Batch size */}
+                    <div className="text-xs text-muted-foreground">
+                      <span className="font-mono font-medium text-foreground">{config?.batchSize ?? 10}</span>
+                      {' '}empresas
+                    </div>
+
+                    {/* Status */}
+                    <div className="flex items-center gap-1">
+                      {activo ? (
+                        <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold"
+                          style={{ background: 'rgba(25,129,106,0.10)', color: '#19816a' }}>
+                          <CheckCircle2 size={9} />
+                          Activo
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground"
+                          style={{ background: 'var(--muted)' }}>
+                          Pausado
                         </span>
                       )}
-                      <span className="text-sm text-foreground capitalize">{formatDate(date)}</span>
                     </div>
-                    <span className="text-sm text-muted-foreground">{dia}</span>
-                    <span>
-                      <span
-                        className="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium"
-                        style={{ background: accent.bg, color: accent.color, border: `1px solid ${accent.border}` }}
+
+                    {/* Next date */}
+                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock size={11} className="shrink-0" />
+                      <span className="font-mono">{hora}</span>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        type="button"
+                        title="Ejecutar ahora"
+                        className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
                       >
-                        <CheckCircle2 size={10} className="mr-1" />
-                        {linea}
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Clock size={12} />
-                      {hora}
-                    </span>
+                        <Zap size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        title="Editar"
+                        onClick={openDrawer}
+                        className="flex h-6 w-6 items-center justify-center rounded-md transition-colors hover:bg-muted text-muted-foreground hover:text-foreground"
+                      >
+                        <Pencil size={12} />
+                      </button>
+                    </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* Footer summary */}
+          {nextRuns.length > 0 && (
+            <div className="border-t border-border bg-muted/20 px-4 py-2.5 flex items-center justify-between">
+              <p className="text-[11px] text-muted-foreground">
+                {nextRuns.length} ejecuciones programadas · {activeDaysCount} días/semana activos
+              </p>
+              <FreqBadge freq={freqLabel} />
             </div>
           )}
         </div>
@@ -556,6 +775,35 @@ export default function CronogramaPage() {
                   className="w-24 text-sm"
                 />
               </div>
+
+              {/* Summary box */}
+              {draft.activo && (
+                <div
+                  className="rounded-lg border px-4 py-3 space-y-1"
+                  style={{ borderColor: 'color-mix(in srgb, var(--agent-radar) 30%, transparent)', background: 'var(--agent-radar-tint)' }}
+                >
+                  <p className="text-[10px] font-bold uppercase tracking-wider" style={{ color: 'var(--agent-radar)' }}>
+                    Resumen
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Ejecutará{' '}
+                    <span className="font-medium text-foreground">
+                      {DIAS.filter(d => draft.rotacion[d] && draft.rotacion[d] !== 'Descanso').length}
+                    </span>{' '}
+                    días por semana a las{' '}
+                    <span className="font-mono font-medium text-foreground">{draft.hora}</span>,
+                    procesando{' '}
+                    <span className="font-medium text-foreground">{draft.batchSize}</span>{' '}
+                    empresas por ejecución. Aprox.{' '}
+                    <span className="font-medium text-foreground">
+                      {Math.round(
+                        DIAS.filter(d => draft.rotacion[d] && draft.rotacion[d] !== 'Descanso').length * 4.3 * draft.batchSize,
+                      ).toLocaleString('es-CO')}
+                    </span>{' '}
+                    empresas/mes.
+                  </p>
+                </div>
+              )}
             </div>
           )}
 

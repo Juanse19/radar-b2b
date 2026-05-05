@@ -29,10 +29,10 @@ export async function PATCH(
   try {
     const db = getAdminDb();
 
-    // Fetch auth_user_id from the usuarios table
+    // Fetch user record from the usuarios table
     const { data: usuario, error: fetchError } = await db
       .from('usuarios')
-      .select('auth_user_id, nombre')
+      .select('auth_user_id, email, nombre')
       .eq('id', id)
       .single();
 
@@ -40,21 +40,34 @@ export async function PATCH(
       return NextResponse.json({ error: 'Usuario no encontrado' }, { status: 404 });
     }
 
-    if (!usuario.auth_user_id) {
+    let authUserId: string | null = usuario.auth_user_id ?? null;
+
+    // If auth_user_id is missing or stale, resolve via email from Supabase Auth list
+    if (!authUserId && usuario.email) {
+      const { data: { users }, error: listError } = await db.auth.admin.listUsers({ perPage: 1000 });
+      if (!listError) {
+        const match = users.find((u) => u.email === usuario.email);
+        if (match) authUserId = match.id;
+      }
+    }
+
+    if (!authUserId) {
       return NextResponse.json(
-        { error: 'El usuario no tiene cuenta de autenticación asociada' },
+        { error: 'El usuario no tiene cuenta de autenticación asociada. Contacta al administrador.' },
         { status: 422 },
       );
     }
 
     // Change password via Supabase Auth Admin API
-    const { error: authError } = await db.auth.admin.updateUserById(
-      usuario.auth_user_id,
-      { password },
-    );
+    const { error: authError } = await db.auth.admin.updateUserById(authUserId, { password });
 
     if (authError) {
       return NextResponse.json({ error: authError.message }, { status: 500 });
+    }
+
+    // Keep auth_user_id in sync if it was missing
+    if (!usuario.auth_user_id) {
+      await db.from('usuarios').update({ auth_user_id: authUserId }).eq('id', id);
     }
 
     return NextResponse.json({ ok: true });
@@ -62,7 +75,7 @@ export async function PATCH(
     const msg = err instanceof Error ? err.message : String(err);
     const isNetworkError = msg.includes('ECONNREFUSED') || msg.includes('fetch failed') || msg.includes('connect');
     return NextResponse.json(
-      { data: [], _warning: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
+      { error: isNetworkError ? 'Supabase no disponible. Configura las variables de entorno correctas.' : msg },
       { status: isNetworkError ? 503 : 500 },
     );
   }
