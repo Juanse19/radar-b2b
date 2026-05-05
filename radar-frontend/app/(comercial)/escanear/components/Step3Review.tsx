@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Rocket, Loader2, AlertCircle, Check, Radar, Sparkles, X, AlertTriangle } from 'lucide-react';
+import { Rocket, Loader2, AlertCircle, Check, Radar, Sparkles, X, AlertTriangle, Globe, Filter, Cpu, Star, DatabaseZap, Package, Calendar, Bell } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { WizardState } from '@/lib/comercial/wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
@@ -44,6 +44,46 @@ const FALLBACK_PROVIDERS: ProviderOption[] = [
   { name: 'openai', model: 'GPT-4o',            implemented: true },
   { name: 'gemini', model: 'Gemini 2.0 Flash',  implemented: true },
 ];
+
+// ── Execution plan steps ───────────────────────────────────────────────────
+const PLAN_STEPS = [
+  { i: 1, Icon: Globe,       label: 'Recolección',  sub: (_n: number) => 'Fuentes paralelas',                  sec: (_n: number) => 6 },
+  { i: 2, Icon: Filter,      label: 'Filtrado',      sub: (_n: number) => 'Keywords por línea',                 sec: (n: number) => Math.round(n * 0.4) },
+  { i: 3, Icon: Cpu,         label: 'Análisis',      sub: (n: number) => `${n} empresa${n !== 1 ? 's' : ''}`,  sec: (n: number) => Math.round(n * 2.4) },
+  { i: 4, Icon: Star,        label: 'Calificación',  sub: (_n: number) => 'Score + tier',                       sec: (n: number) => Math.round(n * 1.0) },
+  { i: 5, Icon: DatabaseZap, label: 'Persistencia',  sub: (_n: number) => 'Guardado + sync',                   sec: (_n: number) => 5 },
+] as const;
+
+// ── Sources preview ────────────────────────────────────────────────────────
+const FUENTES_PREVIEW = [
+  'BNAmericas',
+  'Ministerios de obras públicas',
+  'Bolsas de valores LATAM',
+  'Registros mercantiles',
+  'Prensa especializada',
+] as const;
+
+// ── Deliverables ───────────────────────────────────────────────────────────
+const ENTREGABLES = [
+  { k: 'resumen',      label: 'Resumen ejecutivo (PDF)',          sub: 'Consolidado por línea',                     default: true  },
+  { k: 'contactos',    label: 'Buscar contactos (WF03)',          sub: 'Apollo para empresas Tier A',                default: true  },
+  { k: 'calificacion', label: 'Calificar nuevas empresas (WF01)', sub: 'Solo las que no tienen tier asignado',       default: false },
+  { k: 'hubspot',      label: 'Sincronizar a HubSpot',           sub: 'Crear/actualizar cuentas y oportunidades',   default: true  },
+] as const;
+
+// ── Schedule options ───────────────────────────────────────────────────────
+const SCHEDULE_OPTIONS = [
+  { k: 'now'     as const, label: 'Ejecutar ahora',           sub: 'Inicia inmediatamente' },
+  { k: 'tonight' as const, label: 'Esta noche · 23:00',       sub: 'Resultados listos al abrir mañana' },
+  { k: 'weekly'  as const, label: 'Recurrente · lunes 06:00', sub: 'Cronograma automático semanal' },
+] as const;
+
+// ── Notification options ───────────────────────────────────────────────────
+const NOTIFY_OPTIONS = [
+  { k: 'email'   as const, label: 'Email',       sub: 'equipo@matec.com.co' },
+  { k: 'slack'   as const, label: 'Slack',       sub: '#equipo-comercial'   },
+  { k: 'webhook' as const, label: 'Webhook CRM', sub: 'POST /api/escaneo-listo' },
+] as const;
 
 interface SignalResult {
   id: string;
@@ -88,6 +128,10 @@ export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
   const [fireError,      setFireError]      = useState<string | null>(null);
   const [providers,      setProviders]      = useState<ProviderOption[]>(FALLBACK_PROVIDERS);
   const [loadingProviders, setLoadingProviders] = useState(true);
+
+  // ── Schedule & notify state (UI-only, does not affect scan logic) ──────────
+  const [schedule, setSchedule] = useState<'now' | 'tonight' | 'weekly'>('now');
+  const [notify, setNotify]     = useState({ email: true, slack: false, webhook: false });
 
   const empresasCount = state.mode === 'auto'
     ? state.count
@@ -473,6 +517,140 @@ export function Step3Review({ state, onChange, agentMode = 'empresa' }: Props) {
           <dd className="col-span-1 font-medium sm:col-span-2">{empresasCount}</dd>
         </dl>
       </Card>
+
+      {/* Execution plan */}
+      <div>
+        <p className="mb-2 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+          PLAN DE EJECUCIÓN
+        </p>
+        <div className="rounded-xl border border-border bg-muted/40 p-4">
+          <div className="flex items-start">
+            {PLAN_STEPS.map((s, idx) => (
+              <div key={s.i} className="flex flex-1 items-start">
+                <div className="flex flex-1 flex-col items-center text-center min-w-0">
+                  <div className="mb-2 flex h-9 w-9 items-center justify-center rounded-lg bg-background border border-border text-primary">
+                    <s.Icon size={16} />
+                  </div>
+                  <p className="text-[11px] font-semibold leading-tight">{s.label}</p>
+                  <p className="mt-0.5 text-[10px] text-muted-foreground leading-tight">{s.sub(totalScans)}</p>
+                  <p className="mt-1 font-mono text-[10px] font-bold text-primary">~{s.sec(totalScans)}s</p>
+                </div>
+                {idx < PLAN_STEPS.length - 1 && (
+                  <div className="mt-4 h-px w-4 shrink-0 bg-border" />
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Fuentes + Entregables */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Fuentes */}
+        <Card className="p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs font-semibold">
+              <Globe size={11} className="mr-1.5 inline text-muted-foreground" />
+              Fuentes a consultar
+            </p>
+            <span className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[9px] font-bold text-emerald-600">
+              ACTIVAS
+            </span>
+          </div>
+          <div className="space-y-1.5">
+            {FUENTES_PREVIEW.map((f) => (
+              <div key={f} className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-500" />
+                <span className="text-xs">{f}</span>
+              </div>
+            ))}
+            <p className="text-center text-[11px] text-muted-foreground">+ más fuentes institucionales</p>
+          </div>
+        </Card>
+
+        {/* Entregables */}
+        <Card className="p-4">
+          <p className="mb-3 text-xs font-semibold">
+            <Package size={11} className="mr-1.5 inline text-muted-foreground" />
+            Entregables al terminar
+          </p>
+          <div className="space-y-0.5">
+            {ENTREGABLES.map((e) => (
+              <label key={e.k} className="flex cursor-pointer items-start gap-2.5 rounded-lg px-1 py-2 hover:bg-muted/40">
+                <input
+                  type="checkbox"
+                  defaultChecked={e.default}
+                  className="mt-0.5 accent-primary"
+                />
+                <div className="min-w-0">
+                  <p className="text-xs font-medium leading-tight">{e.label}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">{e.sub}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </Card>
+      </div>
+
+      {/* Programación + Notificaciones */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="p-4">
+          <p className="mb-3 text-xs font-semibold">
+            <Calendar size={11} className="mr-1.5 inline text-muted-foreground" />
+            Programación
+          </p>
+          <div className="space-y-1.5">
+            {SCHEDULE_OPTIONS.map((s) => {
+              const active = schedule === s.k;
+              return (
+                <button
+                  key={s.k}
+                  type="button"
+                  onClick={() => setSchedule(s.k)}
+                  className={cn(
+                    'flex w-full items-center gap-2.5 rounded-lg border px-3 py-2 text-left transition-all',
+                    active ? 'border-primary/50 bg-primary/10' : 'border-border hover:bg-muted/40',
+                  )}
+                >
+                  <span className={cn(
+                    'flex h-4 w-4 shrink-0 items-center justify-center rounded-full border-2 transition-all',
+                    active ? 'border-primary bg-primary' : 'border-muted-foreground/40',
+                  )}>
+                    {active && <Check size={9} strokeWidth={3} className="text-primary-foreground" />}
+                  </span>
+                  <div className="min-w-0">
+                    <p className={cn('text-xs font-medium leading-tight', active && 'text-primary')}>{s.label}</p>
+                    <p className="text-[10px] text-muted-foreground leading-tight">{s.sub}</p>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </Card>
+
+        <Card className="p-4">
+          <p className="mb-3 text-xs font-semibold">
+            <Bell size={11} className="mr-1.5 inline text-muted-foreground" />
+            Notificarme al terminar
+          </p>
+          <div className="space-y-1.5">
+            {NOTIFY_OPTIONS.map((n) => (
+              <label key={n.k} className="flex cursor-pointer items-center gap-2.5 rounded-lg bg-muted/50 px-3 py-2">
+                <input
+                  type="checkbox"
+                  checked={notify[n.k]}
+                  onChange={(e) => setNotify(prev => ({ ...prev, [n.k]: e.target.checked }))}
+                  className="accent-primary"
+                />
+                <div>
+                  <p className="text-xs font-medium">{n.label}</p>
+                  <p className="font-mono text-[10px] text-muted-foreground">{n.sub}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </Card>
+      </div>
 
       {/* RAG toggle */}
       <div>
