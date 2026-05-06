@@ -75,20 +75,9 @@ export default function DashboardPage() {
     staleTime: 5 * 60 * 1000,
   });
 
-  async function lanzarEscaneoRapido() {
-    try {
-      const res = await fetch('/api/trigger', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ linea: 'BHS', batchSize: 5 }),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Error al lanzar escaneo');
-      setActiveExecution(data.executionId);
-      toast.success('Escaneo rápido iniciado — BHS · 5 empresas');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Error al lanzar escaneo');
-    }
+  function lanzarEscaneoRapido() {
+    // V2: WF01 was removed. Redirect to the Calificador V2 wizard.
+    window.location.href = '/calificador/wizard?line=BHS';
   }
 
   function onExecutionComplete() {
