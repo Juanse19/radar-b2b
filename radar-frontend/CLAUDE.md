@@ -12,8 +12,8 @@ Next.js 14 (App Router) · TypeScript · Tailwind CSS · Shadcn/ui · TanStack Q
 
 Panel de control para el equipo comercial de Matec. Permite:
 - Disparar los 3 agentes n8n manualmente por línea de negocio
-- Ver señales de inversión detectadas por WF02 (Radar)
-- Ver contactos encontrados por WF03 (Prospector)
+- Ver señales de inversión detectadas por WF02 (Radar) y su score radar v2
+- Ver contactos encontrados por WF03 (Prospector) y su tier
 - Ver resultados de calificación de WF01 (Calificador)
 - Programar escaneos automáticos
 
@@ -109,10 +109,10 @@ export type LineaNegocio =
   | 'BHS'
   | 'Cartón'
   | 'Intralogística'
-  | 'Cargo'
-  | 'Motos'
-  | 'Final de Línea'
-  | 'Solumat'
+  //  | 'Cargo'
+  //| 'Motos'
+  //| 'Final de Línea'
+  //| 'Solumat'
   | 'ALL';
 ```
 

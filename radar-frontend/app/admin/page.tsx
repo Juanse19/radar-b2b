@@ -230,6 +230,10 @@ function TipoBadge({ tipo }: { tipo: string }) {
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
+  const { getCurrentSession } = await import('@/lib/auth/session');
+  const session = await getCurrentSession();
+  const isAdmin = session?.role === 'ADMIN';
+
   const [stats, oroSignals] = await Promise.all([getStats(), getRecentOroSignals()]);
 
   return (
@@ -469,7 +473,8 @@ export default async function AdminPage() {
         </div>
       </div>
 
-      {/* ── Section grid (admin links) ── */}
+      {/* ── Section grid (admin links) — solo visible para ADMIN ── */}
+      {isAdmin && (
       <div>
         <p className="mb-2.5 text-[10px] font-bold tracking-[0.28em] text-muted-foreground uppercase">
           ADMINISTRACIÓN
@@ -493,6 +498,7 @@ export default async function AdminPage() {
           ))}
         </div>
       </div>
+      )}
 
     </div>
   );

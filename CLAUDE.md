@@ -2,9 +2,9 @@
 
 ## Qué es este proyecto
 
-Sistema de inteligencia comercial B2B para **Matec S.A.S.** (Colombia). Automatiza la detección de señales de inversión y la prospección de contactos clave en 6 líneas de negocio industriales para LATAM.
+Sistema de inteligencia comercial B2B para **Matec S.A.S.** (Colombia). Automatiza la detección de señales de inversión y la prospección de contactos clave en 3 líneas y 7 sublineas de negocio industriales para LATAM.
 
-**El problema que resuelve:** Matec dependía de BNAmericas ($15.000/año) para detectar proyectos en aeropuertos. Este sistema reemplaza eso con 3 agentes IA encadenados que cubren las 6 líneas a < $400/mes.
+**El problema que resuelve:** Matec dependía de BNAmericas ($15.000/año) para detectar proyectos en aeropuertos. Este sistema reemplaza eso con 3 agentes IA encadenados que cubren las 3 líneas y 7 sublineas a < $400/mes.
 
 **Usuarios finales:** Paola Vaquero (prospección), Mariana/Natalia (equipo comercial), Felipe Gaviria (supervisión).
 

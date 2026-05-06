@@ -17,8 +17,25 @@ import type { UserRole } from './types';
 // More specific prefixes should come first if needed.
 
 export const ROUTE_ACCESS: Record<string, UserRole[]> = {
-  '/admin/empresas':    ['ADMIN'],                       // módulo Empresas → solo ADMIN
-  '/admin':             ['ADMIN'],
+  // Subrutas de administración — todas ADMIN-only.
+  // longest-prefix-wins: cada una tiene precedencia sobre la entrada raíz '/admin'.
+  '/admin/empresas':         ['ADMIN'],
+  '/admin/usuarios':         ['ADMIN'],
+  '/admin/roles':            ['ADMIN'],
+  '/admin/lineas':           ['ADMIN'],
+  '/admin/fuentes':          ['ADMIN'],
+  '/admin/configuracion':    ['ADMIN'],
+  '/admin/actividad':        ['ADMIN'],
+  '/admin/api-keys':         ['ADMIN'],
+  '/admin/contactos-legacy': ['ADMIN'],
+  '/admin/job-titles':       ['ADMIN'],
+  '/admin/keywords':         ['ADMIN'],
+  '/admin/prompts':          ['ADMIN'],
+  '/admin/scoring':          ['ADMIN'],
+  '/admin/tokens':           ['ADMIN'],
+  // Dashboard /admin (raíz): ADMIN y COMERCIAL aterrizan aquí post-login.
+  // Las cards del grid "ADMINISTRACIÓN" se ocultan en la UI para COMERCIAL.
+  '/admin':                  ['ADMIN', 'COMERCIAL'],
   '/scan':              ['ADMIN'],                       // v1 Escanear → solo ADMIN
   '/schedule':          ['ADMIN'],                       // v1 Cronograma → solo ADMIN
   '/results':           ['ADMIN', 'AUXILIAR'],           // v1 Resultados → solo ADMIN + AUXILIAR
