@@ -1,16 +1,16 @@
 /**
- * /contactos/historial — Lista todas las sesiones del wizard
- * Apollo Prospector v2 (server component, query directa a Supabase).
+ * /contactos/historial — Vista global del Apollo Prospector v2.
  *
- * Cada fila enlaza a /contactos/historial/[sessionId] para
- * ver detalle de los contactos prospectados en esa sesión.
+ * Dos secciones:
+ *   1. Todos los contactos prospectados (tabla principal con filtros HubSpot)
+ *   2. Historial de sesiones (lista colapsable de ejecuciones del wizard)
  */
 import Link from 'next/link';
-import { Suspense } from 'react';
 import { History, Search, Users, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { pgQuery, SCHEMA } from '@/lib/db/supabase/pg_client';
+import { AllContactsTable } from './components/AllContactsTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,7 +30,28 @@ interface SessionRow {
   finished_at:       string | null;
 }
 
-async function getSessions(limit = 100): Promise<SessionRow[]> {
+interface ContactoRow {
+  id:                number;
+  apollo_id:         string | null;
+  first_name:        string | null;
+  last_name:         string | null;
+  title:             string | null;
+  nivel_jerarquico:  string | null;
+  email:             string | null;
+  email_status:      string | null;
+  phone_mobile:      string | null;
+  phone_unlocked:    boolean;
+  linkedin_url:      string | null;
+  empresa_id:        number | null;
+  empresa_nombre:    string | null;
+  empresa_tier:      string | null;
+  pais:              string | null;
+  hubspot_status:    string;
+  prospector_session_id: string | null;
+  created_at:        string;
+}
+
+async function getSessions(limit = 50): Promise<SessionRow[]> {
   try {
     return await pgQuery<SessionRow>(`
       SELECT id, modo, sublineas, tiers,
@@ -47,14 +68,34 @@ async function getSessions(limit = 100): Promise<SessionRow[]> {
   }
 }
 
+async function getAllContactos(limit = 500): Promise<ContactoRow[]> {
+  try {
+    return await pgQuery<ContactoRow>(`
+      SELECT c.id, c.apollo_id, c.first_name, c.last_name, c.title,
+             c.nivel_jerarquico, c.email, c.email_status,
+             c.phone_mobile, c.phone_unlocked, c.linkedin_url,
+             c.empresa_id,
+             e.company_name AS empresa_nombre,
+             e.tier_actual::TEXT AS empresa_tier,
+             c.country::TEXT AS pais,
+             c.hubspot_status::TEXT AS hubspot_status,
+             c.prospector_session_id::TEXT AS prospector_session_id,
+             c.created_at
+      FROM ${SCHEMA}.contactos c
+      LEFT JOIN ${SCHEMA}.empresas e ON e.id = c.empresa_id
+      WHERE c.email IS NOT NULL
+      ORDER BY c.created_at DESC
+      LIMIT ${limit}
+    `);
+  } catch (err) {
+    console.error('[contactos/historial] getAllContactos failed:', err);
+    return [];
+  }
+}
+
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleString('es-CO', {
-    day:    '2-digit',
-    month:  'short',
-    year:   'numeric',
-    hour:   '2-digit',
-    minute: '2-digit',
+  return new Date(iso).toLocaleString('es-CO', {
+    day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit',
   });
 }
 
@@ -67,32 +108,35 @@ function formatDuration(ms: number | null): string {
 }
 
 export default async function HistorialPage() {
-  const sessions = await getSessions(100);
+  const [sessions, contactos] = await Promise.all([
+    getSessions(50),
+    getAllContactos(500),
+  ]);
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between gap-3">
-        <div className="flex items-start gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
           <div
             className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
             style={{ background: 'var(--agent-contactos-tint)', color: 'var(--agent-contactos)' }}
           >
             <History size={18} />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-contactos)' }}>
               Agente 03 — Prospector v2 · Historial
             </p>
             <h1 className="text-xl font-semibold leading-tight text-foreground">
-              Sesiones de prospección
+              Contactos prospectados
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {sessions.length} sesión{sessions.length !== 1 ? 'es' : ''} registrada{sessions.length !== 1 ? 's' : ''} · ordenadas de más reciente a más antigua.
+              {contactos.length} contacto{contactos.length !== 1 ? 's' : ''} en {sessions.length} sesion{sessions.length !== 1 ? 'es' : ''} · ordenados de más reciente a más antigua.
             </p>
           </div>
         </div>
-        <Link href="/contactos">
+        <Link href="/contactos" className="shrink-0">
           <Button variant="outline" size="sm">
             <Sparkles size={13} className="mr-1.5" />
             Nueva búsqueda
@@ -100,14 +144,16 @@ export default async function HistorialPage() {
         </Link>
       </div>
 
-      {sessions.length === 0 ? (
+      {/* Sección 1: TODOS LOS CONTACTOS (lo principal) */}
+      {contactos.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12 text-center">
             <Users size={40} className="mb-4 text-muted-foreground/30" />
-            <h2 className="mb-1 text-lg font-semibold">Sin historial todavía</h2>
+            <h2 className="mb-1 text-lg font-semibold">Sin contactos todavía</h2>
             <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-              Inicia una sesión de prospección desde el wizard de Contactos
-              para que aparezca aquí.
+              Inicia una sesión de prospección desde el wizard de Contactos.
+              Los contactos prospectados aparecerán aquí con su email verificado,
+              estado HubSpot y sesión de origen.
             </p>
             <Link href="/contactos">
               <Button>Empezar prospección</Button>
@@ -115,7 +161,23 @@ export default async function HistorialPage() {
           </CardContent>
         </Card>
       ) : (
-        <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
+        <AllContactsTable initial={contactos} />
+      )}
+
+      {/* Sección 2: HISTORIAL DE SESIONES (colapsable) */}
+      {sessions.length > 0 && (
+        <details className="rounded-xl border border-border/70 bg-card overflow-hidden">
+          <summary className="cursor-pointer list-none border-b border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+            <div className="flex items-center justify-between gap-2">
+              <h3 className="text-sm font-semibold inline-flex items-center gap-2">
+                Historial de sesiones
+                <span className="text-xs font-normal text-muted-foreground">
+                  ({sessions.length})
+                </span>
+              </h3>
+              <span className="text-xs text-muted-foreground">click para mostrar/ocultar</span>
+            </div>
+          </summary>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
@@ -136,14 +198,14 @@ export default async function HistorialPage() {
               </tbody>
             </table>
           </div>
-        </div>
+        </details>
       )}
     </div>
   );
 }
 
 function SessionRow({ session }: { session: SessionRow }) {
-  const subs = session.sublineas?.length ? session.sublineas.join(', ') : '—';
+  const subs  = session.sublineas?.length ? session.sublineas.join(', ') : '—';
   const tiers = session.tiers?.length ? session.tiers.join('·') : null;
   const isFinished = !!session.finished_at;
 

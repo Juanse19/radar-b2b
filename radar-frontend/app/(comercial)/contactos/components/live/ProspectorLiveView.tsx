@@ -97,25 +97,29 @@ export function ProspectorLiveView({ sessionId, state, onCancel, onReset, onBack
         </div>
       )}
 
-      {/* Tabla de resultados + timeline */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <ContactosResultsTable
-            contacts={state.contacts}
-            isStreaming={isStreaming}
-            onPhoneUnlocked={onPhoneUnlocked}
-          />
-        </div>
+      {/* Tabla de resultados (ancho completo) + timeline debajo */}
+      <ContactosResultsTable
+        contacts={state.contacts}
+        isStreaming={isStreaming}
+        onPhoneUnlocked={onPhoneUnlocked}
+      />
 
-        <div>
-          <Card className="p-3">
-            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+      <details className="rounded-xl border border-border/70 bg-card overflow-hidden" open={isStreaming}>
+        <summary className="cursor-pointer list-none border-b border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
+          <div className="flex items-center justify-between gap-2">
+            <h3 className="text-sm font-semibold inline-flex items-center gap-2">
               Actividad
+              <span className="text-xs font-normal text-muted-foreground">
+                ({state.events.length} eventos)
+              </span>
             </h3>
-            <ProspectorTimeline events={state.events} />
-          </Card>
+            <span className="text-xs text-muted-foreground">click para mostrar/ocultar</span>
+          </div>
+        </summary>
+        <div className="p-4">
+          <ProspectorTimeline events={state.events} />
         </div>
-      </div>
+      </details>
     </div>
   );
 }
