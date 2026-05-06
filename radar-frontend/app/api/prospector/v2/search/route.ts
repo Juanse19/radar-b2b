@@ -153,7 +153,8 @@ async function runPipeline({ body, emitter, writer, replay, userId }: PipelineAr
       await replayBuffered(writer, replay);
     }
 
-    // Crear la sesión en BD (best-effort, no fatal).
+    // Crear la sesión en BD. CRÍTICO: si falla, abortamos antes de gastar
+    // créditos Apollo en contactos que no podrán guardarse (FK violation).
     try {
       await createProspectorSession({
         id:                sessionId,
@@ -165,7 +166,26 @@ async function runPipeline({ body, emitter, writer, replay, userId }: PipelineAr
         estimated_credits: empresas.length * max_contactos * (reveal_phone_auto ? 9 : 1),
       });
     } catch (err) {
-      console.error('[prospector v2] createProspectorSession failed:', err);
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[prospector v2] createProspectorSession failed:', msg);
+      emitter.emit('error', {
+        message: `No se pudo crear la sesión en la base de datos: ${msg.slice(0, 200)}`,
+        scope:   'session',
+      });
+      // Emitir session_done con 0 contactos para cerrar limpio.
+      emitter.emit('session_done', {
+        sessionId,
+        total_companies:  empresas.length,
+        total_contacts:   0,
+        total_with_email: 0,
+        total_with_phone: 0,
+        credits_used:     0,
+        duration_ms:      Date.now() - t0,
+        cancelled:        true,
+        reason:           'cancelled' as const,
+      });
+      await emitter.close();
+      return;
     }
 
     emitter.emit('session_started', {
