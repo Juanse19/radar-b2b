@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
 import { Loader2, X, RotateCcw, ArrowLeft, AlertCircle } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ContactCardLive } from './ContactCardLive';
+import { ContactosResultsTable } from './ContactosResultsTable';
 import { ProspectorTimeline } from './ProspectorTimeline';
 import type { ProspectorStreamState } from './useProspectorStream';
 
@@ -25,15 +24,6 @@ export function ProspectorLiveView({ sessionId, state, onCancel, onReset, onBack
   const isDone      = state.status === 'done';
   const isError     = state.status === 'error';
   const isCancelled = state.status === 'cancelled';
-
-  const principales = useMemo(
-    () => state.contacts.filter(c => c.es_principal),
-    [state.contacts],
-  );
-  const otros = useMemo(
-    () => state.contacts.filter(c => !c.es_principal),
-    [state.contacts],
-  );
 
   return (
     <div className="space-y-6">
@@ -107,66 +97,14 @@ export function ProspectorLiveView({ sessionId, state, onCancel, onReset, onBack
         </div>
       )}
 
-      {/* Cards + timeline */}
+      {/* Tabla de resultados + timeline */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="space-y-4 lg:col-span-2">
-          {state.contacts.length === 0 ? (
-            <Card className="p-8 text-center" style={{ borderColor: ACCENT, background: ACCENT_TINT }}>
-              {isStreaming ? (
-                <>
-                  <Loader2 size={20} className="mx-auto mb-2 animate-spin" style={{ color: ACCENT }} />
-                  <p className="text-sm font-medium" style={{ color: ACCENT }}>
-                    Esperando primer contacto…
-                  </p>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Apollo Search → Enrich → tarjeta aparecerá aquí
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="text-sm text-muted-foreground">
-                    Sin contactos esta sesión.
-                  </p>
-                </>
-              )}
-            </Card>
-          ) : (
-            <>
-              {principales.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                    Contactos principales ({principales.length})
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {principales.map(c => (
-                      <ContactCardLive
-                        key={c.apollo_id}
-                        contact={c}
-                        onUnlocked={onPhoneUnlocked}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {otros.length > 0 && (
-                <div>
-                  <h3 className="mb-2 text-xs uppercase tracking-wider text-muted-foreground">
-                    Otros contactos ({otros.length})
-                  </h3>
-                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                    {otros.map(c => (
-                      <ContactCardLive
-                        key={c.apollo_id}
-                        contact={c}
-                        onUnlocked={onPhoneUnlocked}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-            </>
-          )}
+        <div className="lg:col-span-2">
+          <ContactosResultsTable
+            contacts={state.contacts}
+            isStreaming={isStreaming}
+            onPhoneUnlocked={onPhoneUnlocked}
+          />
         </div>
 
         <div>
