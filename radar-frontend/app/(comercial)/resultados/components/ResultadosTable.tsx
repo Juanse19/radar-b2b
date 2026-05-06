@@ -36,6 +36,37 @@ function ventanaStyle(v?: string | null) {
   return 'bg-blue-500/10 text-blue-700 dark:text-blue-400 border-blue-400/30';
 }
 
+const RECENCY_DAYS = 180;
+
+function parseDDMMYYYY(s?: string | null): Date | null {
+  if (!s || s === 'No disponible') return null;
+  const m = s.match(/^(\d{2})\/(\d{2})\/(\d{4})$/);
+  if (!m) return null;
+  const d = new Date(Number(m[3]), Number(m[2]) - 1, Number(m[1]));
+  return Number.isNaN(d.getTime()) ? null : d;
+}
+
+function isOutOfRecency(fecha: string | null | undefined): boolean {
+  const d = parseDDMMYYYY(fecha);
+  if (!d) return false;
+  const cutoff = new Date(Date.now() - RECENCY_DAYS * 24 * 60 * 60 * 1000);
+  return d < cutoff;
+}
+
+function temporalBadgeClass(evalLabel: string | null | undefined): { cls: string; label: string } | null {
+  if (!evalLabel) return null;
+  if (evalLabel.includes('🔴') || /descarte/i.test(evalLabel)) {
+    return { cls: 'bg-red-500/12 text-red-700 dark:text-red-400 border-red-500/30', label: '🔴' };
+  }
+  if (evalLabel.includes('🟡') || /ambiguo/i.test(evalLabel)) {
+    return { cls: 'bg-amber-500/12 text-amber-700 dark:text-amber-400 border-amber-500/30', label: '🟡' };
+  }
+  if (evalLabel.includes('🟢') || /válido|valido/i.test(evalLabel)) {
+    return { cls: 'bg-green-500/12 text-green-700 dark:text-green-400 border-green-500/30', label: '🟢' };
+  }
+  return null;
+}
+
 function ScorePill({ count, total = 6, criterios }: { count: number; total?: number; criterios?: string[] }) {
   const pct   = total > 0 ? count / total : 0;
   const color = pct >= 0.67
@@ -280,17 +311,34 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       </div>
                     </td>
 
-                    {/* Radar activo */}
+                    {/* Radar activo + evaluación temporal */}
                     <td className="px-4 py-3.5">
-                      {isActiva ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-500/12 px-2.5 py-1 text-[11px] font-bold text-green-700 dark:text-green-400">
-                          <Zap size={9} aria-hidden />Sí
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-                          No
-                        </span>
-                      )}
+                      <div className="flex items-center gap-1.5">
+                        {(() => {
+                          const tb = temporalBadgeClass(r.evaluacion_temporal);
+                          return tb ? (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className={cn('inline-flex h-5 w-5 items-center justify-center rounded-full border text-[11px] leading-none cursor-default', tb.cls)} aria-label={r.evaluacion_temporal}>
+                                  {tb.label}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="text-xs">{r.evaluacion_temporal}</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          ) : null;
+                        })()}
+                        {isActiva ? (
+                          <span className="inline-flex items-center gap-1 rounded-full bg-green-500/12 px-2.5 py-1 text-[11px] font-bold text-green-700 dark:text-green-400">
+                            <Zap size={9} aria-hidden />Sí
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-full bg-muted/50 px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
+                            No
+                          </span>
+                        )}
+                      </div>
                     </td>
 
                     {/* Tipo de señal de inversión */}
@@ -300,7 +348,7 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       </span>
                     </td>
 
-                    {/* Descripción resumen */}
+                    {/* Descripción resumen + motivo (si aplica) */}
                     <td className="overflow-hidden px-4 py-3.5">
                       {r.descripcion_resumen ? (
                         <Tooltip>
@@ -315,6 +363,22 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                         </Tooltip>
                       ) : (
                         <span className="text-xs text-muted-foreground/50">—</span>
+                      )}
+                      {/* motivo_descarte siempre disponible — visible bajo descripción si es ambiguo, o como tooltip-on-hover si está completo */}
+                      {r.motivo_descarte && (
+                        <Tooltip>
+                          <TooltipTrigger className="w-full text-left">
+                            <p className={cn(
+                              'mt-1 text-[11px] italic line-clamp-2 cursor-default',
+                              isActiva ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground/80',
+                            )}>
+                              ⚠ {r.motivo_descarte}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-md">
+                            <p className="text-xs leading-relaxed whitespace-pre-wrap">{r.motivo_descarte}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </td>
 
@@ -353,11 +417,27 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       )}
                     </td>
 
-                    {/* Fecha de la señal */}
+                    {/* Fecha de la señal — resaltada si fuera de ventana */}
                     <td className="px-4 py-3.5">
-                      <span className="text-[12px] tabular-nums text-muted-foreground">
-                        {fecha ?? '—'}
-                      </span>
+                      {(() => {
+                        const stale = isOutOfRecency(r.fecha_senal);
+                        if (!fecha) return <span className="text-[12px] tabular-nums text-muted-foreground">—</span>;
+                        if (stale) {
+                          return (
+                            <Tooltip>
+                              <TooltipTrigger>
+                                <span className="inline-flex items-center rounded-md bg-red-500/10 px-1.5 py-0.5 text-[12px] tabular-nums text-red-700 dark:text-red-400 cursor-default">
+                                  {fecha}
+                                </span>
+                              </TooltipTrigger>
+                              <TooltipContent side="top">
+                                <p className="text-xs">Fuente fuera de ventana de recencia (180 días)</p>
+                              </TooltipContent>
+                            </Tooltip>
+                          );
+                        }
+                        return <span className="text-[12px] tabular-nums text-muted-foreground">{fecha}</span>;
+                      })()}
                     </td>
                   </tr>
                 );

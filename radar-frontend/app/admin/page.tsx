@@ -12,47 +12,129 @@ const S = SCHEMA;
 
 // ─── Data fetching ────────────────────────────────────────────────────────────
 
+interface AgentStats {
+  runs_30d:     number;
+  success_rate: number;   // 0..100
+  last_run_at:  string | null;
+}
+
+const EMPTY_AGENT_STATS: AgentStats = { runs_30d: 0, success_rate: 0, last_run_at: null };
+
 async function getStats() {
   try {
     const db = getAdminDb();
-    const [usuarios, lineas, fuentes, empresas, actividad, senales, calificaciones, contactos] =
-      await Promise.all([
-        db.from('usuarios').select('id', { count: 'exact', head: true }),
-        db.from('lineas_negocio').select('id', { count: 'exact', head: true }).eq('activo', true),
-        db.from('fuentes').select('id', { count: 'exact', head: true }).eq('activa', true),
-        db.from('empresas').select('id', { count: 'exact', head: true }),
-        db.from('actividad').select('id, tipo, usuario_email, created_at').order('created_at', { ascending: false }).limit(7),
-        pgQuery<{ count: string; tier: string }>(
-          `SELECT COUNT(*)::text AS count, tier_senal AS tier
-             FROM ${S}.senales_radar
-            WHERE tier_senal = 'ORO'
-              AND created_at > NOW() - INTERVAL '30 days'
-            GROUP BY tier_senal`
-        ).catch(() => []),
-        pgQuery<{ count: string }>(
-          `SELECT COUNT(*)::text AS count FROM ${S}.calificaciones WHERE tier_calculado = 'A' AND is_v2 = TRUE`
-        ).catch(() => []),
-        pgQuery<{ count: string }>(
-          `SELECT COUNT(*)::text AS count FROM ${S}.contactos WHERE hubspot_status = 'sincronizado'`
-        ).catch(() => []),
-      ]);
+    const [
+      usuarios, lineas, fuentes, empresas, actividad,
+      senalesOroV2, calificacionesA, contactosSync,
+      radarSessions, calificadorRuns, contactosRuns,
+    ] = await Promise.all([
+      db.from('usuarios').select('id', { count: 'exact', head: true }),
+      db.from('lineas_negocio').select('id', { count: 'exact', head: true }).eq('activo', true),
+      db.from('fuentes').select('id', { count: 'exact', head: true }).eq('activa', true),
+      db.from('empresas').select('id', { count: 'exact', head: true }),
+      db.from('actividad').select('id, tipo, usuario_email, created_at').order('created_at', { ascending: false }).limit(7),
+      // Ajuste A — señales ORO desde radar_v2_results (la tabla del agente nuevo).
+      // Sólo cuentan las que pasaron el validador (evaluacion_temporal contiene 'Válido', es decir 🟢).
+      pgQuery<{ count: string }>(
+        `SELECT COUNT(*)::text AS count
+           FROM ${S}.radar_v2_results
+          WHERE radar_activo = 'Sí'
+            AND evaluacion_temporal LIKE '%Válido%'
+            AND created_at > NOW() - INTERVAL '30 days'`
+      ).catch(() => []),
+      pgQuery<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM ${S}.calificaciones WHERE tier_calculado = 'A' AND is_v2 = TRUE`
+      ).catch(() => []),
+      pgQuery<{ count: string }>(
+        `SELECT COUNT(*)::text AS count FROM ${S}.contactos WHERE hubspot_status = 'sincronizado'`
+      ).catch(() => []),
+      // Ajuste B — Radar V2: runs / éxito / última corrida desde radar_v2_sessions.
+      // "Éxito" = sesión que registró duration_ms (terminó sin abortar).
+      pgQuery<{ runs: string; completed: string; last_run: string | null }>(
+        `SELECT
+            COUNT(*)::text                                            AS runs,
+            COUNT(*) FILTER (WHERE duration_ms IS NOT NULL)::text     AS completed,
+            MAX(created_at)                                           AS last_run
+           FROM ${S}.radar_v2_sessions
+          WHERE created_at > NOW() - INTERVAL '30 days'`
+      ).catch(() => []),
+      // Ajuste B — Calificador: runs en 30d, éxito = tier_calculado no nulo.
+      pgQuery<{ runs: string; completed: string; last_run: string | null }>(
+        `SELECT
+            COUNT(*)::text                                            AS runs,
+            COUNT(*) FILTER (WHERE tier_calculado IS NOT NULL)::text  AS completed,
+            MAX(created_at)                                           AS last_run
+           FROM ${S}.calificaciones
+          WHERE created_at > NOW() - INTERVAL '30 days'`
+      ).catch(() => []),
+      // Ajuste B — Contactos: runs = filas creadas en 30d, éxito = hubspot_status='sincronizado'.
+      pgQuery<{ runs: string; completed: string; last_run: string | null }>(
+        `SELECT
+            COUNT(*)::text                                                  AS runs,
+            COUNT(*) FILTER (WHERE hubspot_status = 'sincronizado')::text   AS completed,
+            MAX(created_at)                                                 AS last_run
+           FROM ${S}.contactos
+          WHERE created_at > NOW() - INTERVAL '30 days'`
+      ).catch(() => []),
+    ]);
+
+    const buildAgentStats = (
+      rows: Array<{ runs: string; completed: string; last_run: string | null }>
+    ): AgentStats => {
+      const r = rows[0];
+      if (!r) return EMPTY_AGENT_STATS;
+      const runs = Number(r.runs ?? 0);
+      const completed = Number(r.completed ?? 0);
+      return {
+        runs_30d:     runs,
+        success_rate: runs > 0 ? Math.round((completed / runs) * 100) : 0,
+        last_run_at:  r.last_run,
+      };
+    };
 
     return {
-      usuarios:    usuarios.count   ?? 0,
-      lineas:      lineas.count     ?? 0,
-      fuentes:     fuentes.count    ?? 0,
-      empresas:    empresas.count   ?? 0,
-      reciente:    actividad.data   ?? [],
-      senalesOro:  Number(senales[0]?.count      ?? 0),
-      tierA:       Number(calificaciones[0]?.count ?? 0),
-      contactosSync: Number(contactos[0]?.count  ?? 0),
+      usuarios:      usuarios.count   ?? 0,
+      lineas:        lineas.count     ?? 0,
+      fuentes:       fuentes.count    ?? 0,
+      empresas:      empresas.count   ?? 0,
+      reciente:      actividad.data   ?? [],
+      senalesOro:    Number(senalesOroV2[0]?.count   ?? 0),
+      tierA:         Number(calificacionesA[0]?.count ?? 0),
+      contactosSync: Number(contactosSync[0]?.count  ?? 0),
+      agentStats: {
+        radar:       buildAgentStats(radarSessions),
+        calificador: buildAgentStats(calificadorRuns),
+        contactos:   buildAgentStats(contactosRuns),
+      } as Record<'radar' | 'calificador' | 'contactos', AgentStats>,
     };
   } catch {
     return {
       usuarios: 0, lineas: 0, fuentes: 0, empresas: 0,
       reciente: [], senalesOro: 0, tierA: 0, contactosSync: 0,
+      agentStats: {
+        radar:       EMPTY_AGENT_STATS,
+        calificador: EMPTY_AGENT_STATS,
+        contactos:   EMPTY_AGENT_STATS,
+      },
     };
   }
+}
+
+/** Formatea ISO date como "Hace 12 min" / "Hace 3 h" / "Hace 5 d". */
+function relativeTimeEs(iso: string | null): string {
+  if (!iso) return '—';
+  const then = new Date(iso).getTime();
+  if (Number.isNaN(then)) return '—';
+  const diffMs = Date.now() - then;
+  if (diffMs < 0) return 'Recién';
+  const minutes = Math.floor(diffMs / 60_000);
+  if (minutes < 1)  return 'Recién';
+  if (minutes < 60) return `Hace ${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24)   return `Hace ${hours} h`;
+  const days = Math.floor(hours / 24);
+  if (days < 30)    return `Hace ${days} d`;
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
 }
 
 async function getRecentOroSignals() {
@@ -88,43 +170,43 @@ const ADMIN_SECTIONS = [
 
 const AGENT_CONFIG = [
   {
-    key:    'radar',
-    name:   'Radar B2B',
-    short:  'WF02',
-    desc:   'Detecta señales de inversión LATAM',
-    Icon:   Radar,
-    color:  'var(--agent-radar)',
-    tint:   'var(--agent-radar-tint)',
-    href:   '/escanear',
-    label:  'Disparar Radar',
-    statKey: 'senalesOro' as const,
-    statLabel: 'señales ORO (30d)',
+    key:        'radar' as const,
+    name:       'Radar B2B',
+    short:      'WF02',
+    desc:       'Detecta señales de inversión LATAM',
+    Icon:       Radar,
+    color:      'var(--agent-radar)',
+    tint:       'var(--agent-radar-tint)',
+    href:       '/escanear',
+    label:      'Disparar Radar',
+    headlineKey: 'senalesOro' as const,
+    headlineLabel: 'señales ORO (30d)',
   },
   {
-    key:    'calificador',
-    name:   'Calificador',
-    short:  'WF01',
-    desc:   'Asigna tier en 7 dimensiones',
-    Icon:   Star,
-    color:  'var(--agent-calificador)',
-    tint:   'var(--agent-calificador-tint)',
-    href:   '/calificador',
-    label:  'Disparar Calificador',
-    statKey: 'tierA' as const,
-    statLabel: 'cuentas tier A vigentes',
+    key:        'calificador' as const,
+    name:       'Calificador',
+    short:      'WF01',
+    desc:       'Asigna tier en 7 dimensiones',
+    Icon:       Star,
+    color:      'var(--agent-calificador)',
+    tint:       'var(--agent-calificador-tint)',
+    href:       '/calificador',
+    label:      'Disparar Calificador',
+    headlineKey: 'tierA' as const,
+    headlineLabel: 'cuentas tier A vigentes',
   },
   {
-    key:    'contactos',
-    name:   'Búsqueda Contactos',
-    short:  'WF03',
-    desc:   'Apollo · decisores por empresa',
-    Icon:   Users,
-    color:  'var(--agent-contactos)',
-    tint:   'var(--agent-contactos-tint)',
-    href:   '/en-vivo',
-    label:  'Buscar contactos',
-    statKey: 'contactosSync' as const,
-    statLabel: 'contactos sincronizados',
+    key:        'contactos' as const,
+    name:       'Búsqueda Contactos',
+    short:      'WF03',
+    desc:       'Apollo · decisores por empresa',
+    Icon:       Users,
+    color:      'var(--agent-contactos)',
+    tint:       'var(--agent-contactos-tint)',
+    href:       '/en-vivo',
+    label:      'Buscar contactos',
+    headlineKey: 'contactosSync' as const,
+    headlineLabel: 'contactos sincronizados',
   },
 ] as const;
 
@@ -212,7 +294,9 @@ export default async function AdminPage() {
         </p>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           {AGENT_CONFIG.map((agent) => {
-            const statValue = stats[agent.statKey];
+            const headlineValue = stats[agent.headlineKey];
+            const aStats = stats.agentStats[agent.key];
+            const isActive = aStats.runs_30d > 0;
             return (
               <div
                 key={agent.key}
@@ -243,31 +327,55 @@ export default async function AdminPage() {
                   <span
                     className="agent-chip"
                     style={{
-                      background: agent.tint,
-                      color: agent.color,
-                      borderColor: `color-mix(in srgb, ${agent.color} 30%, transparent)`,
+                      background: isActive ? agent.tint : 'rgba(0,0,0,0.04)',
+                      color: isActive ? agent.color : 'var(--muted-foreground)',
+                      borderColor: isActive
+                        ? `color-mix(in srgb, ${agent.color} 30%, transparent)`
+                        : 'var(--border)',
                     }}
                   >
-                    <span
-                      className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
-                      style={{ background: agent.color }}
-                    />
-                    Activo
+                    {isActive && (
+                      <span
+                        className="pulse-dot inline-block h-1.5 w-1.5 rounded-full"
+                        style={{ background: agent.color }}
+                      />
+                    )}
+                    {isActive ? 'Activo' : 'Inactivo'}
                   </span>
                 </div>
 
-                {/* mini stat */}
+                {/* Headline metric */}
                 <div
-                  className="mb-4 rounded-[10px] px-3 py-2.5"
+                  className="mb-3 rounded-[10px] px-3 py-2.5"
                   style={{ background: agent.tint }}
                 >
                   <p
                     className="font-mono text-[22px] font-bold leading-none tabular-nums"
                     style={{ color: agent.color }}
                   >
-                    {statValue}
+                    {headlineValue}
                   </p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{agent.statLabel}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{agent.headlineLabel}</p>
+                </div>
+
+                {/* 3-column metric grid — RUNS · ÉXITO · ÚLTIMA */}
+                <div className="mb-4 grid grid-cols-3 gap-2">
+                  <div className="rounded-[10px] border border-border bg-surface px-2.5 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/80">Runs (30d)</p>
+                    <p className="mt-1 font-mono text-[15px] font-bold leading-none tabular-nums">{aStats.runs_30d}</p>
+                  </div>
+                  <div className="rounded-[10px] border border-border bg-surface px-2.5 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/80">Tasa de éxito</p>
+                    <p className="mt-1 font-mono text-[15px] font-bold leading-none tabular-nums">
+                      {aStats.runs_30d > 0 ? `${aStats.success_rate}%` : '—'}
+                    </p>
+                  </div>
+                  <div className="rounded-[10px] border border-border bg-surface px-2.5 py-2">
+                    <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground/80">Última corrida</p>
+                    <p className="mt-1 font-mono text-[12px] font-semibold leading-tight">
+                      {relativeTimeEs(aStats.last_run_at)}
+                    </p>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">

@@ -9,7 +9,14 @@ export const metadata = {
 
 export default async function LoginPage() {
   const session = await getCurrentSession();
-  if (session) redirect('/escanear');
+  if (session) {
+    // Roles ADMIN y COMERCIAL aterrizan directamente en el panel administrativo.
+    // Cualquier otro rol cae al wizard de escaneo como fallback.
+    const target = (session.role === 'ADMIN' || session.role === 'COMERCIAL')
+      ? '/admin'
+      : '/escanear';
+    redirect(target);
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4">
