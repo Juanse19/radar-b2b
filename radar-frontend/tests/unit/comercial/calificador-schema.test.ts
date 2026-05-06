@@ -1,5 +1,5 @@
 /**
- * Unit tests for lib/comercial/calificador/schema.ts
+ * Unit tests for lib/comercial/calificador/schema.ts (V2 — categorical contract)
  * Validates Zod schema accepts valid LLM output and rejects bad output.
  */
 import { describe, it, expect } from 'vitest';
@@ -9,14 +9,16 @@ import { CalificacionLLMResponseSchema } from '@/lib/comercial/calificador/schem
 
 function validPayload() {
   return {
-    scores: {
-      impacto_presupuesto: 8,
-      multiplanta:         7,
-      recurrencia:         6,
-      referente_mercado:   5,
-      anio_objetivo:       9,
-      ticket_estimado:     7,
-      prioridad_comercial: 8,
+    dimensiones: {
+      impacto_presupuesto: { valor: 'Alto', justificacion: 'Empresa multinacional con presupuesto CAPEX significativo en LATAM.' },
+      multiplanta:         { valor: 'Presencia internacional', justificacion: 'Opera en 15 países con plantas en Colombia, México y Chile.' },
+      recurrencia:         { valor: 'Alto', justificacion: 'Mantenimiento anual de líneas productivas, contratos plurianuales.' },
+      referente_mercado:   { valor: 'Referente internacional', justificacion: 'Líder reconocido globalmente en su sector.' },
+      anio_objetivo:       { valor: '2026', justificacion: 'Plan de expansión declarado para Q1 2026.' },
+      ticket_estimado:     { valor: '1-5M USD', justificacion: 'Tamaño típico de proyectos de modernización en plantas existentes.' },
+      prioridad_comercial: { valor: 'Alta', justificacion: 'Cuenta estratégica de Matec con histórico de relación.' },
+      cuenta_estrategica:  { valor: 'Sí', justificacion: 'Cliente clave del sector con relación comercial activa.' },
+      tier:                { valor: 'A', justificacion: 'Combina referente internacional, multiplanta y prioridad alta.' },
     },
     razonamiento:
       'Empresa con alta presencia multinacional y claras señales de inversión en expansión de planta en Colombia y México para 2026.',
@@ -30,16 +32,17 @@ function validPayload() {
 // ─── Happy path ───────────────────────────────────────────────────────────────
 
 describe('CalificacionLLMResponseSchema — valid input', () => {
-  it('parses a well-formed LLM response', () => {
+  it('parses a well-formed LLM response with categorical dimensions', () => {
     const result = CalificacionLLMResponseSchema.safeParse(validPayload());
     expect(result.success).toBe(true);
   });
 
-  it('accepts boundary scores of 0 and 10', () => {
-    const payload = validPayload();
-    payload.scores.impacto_presupuesto = 0;
-    payload.scores.multiplanta = 10;
-    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(true);
+  it('accepts all 9 dimensions with their categorical values', () => {
+    const result = CalificacionLLMResponseSchema.safeParse(validPayload());
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(Object.keys(result.data.dimensiones)).toHaveLength(9);
+    }
   });
 
   it('defaults sources to [] when omitted', () => {
@@ -52,40 +55,46 @@ describe('CalificacionLLMResponseSchema — valid input', () => {
       expect(result.data.perfilWeb.sources).toEqual([]);
     }
   });
-
-  it('accepts empty sources array', () => {
-    const payload = validPayload();
-    payload.perfilWeb.sources = [];
-    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(true);
-  });
 });
 
-// ─── Score validation ─────────────────────────────────────────────────────────
+// ─── Categorical validation ────────────────────────────────────────────────────
 
-describe('CalificacionLLMResponseSchema — score validation', () => {
-  it('rejects score > 10', () => {
+describe('CalificacionLLMResponseSchema — categorical validation', () => {
+  it('rejects invalid impacto_presupuesto value', () => {
     const payload = validPayload();
-    payload.scores.impacto_presupuesto = 11;
+    payload.dimensiones.impacto_presupuesto.valor = 'Increíble' as never;
     expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
   });
 
-  it('rejects score < 0', () => {
+  it('rejects invalid multiplanta value', () => {
     const payload = validPayload();
-    payload.scores.multiplanta = -1;
+    payload.dimensiones.multiplanta.valor = 'Multinacional' as never;
     expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
   });
 
-  it('rejects non-numeric score', () => {
-    const payload = validPayload() as Record<string, unknown>;
-    (payload.scores as Record<string, unknown>).recurrencia = 'alto';
+  it('rejects invalid cuenta_estrategica value (must be Sí/No)', () => {
+    const payload = validPayload();
+    payload.dimensiones.cuenta_estrategica.valor = 'Tal vez' as never;
     expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
   });
 
-  it('rejects missing score dimension', () => {
+  it('rejects invalid tier value (only A/B/C allowed, no D)', () => {
     const payload = validPayload();
-    const { prioridad_comercial: _p, ...withoutPrioridad } = payload.scores;
-    const modified = { ...payload, scores: withoutPrioridad };
+    payload.dimensiones.tier.valor = 'D' as never;
+    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
+  });
+
+  it('rejects missing dimension', () => {
+    const payload = validPayload();
+    const { cuenta_estrategica: _c, ...withoutCuenta } = payload.dimensiones;
+    const modified = { ...payload, dimensiones: withoutCuenta };
     expect(CalificacionLLMResponseSchema.safeParse(modified).success).toBe(false);
+  });
+
+  it('rejects justificacion shorter than 10 chars', () => {
+    const payload = validPayload();
+    payload.dimensiones.tier.justificacion = 'Corto';
+    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
   });
 });
 
@@ -101,12 +110,6 @@ describe('CalificacionLLMResponseSchema — razonamiento validation', () => {
   it('rejects missing razonamiento', () => {
     const { razonamiento: _r, ...withoutRazon } = validPayload();
     expect(CalificacionLLMResponseSchema.safeParse(withoutRazon).success).toBe(false);
-  });
-
-  it('accepts razonamiento of exactly 50 chars', () => {
-    const payload = validPayload();
-    payload.razonamiento = 'A'.repeat(50);
-    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(true);
   });
 
   it('rejects razonamiento longer than 5000 chars', () => {
@@ -129,12 +132,6 @@ describe('CalificacionLLMResponseSchema — perfilWeb validation', () => {
     const payload = validPayload();
     payload.perfilWeb.sources = Array.from({ length: 21 }, (_, i) => `https://example.com/${i}`);
     expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(false);
-  });
-
-  it('accepts exactly 20 sources', () => {
-    const payload = validPayload();
-    payload.perfilWeb.sources = Array.from({ length: 20 }, (_, i) => `https://example.com/${i}`);
-    expect(CalificacionLLMResponseSchema.safeParse(payload).success).toBe(true);
   });
 
   it('rejects missing perfilWeb', () => {

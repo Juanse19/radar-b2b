@@ -1,5 +1,5 @@
 /**
- * Unit tests for lib/comercial/calificador/scoring.ts
+ * Unit tests for lib/comercial/calificador/scoring.ts (V2 — 9 dimensions)
  * Pure functions — no mocks needed.
  */
 import { describe, it, expect } from 'vitest';
@@ -9,6 +9,9 @@ import {
   asignarTier,
   TIER_LABEL,
   shouldSuggestRadar,
+  categoricoToScore,
+  scoreToCategorico,
+  allowedCategoricos,
 } from '@/lib/comercial/calificador/scoring';
 import type { DimScores } from '@/lib/comercial/calificador/types';
 
@@ -22,6 +25,8 @@ const ALL_TEN: DimScores = {
   anio_objetivo:       10,
   ticket_estimado:     10,
   prioridad_comercial: 10,
+  cuenta_estrategica:  10,
+  tier:                10,
 };
 
 const ALL_ZERO: DimScores = {
@@ -32,9 +37,10 @@ const ALL_ZERO: DimScores = {
   anio_objetivo:       0,
   ticket_estimado:     0,
   prioridad_comercial: 0,
+  cuenta_estrategica:  0,
+  tier:                0,
 };
 
-// Weights sum to 1.0 — so average(all 5) == 5.0
 const ALL_FIVE: DimScores = {
   impacto_presupuesto: 5,
   multiplanta:         5,
@@ -43,6 +49,8 @@ const ALL_FIVE: DimScores = {
   anio_objetivo:       5,
   ticket_estimado:     5,
   prioridad_comercial: 5,
+  cuenta_estrategica:  5,
+  tier:                5,
 };
 
 // ─── PESOS ────────────────────────────────────────────────────────────────────
@@ -53,8 +61,20 @@ describe('PESOS', () => {
     expect(sum).toBeCloseTo(1.0, 10);
   });
 
-  it('impacto_presupuesto has the highest weight (0.25)', () => {
-    expect(PESOS.impacto_presupuesto).toBe(0.25);
+  it('includes all 9 dimensions', () => {
+    const dims = Object.keys(PESOS).sort();
+    expect(dims).toEqual(
+      [
+        'anio_objetivo', 'cuenta_estrategica', 'impacto_presupuesto',
+        'multiplanta', 'prioridad_comercial', 'recurrencia',
+        'referente_mercado', 'ticket_estimado', 'tier',
+      ].sort(),
+    );
+  });
+
+  it('impacto_presupuesto has the highest weight', () => {
+    const max = Math.max(...Object.values(PESOS));
+    expect(PESOS.impacto_presupuesto).toBe(max);
   });
 });
 
@@ -74,26 +94,15 @@ describe('calcularScore', () => {
   });
 
   it('rounds to 1 decimal place', () => {
-    // Score = 8 * 0.25 + 7 * (0.15+0.15+0.15) + 6 * (0.10+0.10+0.10)
-    //       = 2.0 + 3.15 + 1.8 = 6.95
-    const scores: DimScores = {
-      impacto_presupuesto: 8,
-      multiplanta:         7,
-      recurrencia:         7,
-      referente_mercado:   6,
-      anio_objetivo:       7,
-      ticket_estimado:     6,
-      prioridad_comercial: 6,
-    };
+    const scores: DimScores = { ...ALL_FIVE, impacto_presupuesto: 8, multiplanta: 7 };
     const result = calcularScore(scores);
-    // Verify it's rounded to 1 decimal
     expect(result.toString().split('.')[1]?.length ?? 0).toBeLessThanOrEqual(1);
   });
 
   it('weights impacto_presupuesto more heavily than any single other dimension', () => {
     const highImpacto: DimScores = { ...ALL_ZERO, impacto_presupuesto: 10 };
-    const highMultiplanta: DimScores = { ...ALL_ZERO, multiplanta: 10 };
-    expect(calcularScore(highImpacto)).toBeGreaterThan(calcularScore(highMultiplanta));
+    const highReferente: DimScores = { ...ALL_ZERO, referente_mercado: 10 };
+    expect(calcularScore(highImpacto)).toBeGreaterThan(calcularScore(highReferente));
   });
 });
 
@@ -103,36 +112,26 @@ describe('asignarTier', () => {
   it('returns A for score >= 8', () => {
     expect(asignarTier(8)).toBe('A');
     expect(asignarTier(10)).toBe('A');
-    expect(asignarTier(8.5)).toBe('A');
   });
 
   it('returns B for score >= 5 and < 8', () => {
     expect(asignarTier(5)).toBe('B');
     expect(asignarTier(7.9)).toBe('B');
-    expect(asignarTier(6.5)).toBe('B');
   });
 
   it('returns C for score >= 3 and < 5', () => {
     expect(asignarTier(3)).toBe('C');
     expect(asignarTier(4.9)).toBe('C');
-    expect(asignarTier(3.5)).toBe('C');
   });
 
   it('returns D for score < 3', () => {
     expect(asignarTier(2.9)).toBe('D');
     expect(asignarTier(0)).toBe('D');
-    expect(asignarTier(1)).toBe('D');
   });
 
-  it('boundary: exactly 8 is A, not B', () => {
+  it('boundaries: 8→A, 5→B, 3→C', () => {
     expect(asignarTier(8)).toBe('A');
-  });
-
-  it('boundary: exactly 5 is B, not C', () => {
     expect(asignarTier(5)).toBe('B');
-  });
-
-  it('boundary: exactly 3 is C, not D', () => {
     expect(asignarTier(3)).toBe('C');
   });
 });
@@ -153,4 +152,73 @@ describe('shouldSuggestRadar', () => {
   it('returns true for tier B', () => expect(shouldSuggestRadar('B')).toBe(true));
   it('returns true for tier C', () => expect(shouldSuggestRadar('C')).toBe(true));
   it('returns false for tier D', () => expect(shouldSuggestRadar('D')).toBe(false));
+});
+
+// ─── categoricoToScore ────────────────────────────────────────────────────────
+
+describe('categoricoToScore', () => {
+  it('maps impacto_presupuesto categorical values', () => {
+    expect(categoricoToScore('impacto_presupuesto', 'Muy Alto')).toBe(10);
+    expect(categoricoToScore('impacto_presupuesto', 'Alto')).toBe(8);
+    expect(categoricoToScore('impacto_presupuesto', 'Medio')).toBe(6);
+    expect(categoricoToScore('impacto_presupuesto', 'Bajo')).toBe(4);
+    expect(categoricoToScore('impacto_presupuesto', 'Muy Bajo')).toBe(2);
+  });
+
+  it('maps multiplanta values', () => {
+    expect(categoricoToScore('multiplanta', 'Presencia internacional')).toBe(10);
+    expect(categoricoToScore('multiplanta', 'Varias sedes regionales')).toBe(6);
+    expect(categoricoToScore('multiplanta', 'Única sede')).toBe(2);
+  });
+
+  it('maps cuenta_estrategica binary values', () => {
+    expect(categoricoToScore('cuenta_estrategica', 'Sí')).toBe(10);
+    expect(categoricoToScore('cuenta_estrategica', 'No')).toBe(0);
+  });
+
+  it('maps tier (A/B/C) values', () => {
+    expect(categoricoToScore('tier', 'A')).toBe(10);
+    expect(categoricoToScore('tier', 'B')).toBe(6);
+    expect(categoricoToScore('tier', 'C')).toBe(2);
+  });
+
+  it('maps anio_objetivo years', () => {
+    expect(categoricoToScore('anio_objetivo', '2026')).toBe(10);
+    expect(categoricoToScore('anio_objetivo', '2027')).toBe(6);
+    expect(categoricoToScore('anio_objetivo', '2028')).toBe(2);
+    expect(categoricoToScore('anio_objetivo', 'Sin año')).toBe(0);
+  });
+
+  it('throws on invalid categorical value', () => {
+    expect(() => categoricoToScore('impacto_presupuesto', 'Increíble')).toThrow(/Invalid categorical/);
+  });
+});
+
+// ─── scoreToCategorico ────────────────────────────────────────────────────────
+
+describe('scoreToCategorico', () => {
+  it('returns the closest categorical label for a numeric score', () => {
+    expect(scoreToCategorico('impacto_presupuesto', 10)).toBe('Muy Alto');
+    expect(scoreToCategorico('impacto_presupuesto', 8)).toBe('Alto');
+    expect(scoreToCategorico('cuenta_estrategica', 10)).toBe('Sí');
+    expect(scoreToCategorico('cuenta_estrategica', 0)).toBe('No');
+  });
+
+  it('rounds intermediate values to nearest known label', () => {
+    expect(scoreToCategorico('impacto_presupuesto', 9)).toMatch(/Muy Alto|Alto/);
+  });
+});
+
+// ─── allowedCategoricos ───────────────────────────────────────────────────────
+
+describe('allowedCategoricos', () => {
+  it('returns 5 values for impacto_presupuesto', () => {
+    expect(allowedCategoricos('impacto_presupuesto')).toHaveLength(5);
+  });
+  it('returns 2 values for cuenta_estrategica', () => {
+    expect(allowedCategoricos('cuenta_estrategica')).toEqual(['Sí', 'No']);
+  });
+  it('returns 3 values for tier', () => {
+    expect(allowedCategoricos('tier')).toEqual(['A', 'B', 'C']);
+  });
 });

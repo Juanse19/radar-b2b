@@ -10,10 +10,10 @@ import {
   Loader2, CheckCircle2, XCircle, Star, TrendingUp,
   Archive, Brain, Globe, Sparkles, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { DimensionStrip } from './DimensionStrip';
+import { DimensionStrip, type DimDetailUI } from './DimensionStrip';
 import { TriggerRadarModal } from './TriggerRadarModal';
 import { shouldSuggestRadar, TIER_LABEL } from '@/lib/comercial/calificador/scoring';
-import type { Tier, DimScores } from '@/lib/comercial/calificador/types';
+import type { Dimension, Tier, DimScores } from '@/lib/comercial/calificador/types';
 
 // ─── Types ───────────────────────────────────────────────────────────────────
 
@@ -28,6 +28,8 @@ interface CompanyState {
   country:     string;
   status:      'pending' | 'running' | 'done' | 'error';
   scores:      Partial<DimScores>;
+  /** V2 categorical detail per dimension (valor + justificacion). */
+  dimensiones: Partial<Record<Dimension, DimDetailUI>>;
   scoreTotal?: number;
   tier?:       Tier;
   razonamientoPreview?: string;
@@ -80,7 +82,7 @@ export function CalificadorLivePanel({
   const [companies, setCompanies] = useState<CompanyState[]>(
     empresas.map(e => ({
       name: e.name, country: e.country, status: 'pending',
-      scores: {}, thinking: [], expanded: false,
+      scores: {}, dimensiones: {}, thinking: [], expanded: false,
     })),
   );
   const [totalCost, setTotalCost]       = useState(0);
@@ -129,9 +131,18 @@ export function CalificadorLivePanel({
     });
 
     es.addEventListener('dim_scored', (e) => {
-      const d = JSON.parse(e.data) as { empresa: string; dim: string; value: number };
+      const d = JSON.parse(e.data) as {
+        empresa: string;
+        dim:     Dimension;
+        value:   number;
+        valor?:  string;
+        justificacion?: string;
+      };
       updateCompany(d.empresa, (c) => ({
-        scores: { ...c.scores, [d.dim]: d.value },
+        scores:      { ...c.scores, [d.dim]: d.value },
+        dimensiones: d.valor
+          ? { ...c.dimensiones, [d.dim]: { valor: d.valor, justificacion: d.justificacion } }
+          : c.dimensiones,
       }));
     });
 
@@ -296,7 +307,7 @@ export function CalificadorLivePanel({
 
                 {c.status === 'running' && Object.keys(c.scores).length > 0 && (
                   <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {Object.keys(c.scores).length}/7
+                    {Object.keys(c.scores).length}/9
                   </span>
                 )}
 
@@ -319,7 +330,7 @@ export function CalificadorLivePanel({
 
                   {/* Dimension bars */}
                   {Object.keys(c.scores).length > 0 && (
-                    <DimensionStrip scores={c.scores} animate />
+                    <DimensionStrip scores={c.scores} dimensiones={c.dimensiones} animate />
                   )}
 
                   {/* Razonamiento preview */}

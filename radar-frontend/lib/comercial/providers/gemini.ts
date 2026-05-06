@@ -324,7 +324,8 @@ function createGeminiProvider(): AIProvider {
       }
 
       return {
-        scores: (rawJson as { scores: CalificacionOutput['scores'] }).scores,
+        // V2: scores/dimensiones are recomputed by engine.ts from rawJson.dimensiones
+        scores: {} as CalificacionOutput['scores'],
         dimensiones: (rawJson as { dimensiones?: CalificacionOutput['dimensiones'] }).dimensiones,
         scoreTotal: 0,
         tier: 'C',

@@ -15,8 +15,15 @@ import { retrieveContext, buildRagBlock } from '@/lib/comercial/rag';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import { getProvider } from '@/lib/comercial/providers';
 import { CalificacionLLMResponseSchema } from './schema';
-import { calcularScore, asignarTier } from './scoring';
-import type { CalificacionInput, CalificacionOutput, CalificacionRow, RagContext } from './types';
+import { calcularScore, asignarTier, categoricoToScore } from './scoring';
+import type {
+  CalificacionInput,
+  CalificacionOutput,
+  CalificacionRow,
+  Dimension,
+  DimScores,
+  RagContext,
+} from './types';
 import type { SSEEmitter } from '@/lib/comercial/providers/types';
 
 const S = SCHEMA;
@@ -48,9 +55,10 @@ async function persistCalificacion(row: CalificacionRow): Promise<void> {
       empresa_id, session_id, sub_linea_id, linea_negocio, provider,
       score_impacto, score_multiplanta, score_recurrencia, score_referente,
       score_anio, score_ticket, score_prioridad,
+      score_cuenta_estrategica, score_tier,
       score_total, tier_calculado,
       razonamiento_agente, perfil_web_summary, perfil_web_sources,
-      rag_context_used, raw_llm_json,
+      rag_context_used, raw_llm_json, dimensiones,
       modelo_llm, tokens_input, tokens_output, costo_usd,
       is_v2
     ) VALUES (
@@ -61,12 +69,14 @@ async function persistCalificacion(row: CalificacionRow): Promise<void> {
       ${row.provider ? pgLit(row.provider) : 'NULL'},
       ${row.score_impacto}, ${row.score_multiplanta}, ${row.score_recurrencia},
       ${row.score_referente}, ${row.score_anio}, ${row.score_ticket}, ${row.score_prioridad},
+      ${row.score_cuenta_estrategica}, ${row.score_tier},
       ${row.score_total}, ${pgLit(row.tier_calculado)}::${S}.tier_enum,
       ${row.razonamiento_agente ? pgLit(row.razonamiento_agente) : 'NULL'},
       ${row.perfil_web_summary ? pgLit(row.perfil_web_summary) : 'NULL'},
       ${row.perfil_web_sources ? pgLit(JSON.stringify(row.perfil_web_sources)) + '::jsonb' : 'NULL'},
       ${row.rag_context_used ? pgLit(JSON.stringify(row.rag_context_used)) + '::jsonb' : 'NULL'},
       ${row.raw_llm_json ? pgLit(JSON.stringify(row.raw_llm_json)) + '::jsonb' : 'NULL'},
+      ${row.dimensiones ? pgLit(JSON.stringify(row.dimensiones)) + '::jsonb' : 'NULL'},
       ${row.modelo_llm ? pgLit(row.modelo_llm) : 'NULL'},
       ${row.tokens_input ?? 'NULL'}, ${row.tokens_output ?? 'NULL'},
       ${row.costo_usd ?? 'NULL'},
@@ -141,12 +151,37 @@ export async function calificarEmpresa(
   const llmData = parsed.data;
 
   // 4. Score + tier (deterministic) ──────────────────────────────────────────
-  const scoreTotal = calcularScore(llmData.scores);
+  // Map each categorical valor → numeric score via the user's scoring table.
+  const dimEntries = Object.entries(llmData.dimensiones) as [
+    Dimension,
+    { valor: string; justificacion: string },
+  ][];
+
+  const scores = dimEntries.reduce<DimScores>((acc, [dim, detail]) => {
+    acc[dim] = categoricoToScore(dim, detail.valor);
+    return acc;
+  }, {} as DimScores);
+
+  const scoreTotal = calcularScore(scores);
   const tier = asignarTier(scoreTotal);
 
+  // Build a UI-friendly dimensiones array enriched with derived scores.
+  const dimensionesEnriched = dimEntries.map(([dim, detail]) => ({
+    dim,
+    valor: detail.valor,
+    score: scores[dim],
+    justificacion: detail.justificacion,
+  }));
+
   // 5. Emit per-dimension scores ─────────────────────────────────────────────
-  for (const [dim, value] of Object.entries(llmData.scores)) {
-    emit?.emit('dim_scored', { empresa: input.empresa, dim, value });
+  for (const item of dimensionesEnriched) {
+    emit?.emit('dim_scored', {
+      empresa: input.empresa,
+      dim:     item.dim,
+      value:   item.score,
+      valor:   item.valor,
+      justificacion: item.justificacion,
+    });
   }
 
   emit?.emit('tier_assigned', {
@@ -160,30 +195,33 @@ export async function calificarEmpresa(
   const empresaId = await resolveEmpresaId(input.empresa);
 
   const row: CalificacionRow = {
-    empresa_id:          empresaId,
-    session_id:          input.sessionId,
-    sub_linea_id:        input.subLineaId ?? null,
-    linea_negocio:       input.lineaNombre,
-    provider:            provider.name,
-    score_impacto:       llmData.scores.impacto_presupuesto,
-    score_multiplanta:   llmData.scores.multiplanta,
-    score_recurrencia:   llmData.scores.recurrencia,
-    score_referente:     llmData.scores.referente_mercado,
-    score_anio:          llmData.scores.anio_objetivo,
-    score_ticket:        llmData.scores.ticket_estimado,
-    score_prioridad:     llmData.scores.prioridad_comercial,
-    score_total:         scoreTotal,
-    tier_calculado:      tier,
-    razonamiento_agente: llmData.razonamiento,
-    perfil_web_summary:  llmData.perfilWeb.summary,
-    perfil_web_sources:  llmData.perfilWeb.sources,
-    rag_context_used:    ragContext ? { rawBlock: ragContext.rawBlock } : null,
-    raw_llm_json:        providerOutput.rawJson,
-    modelo_llm:          providerOutput.model,
-    tokens_input:        providerOutput.tokensInput,
-    tokens_output:       providerOutput.tokensOutput,
-    costo_usd:           providerOutput.costUsd,
-    is_v2:               true,
+    empresa_id:               empresaId,
+    session_id:               input.sessionId,
+    sub_linea_id:             input.subLineaId ?? null,
+    linea_negocio:            input.lineaNombre,
+    provider:                 provider.name,
+    score_impacto:            scores.impacto_presupuesto,
+    score_multiplanta:        scores.multiplanta,
+    score_recurrencia:        scores.recurrencia,
+    score_referente:          scores.referente_mercado,
+    score_anio:               scores.anio_objetivo,
+    score_ticket:             scores.ticket_estimado,
+    score_prioridad:          scores.prioridad_comercial,
+    score_cuenta_estrategica: scores.cuenta_estrategica,
+    score_tier:               scores.tier,
+    score_total:              scoreTotal,
+    tier_calculado:           tier,
+    razonamiento_agente:      llmData.razonamiento,
+    perfil_web_summary:       llmData.perfilWeb.summary,
+    perfil_web_sources:       llmData.perfilWeb.sources,
+    rag_context_used:         ragContext ? { rawBlock: ragContext.rawBlock } : null,
+    raw_llm_json:             providerOutput.rawJson,
+    dimensiones:              dimensionesEnriched,
+    modelo_llm:               providerOutput.model,
+    tokens_input:             providerOutput.tokensInput,
+    tokens_output:            providerOutput.tokensOutput,
+    costo_usd:                providerOutput.costUsd,
+    is_v2:                    true,
   };
 
   await persistCalificacion(row);
@@ -200,7 +238,7 @@ export async function calificarEmpresa(
   });
 
   return {
-    scores:      llmData.scores,
+    scores,
     dimensiones: llmData.dimensiones,
     scoreTotal,
     tier,

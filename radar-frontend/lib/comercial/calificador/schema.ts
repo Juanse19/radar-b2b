@@ -1,42 +1,41 @@
 /**
  * calificador/schema.ts — Zod schema for validating LLM JSON output.
- * All providers must return a shape that passes this schema.
+ *
+ * V2 contract: each of the 9 dimensions returns a categorical { valor,
+ * justificacion } pair. Numeric scores are derived server-side via
+ * `categoricoToScore` in `scoring.ts`.
  */
 import { z } from 'zod';
 
-const DimScore = z.number().min(0).max(10);
+// ── Per-dimension allowed categorical values (must match scoring.ts map) ────
+const ImpactoEnum     = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']);
+const MultiplantaEnum = z.enum(['Presencia internacional', 'Varias sedes regionales', 'Única sede']);
+const RecurrenciaEnum = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']);
+const ReferenteEnum   = z.enum(['Referente internacional', 'Referente país', 'Baja visibilidad']);
+const AnioEnum        = z.enum(['2026', '2027', '2028', 'Sin año']);
+const TicketEnum      = z.enum(['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket']);
+const PrioridadEnum   = z.enum(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']);
+const CuentaEstratEnum= z.enum(['Sí', 'No']);
+const TierEnum        = z.enum(['A', 'B', 'C']);
 
-/**
- * v5: per-dimension justification map (optional).
- * Each entry pairs a textual `valor` (e.g. "Muy Alto") with a brief
- * `justificacion` (≤ 200 chars). Existing v2 LLM responses without
- * this field continue to validate.
- */
-const DimDetail = z.object({
-  valor:         z.string().min(1).max(120),
-  justificacion: z.string().min(10).max(500),
-}).passthrough();
+const dimDetail = <V extends z.ZodTypeAny>(valor: V) =>
+  z.object({
+    valor,
+    justificacion: z.string().min(10).max(500),
+  }).passthrough();
 
 export const CalificacionLLMResponseSchema = z.object({
-  scores: z.object({
-    impacto_presupuesto: DimScore,
-    multiplanta:         DimScore,
-    recurrencia:         DimScore,
-    referente_mercado:   DimScore,
-    anio_objetivo:       DimScore,
-    ticket_estimado:     DimScore,
-    prioridad_comercial: DimScore,
-  }),
-  /** v5 — optional. When present, UI renders detailed per-dimension rationale. */
   dimensiones: z.object({
-    impacto_presupuesto: DimDetail,
-    multiplanta:         DimDetail,
-    recurrencia:         DimDetail,
-    referente_mercado:   DimDetail,
-    anio_objetivo:       DimDetail,
-    ticket_estimado:     DimDetail,
-    prioridad_comercial: DimDetail,
-  }).partial().optional(),
+    impacto_presupuesto: dimDetail(ImpactoEnum),
+    multiplanta:         dimDetail(MultiplantaEnum),
+    recurrencia:         dimDetail(RecurrenciaEnum),
+    referente_mercado:   dimDetail(ReferenteEnum),
+    anio_objetivo:       dimDetail(AnioEnum),
+    ticket_estimado:     dimDetail(TicketEnum),
+    prioridad_comercial: dimDetail(PrioridadEnum),
+    cuenta_estrategica:  dimDetail(CuentaEstratEnum),
+    tier:                dimDetail(TierEnum),
+  }),
   razonamiento: z.string().min(50).max(5000),
   perfilWeb: z.object({
     summary: z.string().min(10),
@@ -49,10 +48,10 @@ export type CalificacionLLMResponse = z.infer<typeof CalificacionLLMResponseSche
 /** JSON schema string passed to OpenAI response_format / tool definitions. */
 export const CALIFICACION_JSON_SCHEMA = {
   type: 'object',
-  required: ['scores', 'razonamiento', 'perfilWeb'],
+  required: ['dimensiones', 'razonamiento', 'perfilWeb'],
   additionalProperties: false,
   properties: {
-    scores: {
+    dimensiones: {
       type: 'object',
       required: [
         'impacto_presupuesto',
@@ -62,16 +61,83 @@ export const CALIFICACION_JSON_SCHEMA = {
         'anio_objetivo',
         'ticket_estimado',
         'prioridad_comercial',
+        'cuenta_estrategica',
+        'tier',
       ],
       additionalProperties: false,
       properties: {
-        impacto_presupuesto: { type: 'number', minimum: 0, maximum: 10 },
-        multiplanta:         { type: 'number', minimum: 0, maximum: 10 },
-        recurrencia:         { type: 'number', minimum: 0, maximum: 10 },
-        referente_mercado:   { type: 'number', minimum: 0, maximum: 10 },
-        anio_objetivo:       { type: 'number', minimum: 0, maximum: 10 },
-        ticket_estimado:     { type: 'number', minimum: 0, maximum: 10 },
-        prioridad_comercial: { type: 'number', minimum: 0, maximum: 10 },
+        impacto_presupuesto: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        multiplanta: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Presencia internacional', 'Varias sedes regionales', 'Única sede'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        recurrencia: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        referente_mercado: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Referente internacional', 'Referente país', 'Baja visibilidad'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        anio_objetivo: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['2026', '2027', '2028', 'Sin año'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        ticket_estimado: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        prioridad_comercial: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        cuenta_estrategica: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['Sí', 'No'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
+        tier: {
+          type: 'object',
+          required: ['valor', 'justificacion'],
+          properties: {
+            valor: { type: 'string', enum: ['A', 'B', 'C'] },
+            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
+          },
+        },
       },
     },
     razonamiento: { type: 'string', minLength: 50, maxLength: 5000 },

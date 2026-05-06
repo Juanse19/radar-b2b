@@ -19,13 +19,16 @@ interface CalDetailRow {
   linea_negocio:       string | null;
   tier_calculado:      Tier;
   score_total:         number;
-  score_impacto:       number;
-  score_multiplanta:   number;
-  score_recurrencia:   number;
-  score_referente:     number;
-  score_anio:          number;
-  score_ticket:        number;
-  score_prioridad:     number;
+  score_impacto:            number;
+  score_multiplanta:        number;
+  score_recurrencia:        number;
+  score_referente:          number;
+  score_anio:               number;
+  score_ticket:             number;
+  score_prioridad:          number;
+  score_cuenta_estrategica: number | null;
+  score_tier:               number | null;
+  dimensiones:              unknown;
   razonamiento_agente: string | null;
   perfil_web_summary:  string | null;
   modelo_llm:          string | null;
@@ -52,6 +55,9 @@ async function getCalificacion(id: number): Promise<CalDetailRow | null> {
         c.score_anio,
         c.score_ticket,
         c.score_prioridad,
+        c.score_cuenta_estrategica,
+        c.score_tier,
+        c.dimensiones,
         c.razonamiento_agente,
         c.perfil_web_summary,
         c.modelo_llm,
@@ -114,7 +120,22 @@ export default async function CalificacionDetailPage({ params }: Props) {
     anio_objetivo:       row.score_anio,
     ticket_estimado:     row.score_ticket,
     prioridad_comercial: row.score_prioridad,
+    cuenta_estrategica:  row.score_cuenta_estrategica ?? 0,
+    tier:                row.score_tier ?? 0,
   };
+
+  // Build dimensiones map for UI from persisted jsonb if available.
+  type DimEntry = { dim: string; valor?: string; justificacion?: string };
+  const dimList: DimEntry[] = Array.isArray(row.dimensiones)
+    ? (row.dimensiones as DimEntry[])
+    : [];
+  const dimensionesMap = dimList.reduce<Record<string, { valor: string; justificacion?: string }>>(
+    (acc, d) => {
+      if (d.dim && d.valor) acc[d.dim] = { valor: d.valor, justificacion: d.justificacion };
+      return acc;
+    },
+    {},
+  );
 
   return (
     <div className="space-y-6">
@@ -149,7 +170,7 @@ export default async function CalificacionDetailPage({ params }: Props) {
             <CardTitle className="text-sm">Dimensiones (7)</CardTitle>
           </CardHeader>
           <CardContent>
-            <DimensionStrip scores={scores} animate={false} />
+            <DimensionStrip scores={scores} dimensiones={dimensionesMap} animate={false} />
           </CardContent>
         </Card>
 

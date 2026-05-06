@@ -12,7 +12,20 @@ export type Dimension =
   | 'referente_mercado'
   | 'anio_objetivo'
   | 'ticket_estimado'
-  | 'prioridad_comercial';
+  | 'prioridad_comercial'
+  | 'cuenta_estrategica'
+  | 'tier';
+
+// ── Categorical value sets per dimension (single source of truth) ──────────
+export type ImpactoCat        = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
+export type MultiplantaCat    = 'Presencia internacional' | 'Varias sedes regionales' | 'Única sede';
+export type RecurrenciaCat    = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
+export type ReferenteCat      = 'Referente internacional' | 'Referente país' | 'Baja visibilidad';
+export type AnioCat           = '2026' | '2027' | '2028' | 'Sin año';
+export type TicketCat         = '> 5M USD' | '1-5M USD' | '500K-1M USD' | '< 500K USD' | 'Sin ticket';
+export type PrioridadCat      = 'Muy Alta' | 'Alta' | 'Media' | 'Baja' | 'Muy Baja';
+export type CuentaEstratCat   = 'Sí' | 'No';
+export type TierCat           = 'A' | 'B' | 'C';
 
 export interface CalificacionInput {
   empresa: string;
@@ -40,6 +53,8 @@ export interface DimScores {
   anio_objetivo: number;
   ticket_estimado: number;
   prioridad_comercial: number;
+  cuenta_estrategica: number;
+  tier: number;
 }
 
 /** v5: per-dimension detail produced by the Calificador prompt (optional). */
@@ -78,6 +93,8 @@ export interface CalificacionRow {
   score_anio: number;
   score_ticket: number;
   score_prioridad: number;
+  score_cuenta_estrategica: number;
+  score_tier: number;
   score_total: number;
   tier_calculado: Tier;
   razonamiento_agente?: string;
@@ -85,6 +102,8 @@ export interface CalificacionRow {
   perfil_web_sources?: unknown;
   rag_context_used?: unknown;
   raw_llm_json?: unknown;
+  /** V2: array of {dim, valor, score, justificacion} for UI rendering. */
+  dimensiones?: unknown;
   modelo_llm?: string;
   tokens_input?: number;
   tokens_output?: number;
