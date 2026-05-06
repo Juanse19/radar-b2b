@@ -1,6 +1,6 @@
 import { Suspense } from 'react';
 import { Users } from 'lucide-react';
-import { ContactosTabs } from './components/ContactosTabs';
+import { ProspectorWizard } from './components/ProspectorWizard';
 
 export const dynamic = 'force-dynamic';
 
@@ -16,17 +16,17 @@ export default function ContactosPage() {
         </div>
         <div>
           <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-contactos)' }}>
-            Agente 03 — Prospector
+            Agente 03 — Prospector v2
           </p>
           <h1 className="text-xl font-semibold leading-tight text-foreground">Contactos</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
-            Tres modos: por empresa, búsqueda masiva con Apollo o conversación.
+            Búsqueda nativa con Apollo en vivo. Selecciona línea, sub-línea, modo (Auto/Manual) y dispara la prospección.
           </p>
         </div>
       </div>
 
       <Suspense fallback={<div className="h-64 animate-pulse rounded bg-muted" />}>
-        <ContactosTabs />
+        <ProspectorWizard />
       </Suspense>
     </div>
   );
