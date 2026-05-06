@@ -36,7 +36,14 @@ export interface CostEstimate {
 }
 
 export interface ScanResult {
+  /** Resultado FINAL — post-validador determinístico. Es lo que se muestra al usuario. */
   result: Agente1Result;
+  /**
+   * Resultado RAW del LLM antes de validateAgente1Result.
+   * Persistido en radar_v2_results.raw_llm_json para auditar diferencias entre
+   * la decisión del modelo y el filtro determinístico. Optional para compat.
+   */
+  result_raw?: Agente1Result;
   tokens_input: number;
   tokens_output: number;
   cached_tokens?: number;

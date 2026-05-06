@@ -74,11 +74,13 @@ export async function GET(req: NextRequest) {
     );
   }
 
-  const today = new Date().toLocaleDateString('es-CO', {
+  const todayDate = new Date();
+  const today = todayDate.toLocaleDateString('es-CO', {
     day: '2-digit', month: '2-digit', year: 'numeric',
   });
 
-  const hardcodedPrompt = buildMaoaSystemPrompt(today);
+  // Pass `undefined` for line (visor preview is line-agnostic) and the Date for recency.
+  const hardcodedPrompt = buildMaoaSystemPrompt(undefined, todayDate);
 
   let systemPrompt = hardcodedPrompt;
   let isDbOverride = false;
