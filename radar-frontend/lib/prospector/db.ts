@@ -79,21 +79,29 @@ export async function getEmpresasPorTier(p: AutoSelectParams): Promise<EmpresaFo
   // Schema real: empresas.company_name / company_domain (no e.nombre / e.dominio).
   // Tiers válidos en matec_radar.tier_enum: A, B, C, D, sin_calificar.
   // No hay columna 'activo' en la tabla empresas.
+  //
+  // Nota: SELECT DISTINCT + ORDER BY random() no es válido en Postgres
+  // (la columna del ORDER BY debe estar en el SELECT). Por eso usamos
+  // DISTINCT ON (e.id) en una subquery + ORDER BY random() afuera.
   const query = `
-    SELECT DISTINCT
-      e.id,
-      e.company_name        AS nombre,
-      e.company_domain      AS dominio,
-      e.pais::TEXT          AS pais,
-      e.tier_actual::TEXT   AS tier,
-      esl.sub_linea_id,
-      sln.codigo            AS sub_linea_codigo
-    FROM ${tbl('empresas')} e
-    JOIN ${tbl('empresa_sub_lineas')} esl ON esl.empresa_id = e.id
-    JOIN ${tbl('sub_lineas_negocio')} sln ON sln.id        = esl.sub_linea_id
-    WHERE esl.sub_linea_id IN (${sublineaList})
-      AND e.tier_actual::TEXT IN (${tiersLiteral})
-      ${exclude}
+    SELECT *
+    FROM (
+      SELECT DISTINCT ON (e.id)
+        e.id,
+        e.company_name        AS nombre,
+        e.company_domain      AS dominio,
+        e.pais::TEXT          AS pais,
+        e.tier_actual::TEXT   AS tier,
+        esl.sub_linea_id,
+        sln.codigo            AS sub_linea_codigo
+      FROM ${tbl('empresas')} e
+      JOIN ${tbl('empresa_sub_lineas')} esl ON esl.empresa_id = e.id
+      JOIN ${tbl('sub_lineas_negocio')} sln ON sln.id        = esl.sub_linea_id
+      WHERE esl.sub_linea_id IN (${sublineaList})
+        AND e.tier_actual::TEXT IN (${tiersLiteral})
+        ${exclude}
+      ORDER BY e.id
+    ) AS sub
     ORDER BY random()
     LIMIT ${Math.max(1, Math.min(p.count, 50))}
   `;
