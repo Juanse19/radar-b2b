@@ -34,6 +34,42 @@ function normalize(s: string): string {
 }
 
 /**
+ * Stopwords corporativos para tokenización del nombre de empresa.
+ * Estos términos NO cuentan como evidencia de mención específica de la empresa.
+ */
+const CORPORATE_STOPWORDS = new Set([
+  'de', 'del', 'la', 'el', 'los', 'las', 'y', 'o', 'a', 'en',
+  's.a.s', 's.a', 'sa', 'sas', 'inc', 'ltd', 'ltda', 'corp', 'company',
+  'group', 'grupo', 'holdings', 'holding', 'corporation', 'co',
+  'colombia', 'mexico', 'chile', 'peru', 'argentina', 'brasil', 'brazil',
+  'centroamerica', 'centroamérica', 'latam', 'cia', 'compania', 'compañia',
+]);
+
+/**
+ * Tokeniza el nombre de empresa para matching flexible:
+ *  1. Quita contenido entre paréntesis ("(Colombia)" → "")
+ *  2. Quita puntuación, conserva solo letras/números
+ *  3. Filtra stopwords corporativas
+ *  4. Devuelve tokens normalizados con length >= 3
+ *
+ * Ejemplos:
+ *   "Grupo UMA (Colombia)"  → ["uma"]
+ *   "DHL Supply Chain"      → ["dhl", "supply", "chain"]
+ *   "Aerocali S.A."         → ["aerocali"]
+ *   "3H"                    → ["3h"]  (length=2 → caso especial: si solo hay 1 token corto, lo conservamos)
+ */
+function empresaTokens(empresa: string): string[] {
+  const stripped = empresa.replace(/\([^)]*\)/g, ' ').replace(/[.,&/]/g, ' ');
+  const tokens = normalize(stripped)
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !CORPORATE_STOPWORDS.has(t));
+  if (tokens.length > 0) return tokens;
+  // Edge case: nombres ultra-cortos como "3H", "K&M". Caemos al mejor token disponible.
+  const fallback = normalize(stripped).split(/\s+/).filter((t) => t.length >= 2 && !CORPORATE_STOPWORDS.has(t));
+  return fallback;
+}
+
+/**
  * Parses a DD/MM/AAAA date string. Returns null for "No disponible" or invalid.
  */
 function parseFechaSenal(raw: string): Date | null {
@@ -88,13 +124,14 @@ export function validateAgente1Result(
     return downgrade(result, 'Fuente con URL anterior a ventana de recencia y sin fase futura documentada.');
   }
 
-  // R4: empresa_evaluada must appear in descripcion_resumen (Sección 6)
-  const empresaNorm = normalize(result.empresa_evaluada ?? '');
+  // R4: empresa_evaluada debe aparecer en descripcion_resumen (Sección 6 MAOA).
+  // Match por TOKENS significativos, no string literal — así "Grupo UMA (Colombia)"
+  // matchea con "Grupo UMA Colombia ha anunciado..." vía el token "uma".
+  const tokens = empresaTokens(result.empresa_evaluada ?? '');
   const descNorm = normalize(desc);
-  if (empresaNorm && !descNorm.includes(empresaNorm)) {
-    // Allow partial match: the first word of the company name (e.g. "Grupo UMA" → "uma")
-    const lastWord = empresaNorm.split(/\s+/).pop() ?? '';
-    if (lastWord.length < 4 || !descNorm.includes(lastWord)) {
+  if (tokens.length > 0) {
+    const someTokenPresent = tokens.some((t) => descNorm.includes(t));
+    if (!someTokenPresent) {
       return downgrade(result, `Empresa "${result.empresa_evaluada}" no mencionada explícitamente en la fuente.`);
     }
   }

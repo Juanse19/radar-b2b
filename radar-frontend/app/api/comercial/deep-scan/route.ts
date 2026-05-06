@@ -196,6 +196,7 @@ export async function POST(req: NextRequest) {
           observaciones:       scan.result.observaciones       ?? null,
           motivo_descarte:     scan.result.motivo_descarte     ?? null,
           raw_json:            scan.result,
+          raw_llm_json:        scan.result_raw,
           tokens_input:        scan.tokens_input  ?? undefined,
           tokens_output:       scan.tokens_output ?? undefined,
           cost_usd:            scan.cost_usd      ?? undefined,

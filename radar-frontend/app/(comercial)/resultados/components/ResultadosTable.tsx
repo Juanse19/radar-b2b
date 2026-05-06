@@ -364,10 +364,21 @@ export function ResultadosTable({ results, loading, onLoadMore, hasMore, onVerIn
                       ) : (
                         <span className="text-xs text-muted-foreground/50">—</span>
                       )}
-                      {isActiva && r.motivo_descarte && (
-                        <p className="mt-1 text-[11px] text-amber-700 dark:text-amber-400 italic line-clamp-1" title={r.motivo_descarte}>
-                          ⚠ {r.motivo_descarte}
-                        </p>
+                      {/* motivo_descarte siempre disponible — visible bajo descripción si es ambiguo, o como tooltip-on-hover si está completo */}
+                      {r.motivo_descarte && (
+                        <Tooltip>
+                          <TooltipTrigger className="w-full text-left">
+                            <p className={cn(
+                              'mt-1 text-[11px] italic line-clamp-2 cursor-default',
+                              isActiva ? 'text-amber-700 dark:text-amber-400' : 'text-muted-foreground/80',
+                            )}>
+                              ⚠ {r.motivo_descarte}
+                            </p>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="max-w-md">
+                            <p className="text-xs leading-relaxed whitespace-pre-wrap">{r.motivo_descarte}</p>
+                          </TooltipContent>
+                        </Tooltip>
                       )}
                     </td>
 

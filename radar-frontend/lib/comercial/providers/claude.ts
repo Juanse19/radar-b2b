@@ -230,7 +230,8 @@ salvo que mencionen explícitamente una fase futura aún no iniciada.`;
   const rawText    = textBlocks[textBlocks.length - 1]?.text ?? '';
   if (!rawText) throw new Error('No text block in Claude response');
 
-  const result = validateAgente1Result(parseAgente1Response(rawText), today);
+  const resultRaw = parseAgente1Response(rawText);
+  const result = validateAgente1Result(resultRaw, today);
   const cost   = (totalInput * PRICE_INPUT_PER_M / 1_000_000)
                + (totalOutput * PRICE_OUTPUT_PER_M / 1_000_000);
 
@@ -277,6 +278,7 @@ salvo que mencionen explícitamente una fase futura aún no iniciada.`;
 
   return {
     result,
+    result_raw:    resultRaw,
     tokens_input:  totalInput,
     tokens_output: totalOutput,
     cached_tokens: totalCached,

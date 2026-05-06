@@ -113,4 +113,64 @@ describe('validateAgente1Result', () => {
     validateAgente1Result(input, TODAY);
     expect(JSON.stringify(input)).toBe(snapshot);
   });
+
+  // ── Regla R4 con tokens — fix de "Grupo UMA (Colombia)" ────────────────────
+  describe('R4 token-based empresa matching', () => {
+    it('mantiene Sí cuando empresa con paréntesis matchea por token raíz', () => {
+      // Caso real: empresa_evaluada="Grupo UMA (Colombia)" + descripción "Grupo UMA Colombia anunció..."
+      const input = baseSi({
+        empresa_evaluada:    'Grupo UMA (Colombia)',
+        descripcion_resumen: 'Grupo UMA Colombia ha anunciado una inversión en un nuevo centro logístico autónomo de repuestos en La Tebaida, Quindío. CAPEX 2026.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('Sí');
+    });
+
+    it('mantiene Sí cuando empresa multi-palabra matchea por al menos un token', () => {
+      const input = baseSi({
+        empresa_evaluada:    'DHL Supply Chain Colombia',
+        descripcion_resumen: 'DHL Supply Chain anunció inversión de USD 500M en LATAM con planes de CAPEX para 2026 en Colombia.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('Sí');
+    });
+
+    it('flips a No cuando NINGÚN token significativo de la empresa aparece', () => {
+      const input = baseSi({
+        empresa_evaluada:    'Aerocali S.A.',
+        descripcion_resumen: 'El sector aeroportuario colombiano invertirá USD 100M en infraestructura general para 2026 con planes de CAPEX.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('No');
+      expect(out.motivo_descarte).toMatch(/no mencionada/i);
+    });
+
+    it('ignora stopwords como "Grupo" — solo cuenta tokens reales', () => {
+      // "Grupo UMA" → token significativo es "uma"; si descripción solo dice "Grupo" no matchea
+      const input = baseSi({
+        empresa_evaluada:    'Grupo UMA',
+        descripcion_resumen: 'El grupo empresarial colombiano anunció inversiones futuras en CAPEX 2026 sin nombrar marcas.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('No');
+    });
+
+    it('ignora país como stopword: "(Colombia)" no cuenta como mención', () => {
+      const input = baseSi({
+        empresa_evaluada:    'Grupo UMA (Colombia)',
+        descripcion_resumen: 'En Colombia, el sector industrial planea invertir USD 100M en CAPEX 2026.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('No');
+    });
+
+    it('soporta empresas con nombres ultra-cortos (3H, K&M)', () => {
+      const input = baseSi({
+        empresa_evaluada:    '3H',
+        descripcion_resumen: '3H anunció una inversión en una nueva planta de cartón corrugado en México con CAPEX 2026.',
+      });
+      const out = validateAgente1Result(input, TODAY);
+      expect(out.radar_activo).toBe('Sí');
+    });
+  });
 });

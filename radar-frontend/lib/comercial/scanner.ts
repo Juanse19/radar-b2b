@@ -15,6 +15,8 @@ import { pgFirst, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 
 export interface ScanResult {
   result:        Agente1Result;
+  /** RAW del LLM antes del validador determinístico (auditoría). Optional para compat. */
+  result_raw?:   Agente1Result;
   tokens_input:  number;
   tokens_output: number;
   cost_usd:      number;

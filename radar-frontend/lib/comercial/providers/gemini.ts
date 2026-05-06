@@ -195,7 +195,8 @@ NO uses notas de 2024 o anteriores salvo que mencionen una fase futura aún no i
     cost_usd_total: cost,
   });
 
-  const result = validateAgente1Result(parseAgente1Response(rawText), today);
+  const resultRaw = parseAgente1Response(rawText);
+  const result = validateAgente1Result(resultRaw, today);
 
   if (result.radar_activo === 'Sí') {
     emit?.emit('signal_detected', {
@@ -228,6 +229,7 @@ NO uses notas de 2024 o anteriores salvo que mencionen una fase futura aún no i
 
   return {
     result,
+    result_raw:    resultRaw,
     tokens_input:  tokensIn,
     tokens_output: tokensOut,
     cached_tokens: 0,

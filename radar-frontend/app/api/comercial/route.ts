@@ -84,7 +84,7 @@ export async function POST(req: NextRequest) {
     }
 
     try {
-      const { result: agente1, tokens_input, tokens_output, cost_usd } =
+      const { result: agente1, result_raw, tokens_input, tokens_output, cost_usd } =
         await scanCompany(company, line, {
           providerName: providerName,
           apiKey:       providerApiKey,
@@ -116,6 +116,7 @@ export async function POST(req: NextRequest) {
           observaciones:       agente1.observaciones,
           motivo_descarte:     agente1.motivo_descarte,
           raw_json:            agente1,
+          raw_llm_json:        result_raw,
           tokens_input,
           tokens_output,
           cost_usd,

@@ -81,12 +81,17 @@ export async function insertRadarV2Result(data: {
   observaciones?:      string | null;
   motivo_descarte?:    string | null;
   raw_json:            unknown;
+  /** JSON original del LLM antes del validador determinístico (auditoría). */
+  raw_llm_json?:       unknown;
   tokens_input?:       number;
   tokens_output?:      number;
   cost_usd?:           number;
 }): Promise<ComercialResult> {
   const criterios = JSON.stringify(data.criterios_cumplidos ?? []);
   const rawJson   = JSON.stringify(data.raw_json);
+  const rawLlmJson = data.raw_llm_json !== undefined
+    ? JSON.stringify(data.raw_llm_json)
+    : null;
 
   const [row] = await pgQuery<ComercialResult>(`
     INSERT INTO ${S}.radar_v2_results (
@@ -95,7 +100,7 @@ export async function insertRadarV2Result(data: {
       descripcion_resumen, criterios_cumplidos, total_criterios,
       ventana_compra, monto_inversion, fuente_link, fuente_nombre,
       fecha_senal, evaluacion_temporal, observaciones, motivo_descarte,
-      raw_json, tokens_input, tokens_output, cost_usd
+      raw_json, raw_llm_json, tokens_input, tokens_output, cost_usd
     ) VALUES (
       ${pgLit(data.session_id ?? null)}, ${pgLit(data.empresa_id ?? null)},
       ${pgLit(data.empresa_evaluada)}, ${pgLit(data.radar_activo)},
@@ -108,6 +113,7 @@ export async function insertRadarV2Result(data: {
       ${pgLit(data.fecha_senal ?? null)}, ${pgLit(data.evaluacion_temporal ?? null)},
       ${pgLit(data.observaciones ?? null)}, ${pgLit(data.motivo_descarte ?? null)},
       ${pgLit(rawJson)}::jsonb,
+      ${rawLlmJson === null ? 'NULL' : `${pgLit(rawLlmJson)}::jsonb`},
       ${pgLit(data.tokens_input ?? null)}, ${pgLit(data.tokens_output ?? null)},
       ${pgLit(data.cost_usd ?? null)}
     ) RETURNING *`
