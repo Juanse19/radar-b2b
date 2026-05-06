@@ -42,26 +42,27 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
 
   const sublineaIdsKey = state.sublineaIds.join(',');
 
+  // Debounce server-side search por nombre/dominio/país.
+  // Si state.sublineaIds está vacío, mostramos catálogo completo (no [-1]).
   useEffect(() => {
     let alive = true;
-    (async () => {
+    const handle = setTimeout(async () => {
       setLoading(true);
       setError(null);
       try {
-        // Reuse auto-select endpoint con todos los tiers + count alto
-        // para mostrar el catálogo completo de empresas elegibles.
-        const res = await fetch('/api/prospector/v2/auto-select', {
+        const res = await fetch('/api/prospector/v2/empresas-search', {
           method:  'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            sublineaIds: state.sublineaIds.length > 0
-              ? state.sublineaIds
-              : [-1], // never matches
-            tiers: ['A', 'B', 'C', 'D', 'sin_calificar'],
-            count: 50,
+            sublineaIds: state.sublineaIds.length > 0 ? state.sublineaIds : undefined,
+            search:      search.trim() || undefined,
+            limit:       200,
           }),
         });
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(`HTTP ${res.status}: ${text.slice(0, 120)}`);
+        }
         const json = await res.json();
         if (!alive) return;
         setCandidates(json.data ?? []);
@@ -71,9 +72,9 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
       } finally {
         if (alive) setLoading(false);
       }
-    })();
-    return () => { alive = false; };
-  }, [sublineaIdsKey]);
+    }, search ? 350 : 0); // debounce solo cuando hay search (typing); inmediato en cambio de sublineaIds
+    return () => { alive = false; clearTimeout(handle); };
+  }, [sublineaIdsKey, search]);
 
   const selectedIds = useMemo(
     () => new Set(state.empresas.map(e => e.id).filter((x): x is number => x != null)),
@@ -112,15 +113,8 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
     onChange({ empresas: targets });
   }
 
-  const filtered = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return candidates;
-    return candidates.filter(c =>
-      c.nombre.toLowerCase().includes(q) ||
-      (c.dominio ?? '').toLowerCase().includes(q) ||
-      (c.pais ?? '').toLowerCase().includes(q),
-    );
-  }, [candidates, search]);
+  // Búsqueda server-side: candidates ya viene filtrado por el endpoint.
+  const filtered = candidates;
 
   return (
     <div className="space-y-6">

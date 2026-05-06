@@ -1,8 +1,8 @@
 /**
- * /comercial/contactos/historial — Lista todas las sesiones del wizard
+ * /contactos/historial — Lista todas las sesiones del wizard
  * Apollo Prospector v2 (server component, query directa a Supabase).
  *
- * Cada fila enlaza a /comercial/contactos/historial/[sessionId] para
+ * Cada fila enlaza a /contactos/historial/[sessionId] para
  * ver detalle de los contactos prospectados en esa sesión.
  */
 import Link from 'next/link';
@@ -92,7 +92,7 @@ export default async function HistorialPage() {
             </p>
           </div>
         </div>
-        <Link href="/comercial/contactos">
+        <Link href="/contactos">
           <Button variant="outline" size="sm">
             <Sparkles size={13} className="mr-1.5" />
             Nueva búsqueda
@@ -109,7 +109,7 @@ export default async function HistorialPage() {
               Inicia una sesión de prospección desde el wizard de Contactos
               para que aparezca aquí.
             </p>
-            <Link href="/comercial/contactos">
+            <Link href="/contactos">
               <Button>Empezar prospección</Button>
             </Link>
           </CardContent>
@@ -154,7 +154,7 @@ function SessionRow({ session }: { session: SessionRow }) {
       </td>
       <td className="px-4 py-3 align-middle">
         <Link
-          href={`/comercial/contactos/historial/${session.id}`}
+          href={`/contactos/historial/${session.id}`}
           className="text-xs font-mono hover:underline"
           style={{ color: 'var(--agent-contactos)' }}
         >

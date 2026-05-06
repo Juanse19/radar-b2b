@@ -27,7 +27,7 @@ export default function ContactosPage() {
             </p>
           </div>
         </div>
-        <Link href="/comercial/contactos/historial">
+        <Link href="/contactos/historial">
           <Button variant="outline" size="sm">
             <History size={13} className="mr-1.5" />
             Ver historial

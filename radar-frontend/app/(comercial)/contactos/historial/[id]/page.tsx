@@ -1,5 +1,5 @@
 /**
- * /comercial/contactos/historial/[id] — Detalle de una sesión específica
+ * /contactos/historial/[id] — Detalle de una sesión específica
  * del Apollo Prospector v2.
  *
  * Muestra: metadata de la sesión + tabla con todos los contactos
@@ -155,7 +155,7 @@ export default async function SessionDetailPage({ params }: { params: Promise<{ 
             </p>
           </div>
         </div>
-        <Link href="/comercial/contactos/historial">
+        <Link href="/contactos/historial">
           <Button variant="outline" size="sm">
             <ArrowLeft size={13} className="mr-1.5" />
             Volver al historial

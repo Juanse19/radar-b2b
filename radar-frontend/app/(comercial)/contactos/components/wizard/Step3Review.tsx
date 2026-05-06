@@ -1,10 +1,10 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Card } from '@/components/ui/card';
-import { Sparkles, AlertTriangle, Phone } from 'lucide-react';
+import { Sparkles, AlertTriangle, Phone, Coins, Loader2 } from 'lucide-react';
 import type { ProspectorWizardState } from './state';
 
 interface Props {
@@ -12,6 +12,18 @@ interface Props {
   onChange: (updates: Partial<ProspectorWizardState>) => void;
   onFire:   () => void;
   firing:   boolean;
+}
+
+interface CreditsData {
+  apollo: {
+    search_per_day:  { limit: number; consumed: number; left_over: number } | null;
+    match_per_day:   { limit: number; consumed: number; left_over: number } | null;
+  };
+  internal: {
+    total_credits_used:   number;
+    total_sessions:       number;
+    total_contacts_saved: number;
+  };
 }
 
 const ACCENT = 'var(--agent-contactos)';
@@ -24,6 +36,27 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
     const perContacto = state.revealPhoneAuto ? 9 : 1;
     return empresasConDominio.length * state.maxContactos * perContacto;
   }, [empresasConDominio.length, state.maxContactos, state.revealPhoneAuto]);
+
+  // Cargar saldo Apollo + uso interno
+  const [credits, setCredits] = useState<CreditsData | null>(null);
+  const [creditsLoading, setCreditsLoading] = useState(true);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await fetch('/api/prospector/v2/credits');
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const json = await res.json();
+        if (alive) setCredits(json);
+      } catch {
+        // non-fatal — sigue mostrándose el estimador sin saldo Apollo
+      } finally {
+        if (alive) setCreditsLoading(false);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
 
   const hasEmpresas      = state.empresas.length > 0;
   const tieneJobTitles   = state.jobTitles.length > 0;
@@ -83,16 +116,85 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
         </div>
       )}
 
-      <div className="rounded-lg border border-border/60 bg-muted/10 p-4">
+      <div className="rounded-lg border border-border/60 bg-muted/10 p-4 space-y-3">
         <div className="flex items-baseline justify-between">
-          <span className="text-sm font-medium">Costo estimado Apollo</span>
+          <span className="text-sm font-medium flex items-center gap-1.5">
+            <Coins size={14} />
+            Costo estimado Apollo
+          </span>
           <span className="text-2xl font-semibold tabular-nums" style={{ color: ACCENT }}>
             {estimatedCredits} <span className="text-sm font-normal text-muted-foreground">créditos</span>
           </span>
         </div>
-        <p className="mt-1 text-xs text-muted-foreground">
+        <p className="text-xs text-muted-foreground">
           {empresasConDominio.length} empresa{empresasConDominio.length !== 1 ? 's' : ''} × {state.maxContactos} contactos × {state.revealPhoneAuto ? 9 : 1} créditos
         </p>
+
+        {/* Saldo Apollo + uso interno */}
+        <div className="border-t border-border/40 pt-3 grid grid-cols-2 gap-3">
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Apollo (rate limit hoy)</p>
+            {creditsLoading ? (
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Loader2 size={11} className="animate-spin" />
+                Consultando…
+              </p>
+            ) : credits?.apollo.match_per_day ? (
+              <>
+                <p className="mt-1 text-base font-semibold tabular-nums">
+                  {credits.apollo.match_per_day.left_over.toLocaleString()}
+                  <span className="text-xs font-normal text-muted-foreground"> / {credits.apollo.match_per_day.limit.toLocaleString()}</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  enrich (bulk_match) restantes hoy
+                </p>
+                {credits.apollo.match_per_day.left_over < estimatedCredits && (
+                  <p className="text-[11px] text-amber-700 mt-1 flex items-center gap-1">
+                    <AlertTriangle size={11} />
+                    Insuficientes para esta búsqueda
+                  </p>
+                )}
+              </>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground italic">No disponible</p>
+            )}
+          </div>
+
+          <div>
+            <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Consumo histórico Matec</p>
+            {creditsLoading ? (
+              <p className="mt-1 inline-flex items-center gap-1 text-xs text-muted-foreground">
+                <Loader2 size={11} className="animate-spin" />
+                Cargando…
+              </p>
+            ) : credits ? (
+              <>
+                <p className="mt-1 text-base font-semibold tabular-nums">
+                  {credits.internal.total_credits_used.toLocaleString()}
+                  <span className="text-xs font-normal text-muted-foreground"> créditos</span>
+                </p>
+                <p className="text-[11px] text-muted-foreground">
+                  en {credits.internal.total_sessions} sesion{credits.internal.total_sessions !== 1 ? 'es' : ''} ·{' '}
+                  {credits.internal.total_contacts_saved} contactos guardados
+                </p>
+              </>
+            ) : (
+              <p className="mt-1 text-xs text-muted-foreground italic">—</p>
+            )}
+          </div>
+        </div>
+
+        {/* Proyección post-ejecución */}
+        {credits?.apollo.match_per_day && (
+          <div className="rounded-md border border-border/40 bg-background px-3 py-2 text-xs">
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Después de esta búsqueda quedarían:</span>
+              <span className="font-semibold tabular-nums" style={{ color: ACCENT }}>
+                {Math.max(0, credits.apollo.match_per_day.left_over - estimatedCredits).toLocaleString()} / {credits.apollo.match_per_day.limit.toLocaleString()}
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div>
