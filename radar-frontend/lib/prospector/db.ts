@@ -76,11 +76,14 @@ export async function getEmpresasPorTier(p: AutoSelectParams): Promise<EmpresaFo
        )`
     : '';
 
+  // Schema real: empresas.company_name / company_domain (no e.nombre / e.dominio).
+  // Tiers válidos en matec_radar.tier_enum: A, B, C, D, sin_calificar.
+  // No hay columna 'activo' en la tabla empresas.
   const query = `
     SELECT DISTINCT
       e.id,
-      e.nombre,
-      e.dominio,
+      e.company_name        AS nombre,
+      e.company_domain      AS dominio,
       e.pais::TEXT          AS pais,
       e.tier_actual::TEXT   AS tier,
       esl.sub_linea_id,
@@ -90,7 +93,6 @@ export async function getEmpresasPorTier(p: AutoSelectParams): Promise<EmpresaFo
     JOIN ${tbl('sub_lineas_negocio')} sln ON sln.id        = esl.sub_linea_id
     WHERE esl.sub_linea_id IN (${sublineaList})
       AND e.tier_actual::TEXT IN (${tiersLiteral})
-      AND e.activo = TRUE
       ${exclude}
     ORDER BY random()
     LIMIT ${Math.max(1, Math.min(p.count, 50))}
@@ -108,10 +110,11 @@ export async function findEmpresaIdByNameCountry(
 ): Promise<number | null> {
   const safeNombre = nombre.replace(/'/g, "''");
   const safePais   = pais ? pais.replace(/'/g, "''") : null;
+  // Schema real: empresas.company_name / pais (enum)
   const query = `
     SELECT e.id
     FROM ${tbl('empresas')} e
-    WHERE LOWER(e.nombre) = LOWER('${safeNombre}')
+    WHERE LOWER(e.company_name) = LOWER('${safeNombre}')
     ${safePais ? `AND e.pais::TEXT = '${safePais}'` : ''}
     LIMIT 1
   `;

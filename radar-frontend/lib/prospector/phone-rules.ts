@@ -15,7 +15,7 @@
 import type { Nivel } from './levels';
 
 /** Tiers reconocidos por Matec — alineados con `tier_enum` en matec_radar. */
-export type Tier = 'A-ORO' | 'A' | 'B' | 'C' | 'sin_calificar';
+export type Tier = 'A' | 'B' | 'C' | 'D' | 'sin_calificar';
 
 export interface PhoneDecisionParams {
   nivel: Nivel;
@@ -29,7 +29,7 @@ export interface PhoneDecisionParams {
  */
 export function needsPhone({ nivel, tier }: PhoneDecisionParams): boolean {
   if (nivel === 'C-LEVEL')  return true;
-  if (nivel === 'DIRECTOR') return tier === 'A-ORO' || tier === 'A';
+  if (nivel === 'DIRECTOR') return tier === 'A';
   return false;
 }
 

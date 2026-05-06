@@ -27,10 +27,10 @@ interface CandidateRow {
 }
 
 const TIER_BADGE: Record<string, { bg: string; fg: string; label: string }> = {
-  'A-ORO':         { bg: '#FEF3C7', fg: '#7C2D12', label: 'A·ORO' },
-  'A':             { bg: '#FCE7F3', fg: '#831843', label: 'A' },
-  'B':             { bg: '#EDE9FE', fg: '#4C1D95', label: 'B' },
-  'C':             { bg: '#E5E7EB', fg: '#374151', label: 'C' },
+  'A':             { bg: '#FEF3C7', fg: '#7C2D12', label: 'A' },
+  'B':             { bg: '#FCE7F3', fg: '#831843', label: 'B' },
+  'C':             { bg: '#EDE9FE', fg: '#4C1D95', label: 'C' },
+  'D':             { bg: '#E5E7EB', fg: '#374151', label: 'D' },
   'sin_calificar': { bg: '#F3F4F6', fg: '#6B7280', label: '—' },
 };
 
@@ -57,7 +57,7 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
             sublineaIds: state.sublineaIds.length > 0
               ? state.sublineaIds
               : [-1], // never matches
-            tiers: ['A-ORO', 'A', 'B', 'C', 'sin_calificar'],
+            tiers: ['A', 'B', 'C', 'D', 'sin_calificar'],
             count: 50,
           }),
         });

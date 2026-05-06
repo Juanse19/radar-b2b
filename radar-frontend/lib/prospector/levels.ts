@@ -45,7 +45,15 @@ export function classifyLevel(title: string | null | undefined): Nivel {
   if (!title) return 'ANALISTA';
   const t = title.toLowerCase();
 
-  // C-LEVEL — máxima prioridad
+  // DIRECTOR (chequear ANTES que C-LEVEL para que "Vice President" no matchee
+  // el `\bpresident\b` de C-LEVEL).
+  if (
+    /\bvp\b/.test(t)                         ||
+    /\bvice president\b/.test(t)             ||
+    /\bvicepresidente\b/.test(t)
+  ) return 'DIRECTOR';
+
+  // C-LEVEL — máxima prioridad (después del check de Vice President)
   if (
     /\bceo\b/.test(t)                        ||
     /\bcoo\b/.test(t)                        ||
@@ -54,6 +62,7 @@ export function classifyLevel(title: string | null | undefined): Nivel {
     /\bcto\b/.test(t)                        ||
     /\bcmo\b/.test(t)                        ||
     /\bcso\b/.test(t)                        ||
+    /\bchief\s+\w+\s+officer\b/.test(t)      ||
     /\bgerente general\b/.test(t)            ||
     /\bdirector general\b/.test(t)           ||
     /\bmanaging director\b/.test(t)          ||
@@ -66,11 +75,8 @@ export function classifyLevel(title: string | null | undefined): Nivel {
     /\bdueño\b/.test(t)
   ) return 'C-LEVEL';
 
-  // DIRECTOR
+  // DIRECTOR (resto)
   if (
-    /\bvp\b/.test(t)                         ||
-    /\bvice president\b/.test(t)             ||
-    /\bvicepresidente\b/.test(t)             ||
     /\bdirector\b/.test(t)                   ||
     /\bdirectora\b/.test(t)
   ) return 'DIRECTOR';

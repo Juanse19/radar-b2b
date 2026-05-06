@@ -8,7 +8,11 @@
 
 export type ProspectorMode = 'auto' | 'manual';
 
-export type Tier = 'A-ORO' | 'A' | 'B' | 'C' | 'sin_calificar';
+/**
+ * Tiers reconocidos por matec_radar.tier_enum:
+ * A (alta prioridad), B, C, D, sin_calificar.
+ */
+export type Tier = 'A' | 'B' | 'C' | 'D' | 'sin_calificar';
 
 export interface EmpresaTarget {
   id?:       number;        // matec_radar.empresas.id (si conocida)
@@ -52,7 +56,7 @@ export const INITIAL_STATE: ProspectorWizardState = {
   sublineas:       [],
   sublineaIds:     [],
   modo:            '',
-  tiers:           ['A-ORO'],
+  tiers:           ['A'],
   count:           5,
   empresas:        [],
   jobTitles:       [],

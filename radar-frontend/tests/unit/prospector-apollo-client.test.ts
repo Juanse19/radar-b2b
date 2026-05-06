@@ -8,6 +8,10 @@
  *   - Timeout abort funciona
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Mock 'server-only' — Next.js guard que no aplica en entorno Node de Vitest.
+vi.mock('server-only', () => ({}));
+
 import {
   apolloPost,
   ApolloHttpError,

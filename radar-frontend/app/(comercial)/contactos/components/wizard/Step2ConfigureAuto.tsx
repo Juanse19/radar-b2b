@@ -17,11 +17,11 @@ interface Props {
 const ACCENT = 'var(--agent-contactos)';
 
 const TIER_OPTIONS: Array<{ value: Tier; label: string; description: string }> = [
-  { value: 'A-ORO',         label: 'A · ORO',     description: 'Máxima prioridad' },
-  { value: 'A',             label: 'Tier A',      description: 'Alta prioridad' },
-  { value: 'B',             label: 'Tier B',      description: 'Media prioridad' },
-  { value: 'C',             label: 'Tier C',      description: 'Baja prioridad' },
-  { value: 'sin_calificar', label: 'Sin calificar', description: 'Aún sin tier asignado' },
+  { value: 'A',             label: 'Tier A',        description: 'Alta prioridad — 91 empresas' },
+  { value: 'B',             label: 'Tier B',        description: 'Media — 294 empresas' },
+  { value: 'C',             label: 'Tier C',        description: 'Baja — 97 empresas' },
+  { value: 'D',             label: 'Tier D',        description: 'Mínima — 112 empresas' },
+  { value: 'sin_calificar', label: 'Sin calificar', description: 'Aún sin tier — 661 empresas' },
 ];
 
 interface AutoSelectEmpresaRow {
