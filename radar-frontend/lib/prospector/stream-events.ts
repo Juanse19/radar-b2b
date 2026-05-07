@@ -76,6 +76,7 @@ export interface ContactResult {
   cargo:        string;
   nivel:        Nivel;
   empresa:      string;
+  empresa_tier?: string | null;   // tier_actual de matec_radar.empresas (A/B/C/D/sin_calificar)
   pais:         string;
   sublinea?:    string | null;
   linkedin:     string;

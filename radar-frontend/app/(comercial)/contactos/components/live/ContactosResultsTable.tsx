@@ -32,6 +32,15 @@ const LINEA_DOT: Record<string, string> = {
 };
 
 // Badge HubSpot
+// Tier badges — matchea matec_radar.tier_enum (A | B | C | D | sin_calificar)
+const TIER_BADGE: Record<string, { bg: string; fg: string; border: string; label: string }> = {
+  'A':             { bg: '#FEF3C7', fg: '#7C2D12', border: '#FDE68A', label: 'A' },
+  'B':             { bg: '#FCE7F3', fg: '#831843', border: '#FBCFE8', label: 'B' },
+  'C':             { bg: '#EDE9FE', fg: '#4C1D95', border: '#DDD6FE', label: 'C' },
+  'D':             { bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB', label: 'D' },
+  'sin_calificar': { bg: '#F3F4F6', fg: '#6B7280', border: '#E5E7EB', label: '—' },
+};
+
 const HUBSPOT_STYLE: Record<string, { bg: string; fg: string; border: string; icon: typeof CheckCircle2; label: string }> = {
   sincronizado: { bg: '#D1FAE5', fg: '#047857', border: '#A7F3D0', icon: CheckCircle2, label: 'Sincronizado' },
   pendiente:    { bg: '#FEF3C7', fg: '#92400E', border: '#FDE68A', icon: Clock,         label: 'Pendiente' },
@@ -189,6 +198,7 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
             <tr className="border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
               <th className="px-4 py-2.5 text-left font-medium">Contacto</th>
               <th className="px-4 py-2.5 text-left font-medium">Empresa · Línea</th>
+              <th className="px-4 py-2.5 text-left font-medium">Tier</th>
               <th className="px-4 py-2.5 text-left font-medium">Email</th>
               <th className="px-4 py-2.5 text-left font-medium">Teléfono</th>
               <th className="px-4 py-2.5 text-left font-medium">HubSpot</th>
@@ -265,6 +275,23 @@ function ContactRow({ contact, onUnlocked }: RowProps) {
           <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
           <span className="truncate">{contact.sublinea ?? '—'}</span>
         </p>
+      </td>
+
+      {/* Tier */}
+      <td className="px-4 py-3 align-middle">
+        {(() => {
+          const tier = contact.empresa_tier ?? 'sin_calificar';
+          const t = TIER_BADGE[tier] ?? TIER_BADGE.sin_calificar;
+          return (
+            <span
+              className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+              style={{ background: t.bg, color: t.fg, borderColor: t.border }}
+              title={tier === 'sin_calificar' ? 'Sin calificar' : `Tier ${t.label}`}
+            >
+              {t.label}
+            </span>
+          );
+        })()}
       </td>
 
       {/* Email */}

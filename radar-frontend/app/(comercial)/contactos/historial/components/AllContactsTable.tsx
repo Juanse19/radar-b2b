@@ -32,6 +32,14 @@ interface ContactoRow {
 
 type FilterMode = 'all' | 'sincronizado' | 'pendiente' | 'error';
 
+const TIER_BADGE: Record<string, { bg: string; fg: string; border: string; label: string }> = {
+  'A':             { bg: '#FEF3C7', fg: '#7C2D12', border: '#FDE68A', label: 'A' },
+  'B':             { bg: '#FCE7F3', fg: '#831843', border: '#FBCFE8', label: 'B' },
+  'C':             { bg: '#EDE9FE', fg: '#4C1D95', border: '#DDD6FE', label: 'C' },
+  'D':             { bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB', label: 'D' },
+  'sin_calificar': { bg: '#F3F4F6', fg: '#6B7280', border: '#E5E7EB', label: '—' },
+};
+
 const HUBSPOT_STYLE: Record<string, { bg: string; fg: string; border: string; icon: typeof CheckCircle2; label: string }> = {
   sincronizado: { bg: '#D1FAE5', fg: '#047857', border: '#A7F3D0', icon: CheckCircle2, label: 'Sincronizado' },
   pendiente:    { bg: '#FEF3C7', fg: '#92400E', border: '#FDE68A', icon: Clock,         label: 'Pendiente' },
@@ -67,6 +75,7 @@ export function AllContactsTable({ initial }: Props) {
   const [contactos]               = useState<ContactoRow[]>(initial);
   const [filter,    setFilter]    = useState<FilterMode>('all');
   const [searchQ,   setSearchQ]   = useState('');
+  const [tierFilter, setTierFilter] = useState<Set<string>>(new Set()); // vacío = todos
 
   const counts = useMemo(() => {
     const c = { all: contactos.length, sincronizado: 0, pendiente: 0, error: 0 };
@@ -81,6 +90,9 @@ export function AllContactsTable({ initial }: Props) {
   const filtered = useMemo(() => {
     let xs = contactos;
     if (filter !== 'all') xs = xs.filter(c => (c.hubspot_status ?? 'pendiente') === filter);
+    if (tierFilter.size > 0) {
+      xs = xs.filter(c => tierFilter.has(c.empresa_tier ?? 'sin_calificar'));
+    }
     const q = searchQ.trim().toLowerCase();
     if (q) {
       xs = xs.filter(c =>
@@ -91,7 +103,26 @@ export function AllContactsTable({ initial }: Props) {
       );
     }
     return xs;
-  }, [contactos, filter, searchQ]);
+  }, [contactos, filter, tierFilter, searchQ]);
+
+  function toggleTier(t: string) {
+    setTierFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(t)) next.delete(t);
+      else next.add(t);
+      return next;
+    });
+  }
+
+  // Counts por tier (sobre el universo total de contactos, no el filtrado)
+  const tierCounts = useMemo(() => {
+    const c: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, sin_calificar: 0 };
+    for (const x of contactos) {
+      const t = x.empresa_tier ?? 'sin_calificar';
+      c[t] = (c[t] ?? 0) + 1;
+    }
+    return c;
+  }, [contactos]);
 
   const filters: Array<{ id: FilterMode; label: string; count: number }> = [
     { id: 'all',          label: 'Todos',         count: counts.all },
@@ -167,6 +198,46 @@ export function AllContactsTable({ initial }: Props) {
         </div>
       </div>
 
+      {/* Filtros por Tier — segunda fila */}
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/60 bg-muted/10 px-4 py-2">
+        <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-medium">
+          Filtrar por tier:
+        </span>
+        {(['A', 'B', 'C', 'D', 'sin_calificar'] as const).map(t => {
+          const active = tierFilter.has(t);
+          const badge = TIER_BADGE[t];
+          const count = tierCounts[t] ?? 0;
+          return (
+            <button
+              key={t}
+              type="button"
+              onClick={() => toggleTier(t)}
+              className={cn(
+                'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs transition-all',
+                active ? 'font-semibold shadow-sm' : 'opacity-70 hover:opacity-100',
+              )}
+              style={{
+                background:  active ? badge.bg : 'transparent',
+                color:       active ? badge.fg : undefined,
+                borderColor: active ? badge.border : 'var(--border)',
+              }}
+            >
+              <span className="font-bold">{t === 'sin_calificar' ? 'Sin calificar' : `Tier ${badge.label}`}</span>
+              <span className="text-[10px] opacity-70">{count}</span>
+            </button>
+          );
+        })}
+        {tierFilter.size > 0 && (
+          <button
+            type="button"
+            onClick={() => setTierFilter(new Set())}
+            className="ml-1 text-xs text-muted-foreground hover:text-foreground underline"
+          >
+            Limpiar
+          </button>
+        )}
+      </div>
+
       {/* Tabla */}
       {filtered.length === 0 ? (
         <div className="p-8 text-center text-sm text-muted-foreground">
@@ -179,6 +250,7 @@ export function AllContactsTable({ initial }: Props) {
               <tr className="border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2.5 text-left font-medium">Contacto</th>
                 <th className="px-4 py-2.5 text-left font-medium">Empresa</th>
+                <th className="px-4 py-2.5 text-left font-medium">Tier</th>
                 <th className="px-4 py-2.5 text-left font-medium">Email</th>
                 <th className="px-4 py-2.5 text-left font-medium">Teléfono</th>
                 <th className="px-4 py-2.5 text-left font-medium">HubSpot</th>
@@ -227,10 +299,26 @@ function Row({ ct }: { ct: ContactoRow }) {
       </td>
       <td className="px-4 py-3 align-middle">
         <p className="truncate text-sm font-medium">{ct.empresa_nombre ?? '—'}</p>
-        <p className="text-xs text-muted-foreground">
-          {ct.pais ?? '—'}{ct.empresa_tier && <> · tier {ct.empresa_tier}</>}
-        </p>
+        <p className="text-xs text-muted-foreground">{ct.pais ?? '—'}</p>
       </td>
+
+      {/* Tier */}
+      <td className="px-4 py-3 align-middle">
+        {(() => {
+          const tier = ct.empresa_tier ?? 'sin_calificar';
+          const t = TIER_BADGE[tier] ?? TIER_BADGE.sin_calificar;
+          return (
+            <span
+              className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
+              style={{ background: t.bg, color: t.fg, borderColor: t.border }}
+              title={tier === 'sin_calificar' ? 'Sin calificar' : `Tier ${t.label}`}
+            >
+              {t.label}
+            </span>
+          );
+        })()}
+      </td>
+
       <td className="px-4 py-3 align-middle">
         {ct.email ? (
           <a href={`mailto:${ct.email}`} className="text-sm hover:underline" style={{ color: ACCENT }}>

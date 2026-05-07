@@ -337,40 +337,57 @@ async function processCompany(args: ProcessCompanyArgs): Promise<CompanyStats> {
     return stats;
   }
 
-  if (!target.dominio) {
-    emitter.emit('company_error', {
-      empresa: target.empresa,
-      pais:    target.pais,
-      error:   'Dominio no configurado para esta empresa — agrega el dominio antes de buscar',
-    });
-    return stats;
-  }
-
   emitter.emit('searching', {
     empresa: target.empresa,
     pais:    target.pais,
     titles_count: titles.length,
   });
 
-  // 2. Apollo Search (gratis)
+  // 2. Apollo Search — usa dominio si está disponible; si no, fallback a
+  // búsqueda por nombre de empresa (q_organization_name vía organization_ids
+  // resuelto previamente, o usando q_keywords). Apollo recomienda primero
+  // resolver el organization_id vía organizations/enrich y luego pasar
+  // organization_ids; pero como fallback simple usamos el nombre directamente
+  // en person_titles + q_organization_name.
   let candidates;
   try {
-    candidates = await apolloSearch({
-      domain:  target.dominio,
-      titles,
-      country: target.pais,
-      perPage: Math.min(25, max_contactos * 5),
-      postOpts: {
-        onRateLimit: (attempt, waitMs) => {
-          emitter.emit('rate_limit', {
-            empresa: target.empresa,
-            pais:    target.pais,
-            attempt,
-            retry_in_ms: waitMs,
-          });
-        },
-      },
-    });
+    const searchPayload: Parameters<typeof apolloSearch>[0] = target.dominio
+      ? {
+          domain:  target.dominio,
+          titles,
+          country: target.pais,
+          perPage: Math.min(25, max_contactos * 5),
+          postOpts: {
+            onRateLimit: (attempt, waitMs) => {
+              emitter.emit('rate_limit', {
+                empresa: target.empresa,
+                pais:    target.pais,
+                attempt,
+                retry_in_ms: waitMs,
+              });
+            },
+          },
+        }
+      : {
+          // Fallback sin dominio: pasamos el NOMBRE de la empresa al apolloSearch
+          // que internamente lo enviará como q_keywords + person_titles
+          domain:  '',
+          companyName: target.empresa,
+          titles,
+          country: target.pais,
+          perPage: Math.min(25, max_contactos * 5),
+          postOpts: {
+            onRateLimit: (attempt, waitMs) => {
+              emitter.emit('rate_limit', {
+                empresa: target.empresa,
+                pais:    target.pais,
+                attempt,
+                retry_in_ms: waitMs,
+              });
+            },
+          },
+        };
+    candidates = await apolloSearch(searchPayload);
   } catch (err) {
     emitter.emit('company_error', {
       empresa: target.empresa,
@@ -488,6 +505,7 @@ async function processCompany(args: ProcessCompanyArgs): Promise<CompanyStats> {
       title:        ct.title ?? data.title ?? '',
       nivel:        ct._nivel,
       empresa:      target.empresa,
+      empresa_tier: target.tier ?? null,
       pais:         target.pais,
       sublinea:     target.sublinea ?? null,
       linkedin:     ct.linkedin_url ?? data.linkedin_url ?? null,

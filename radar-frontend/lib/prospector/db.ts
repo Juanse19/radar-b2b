@@ -376,6 +376,7 @@ export function buildContactResult(args: {
   title:        string;
   nivel:        Nivel;
   empresa:      string;
+  empresa_tier?: string | null;
   pais:         string;
   sublinea?:    string | null;
   linkedin?:    string | null;
@@ -393,6 +394,7 @@ export function buildContactResult(args: {
     cargo:        args.title ?? '',
     nivel:        args.nivel,
     empresa:      args.empresa,
+    empresa_tier: args.empresa_tier ?? null,
     pais:         args.pais,
     sublinea:     args.sublinea ?? null,
     linkedin:     args.linkedin ?? '',

@@ -29,13 +29,16 @@ interface CreditsData {
 const ACCENT = 'var(--agent-contactos)';
 
 export function Step3Review({ state, onChange, onFire, firing }: Props) {
+  // Ya NO excluimos empresas sin dominio — Apollo Search admite fallback
+  // por nombre de empresa (q_keywords). Solo lo informamos al usuario.
   const empresasConDominio = state.empresas.filter(e => !!e.dominio);
   const empresasSinDominio = state.empresas.filter(e => !e.dominio);
 
   const estimatedCredits = useMemo(() => {
     const perContacto = state.revealPhoneAuto ? 9 : 1;
-    return empresasConDominio.length * state.maxContactos * perContacto;
-  }, [empresasConDominio.length, state.maxContactos, state.revealPhoneAuto]);
+    // Estimamos sobre TODAS las empresas (con o sin dominio) — todas se buscarán
+    return state.empresas.length * state.maxContactos * perContacto;
+  }, [state.empresas.length, state.maxContactos, state.revealPhoneAuto]);
 
   // Cargar saldo Apollo + uso interno
   const [credits, setCredits] = useState<CreditsData | null>(null);
@@ -58,10 +61,10 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
     return () => { alive = false; };
   }, []);
 
-  const hasEmpresas      = state.empresas.length > 0;
-  const tieneJobTitles   = state.jobTitles.length > 0;
-  const tieneEjecutables = empresasConDominio.length > 0;
-  const canFire = hasEmpresas && tieneJobTitles && tieneEjecutables && !firing;
+  const hasEmpresas    = state.empresas.length > 0;
+  const tieneJobTitles = state.jobTitles.length > 0;
+  // Ya no requerimos dominio — el pipeline busca por nombre como fallback.
+  const canFire = hasEmpresas && tieneJobTitles && !firing;
 
   return (
     <div className="space-y-6">
@@ -104,14 +107,15 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
       </Card>
 
       {empresasSinDominio.length > 0 && (
-        <div className="rounded-lg border border-amber-500/40 bg-amber-50 p-3 text-sm">
-          <p className="flex items-center gap-2 font-medium text-amber-900">
+        <div className="rounded-lg border border-blue-500/40 bg-blue-50 p-3 text-sm">
+          <p className="flex items-center gap-2 font-medium text-blue-900">
             <AlertTriangle size={14} />
-            {empresasSinDominio.length} empresa{empresasSinDominio.length !== 1 ? 's' : ''} sin dominio
+            {empresasSinDominio.length} empresa{empresasSinDominio.length !== 1 ? 's' : ''} sin dominio configurado
           </p>
-          <p className="mt-1 text-xs text-amber-800">
-            No serán buscadas. Configura el dominio en el módulo Empresas para incluirlas.
-            Empresas excluidas: <span className="font-mono">{empresasSinDominio.slice(0, 3).map(e => e.empresa).join(', ')}{empresasSinDominio.length > 3 ? `… (+${empresasSinDominio.length - 3})` : ''}</span>
+          <p className="mt-1 text-xs text-blue-800">
+            Se buscarán por <strong>nombre de empresa</strong> en Apollo (fallback automático).
+            Los resultados pueden ser menos precisos que cuando hay dominio.
+            Empresas: <span className="font-mono">{empresasSinDominio.slice(0, 3).map(e => e.empresa).join(', ')}{empresasSinDominio.length > 3 ? `… (+${empresasSinDominio.length - 3})` : ''}</span>
           </p>
         </div>
       )}
@@ -127,7 +131,7 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
           </span>
         </div>
         <p className="text-xs text-muted-foreground">
-          {empresasConDominio.length} empresa{empresasConDominio.length !== 1 ? 's' : ''} × {state.maxContactos} contactos × {state.revealPhoneAuto ? 9 : 1} créditos
+          {state.empresas.length} empresa{state.empresas.length !== 1 ? 's' : ''} × {state.maxContactos} contactos × {state.revealPhoneAuto ? 9 : 1} créditos
         </p>
 
         {/* Saldo Apollo + uso interno */}
@@ -234,7 +238,7 @@ export function Step3Review({ state, onChange, onFire, firing }: Props) {
               ? 'Selecciona al menos una empresa'
               : !tieneJobTitles
                 ? 'Agrega al menos un job title'
-                : 'Las empresas seleccionadas no tienen dominio configurado'}
+                : 'Listo para ejecutar'}
           </p>
         )}
       </div>
