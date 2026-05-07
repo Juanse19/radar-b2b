@@ -12,11 +12,13 @@ const CIRCUMFERENCE = 2 * Math.PI * 34; // ≈ 213.63
 
 type TierKey = 'A' | 'B' | 'C' | 'D';
 
+// Convención de equipo comercial: mostrar "Tier X" en vez de las
+// etiquetas legacy de WF01 (ORO / MONITOREO / ARCHIVO / DESCARTAR).
 const TIER_LABEL: Record<TierKey, string> = {
-  A: 'ORO',
-  B: 'MONITOREO',
-  C: 'ARCHIVO',
-  D: 'DESCARTAR',
+  A: 'Tier A',
+  B: 'Tier B',
+  C: 'Tier C',
+  D: 'Tier D',
 };
 
 const TIER_STYLE: Record<TierKey, { color: string; bg: string }> = {
