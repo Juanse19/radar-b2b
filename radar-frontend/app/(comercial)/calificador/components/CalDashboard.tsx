@@ -137,19 +137,13 @@ export function CalDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header con CTA principal */}
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold">Empresas calificadas</h1>
-          <p className="mt-0.5 text-sm text-muted-foreground">
-            Distribución por Tier de las empresas que has calificado.
-          </p>
-        </div>
-        <Link href="/calificador/wizard">
-          <Button size="sm" className="gap-1">
-            <Plus size={14} /> Nueva calificación
-          </Button>
-        </Link>
+      {/* Header — el CTA "Iniciar calificación" se ofrece en empty state
+          y desde el tab Histórico. Aquí evitamos duplicar botones. */}
+      <div>
+        <h2 className="text-lg font-semibold">Empresas calificadas</h2>
+        <p className="mt-0.5 text-sm text-muted-foreground">
+          Distribución por Tier — click en una card para filtrar la tabla.
+        </p>
       </div>
 
       {/* Tier distribution cards */}
