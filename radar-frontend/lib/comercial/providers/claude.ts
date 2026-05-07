@@ -341,7 +341,7 @@ function createClaudeProvider(): AIProvider {
     },
 
     async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
-      const apiKey = process.env.CLAUDE_API_KEY;
+      const apiKey = params.apiKey ?? process.env.CLAUDE_API_KEY ?? process.env.ANTHROPIC_API_KEY;
       if (!apiKey) throw new Error('CLAUDE_API_KEY not set');
       const model = CLAUDE_MODEL;
 

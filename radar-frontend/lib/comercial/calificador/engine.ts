@@ -14,6 +14,7 @@ import 'server-only';
 import { retrieveContext, buildRagBlock } from '@/lib/comercial/rag';
 import { pgQuery, pgLit, SCHEMA } from '@/lib/db/supabase/pg_client';
 import { getProvider } from '@/lib/comercial/providers';
+import { resolveProviderConfig } from '@/lib/comercial/provider-config';
 import { CalificacionLLMResponseSchema } from './schema';
 import { calcularScore, asignarTier, categoricoToScore } from './scoring';
 import type {
@@ -133,11 +134,24 @@ export async function calificarEmpresa(
   const inputWithRag: CalificacionInput = { ...input, ragContext };
 
   // 2. Provider call ──────────────────────────────────────────────────────────
-  const provider = getProvider(opts.providerName ?? 'claude');
+  const providerName = opts.providerName ?? 'openai';
+  const provider     = getProvider(providerName);
+
+  // Resolver API key + model desde matec_radar.ai_provider_configs (DB managed),
+  // con fallback a env vars. Mismo patrón que usa scanner.ts del Radar V2.
+  const cfg = await resolveProviderConfig(
+    providerName,
+    opts.apiKey,
+    opts.model,
+  );
+
+  // Inyectar la api key en el input para que el provider la use sin tener que
+  // depender de process.env (que en algunos entornos dev no está poblado).
+  const inputForProvider = { ...inputWithRag, apiKey: cfg.apiKey, model: cfg.model };
 
   emit?.emit('profiling_web', { empresa: input.empresa });
 
-  let providerOutput = await provider.calificar(inputWithRag, emit);
+  let providerOutput = await provider.calificar(inputForProvider, emit);
 
   // 3. Validate + 1 retry ────────────────────────────────────────────────────
   let parsed = CalificacionLLMResponseSchema.safeParse(providerOutput.rawJson);

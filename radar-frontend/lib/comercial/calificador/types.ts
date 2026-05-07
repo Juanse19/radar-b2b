@@ -43,6 +43,10 @@ export interface CalificacionInput {
   company_domain?: string;
   ragContext?: RagContext;
   sessionId: string;
+  /** API key resuelta desde ai_provider_configs (preferencia) o env var. */
+  apiKey?: string;
+  /** Override del modelo (ej. 'gpt-4o-mini'). */
+  model?: string;
 }
 
 export interface RagContext {

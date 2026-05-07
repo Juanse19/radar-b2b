@@ -306,9 +306,13 @@ function createOpenAIProvider(): AIProvider {
     },
 
     async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
-      const apiKey = process.env.OPENAI_API_KEY;
-      if (!apiKey) throw new Error('OPENAI_API_KEY not set');
-      const model = process.env.OPENAI_CALIFICADOR_MODEL ?? 'gpt-4o-mini';
+      // Prioridad: params.apiKey (vino de ai_provider_configs en DB) → env var
+      const apiKey = params.apiKey ?? process.env.OPENAI_API_KEY;
+      if (!apiKey) throw new Error(
+        'OpenAI API key no disponible. Configurar en matec_radar.ai_provider_configs '
+        + '(provider="openai", is_active=true) o en .env.local (OPENAI_API_KEY=...).',
+      );
+      const model = params.model ?? process.env.OPENAI_CALIFICADOR_MODEL ?? 'gpt-4o-mini';
 
       emit?.emit('thinking', { empresa: params.empresa, chunk: 'Iniciando calificación con OpenAI…' });
       emit?.emit('profiling_web', { empresa: params.empresa, query: `${params.empresa} ${params.pais} inversión 2026` });

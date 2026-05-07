@@ -274,7 +274,7 @@ function createGeminiProvider(): AIProvider {
     },
 
     async calificar(params: CalificacionInput, emit?: SSEEmitter): Promise<CalificacionOutput> {
-      const apiKey = process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
+      const apiKey = params.apiKey ?? process.env.GOOGLE_API_KEY ?? process.env.GEMINI_API_KEY;
       if (!apiKey) throw new Error('GOOGLE_API_KEY not set');
       const model = GEMINI_MODEL;
 

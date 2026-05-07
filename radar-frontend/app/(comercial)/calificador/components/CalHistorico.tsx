@@ -12,13 +12,13 @@ const CIRCUMFERENCE = 2 * Math.PI * 34; // ≈ 213.63
 
 type TierKey = 'A' | 'B' | 'C' | 'D';
 
-// Convención de equipo comercial: mostrar "Tier X" en vez de las
-// etiquetas legacy de WF01 (ORO / MONITOREO / ARCHIVO / DESCARTAR).
+// Convención de equipo comercial:
+//   A/B/C → "Tier X"  |  D → "Sin señal" (no se calificó con confianza)
 const TIER_LABEL: Record<TierKey, string> = {
   A: 'Tier A',
   B: 'Tier B',
   C: 'Tier C',
-  D: 'Tier D',
+  D: 'Sin señal',
 };
 
 const TIER_STYLE: Record<TierKey, { color: string; bg: string }> = {
@@ -425,12 +425,14 @@ export function CalHistorico() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/calificaciones?limit=200');
+      // Endpoint enriquecido con empresa_nombre + país + línea (JOIN view)
+      const res = await fetch('/api/calificador/dashboard?limit=200', { credentials: 'same-origin' });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const json = await res.json() as { data?: unknown[]; items?: unknown[] } | unknown[];
+      const json = await res.json() as { data?: unknown[]; items?: unknown[]; calificaciones?: unknown[] } | unknown[];
       const raw: unknown[] = Array.isArray(json)
         ? json
-        : (json as { data?: unknown[]; items?: unknown[] }).data
+        : (json as { calificaciones?: unknown[] }).calificaciones
+          ?? (json as { data?: unknown[] }).data
           ?? (json as { items?: unknown[] }).items
           ?? [];
 
