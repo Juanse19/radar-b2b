@@ -138,7 +138,7 @@ describe('TIER_LABEL', () => {
   it('maps A to "Tier A"', () => expect(TIER_LABEL.A).toBe('Tier A'));
   it('maps B to "Tier B"', () => expect(TIER_LABEL.B).toBe('Tier B'));
   it('maps C to "Tier C"', () => expect(TIER_LABEL.C).toBe('Tier C'));
-  it('maps D to "Tier D"', () => expect(TIER_LABEL.D).toBe('Tier D'));
+  it('maps D to "Sin señal" (no calificable)', () => expect(TIER_LABEL.D).toBe('Sin señal'));
 });
 
 // ─── shouldSuggestRadar ───────────────────────────────────────────────────────

@@ -369,7 +369,7 @@ export function CalificadorLivePanel({
       {/* Done CTA */}
       {sessionDone && (
         <div className="flex flex-wrap gap-3">
-          <Link href="/calificador/cuentas">
+          <Link href="/calificador?tab=historico">
             <Button variant="outline" size="sm">Ver historial</Button>
           </Link>
           <Link href="/calificador/wizard">

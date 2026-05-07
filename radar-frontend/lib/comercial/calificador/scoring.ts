@@ -51,15 +51,15 @@ export function asignarTier(score: number): Tier {
 
 /**
  * Human-readable label for a tier.
- * Convención del equipo comercial Matec: se muestra como "Tier X"
- * (no como "ORO/MONITOREO/ARCHIVO" — esos eran los nombres del backlog
- * interno de WF01 N8N, ya retirado).
+ * Convención del equipo comercial Matec:
+ *   - A/B/C son tiers calificados ("Tier X")
+ *   - D significa "no hay señal suficiente para calificar" → "Sin señal"
  */
 export const TIER_LABEL: Record<Tier, string> = {
   A: 'Tier A',
   B: 'Tier B',
   C: 'Tier C',
-  D: 'Tier D',
+  D: 'Sin señal',
 };
 
 /** Whether this tier should trigger an automatic Radar suggestion. */
