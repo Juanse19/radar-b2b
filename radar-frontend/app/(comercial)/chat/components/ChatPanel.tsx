@@ -31,21 +31,45 @@ const EXAMPLES = [
 ];
 
 const SESSION_KEY = 'chat-turns-radar';
+const PROVIDER_KEY = 'matec.preferredProvider';
+
+type ProviderName = 'claude' | 'openai' | 'gemini';
+
+function isProviderName(v: unknown): v is ProviderName {
+  return v === 'claude' || v === 'openai' || v === 'gemini';
+}
 
 export function ChatPanel() {
   const [turns, setTurns]     = useState<ChatTurn[]>([]);
   const [input, setInput]     = useState<string>('');
   const [loading, setLoading] = useState<boolean>(false);
-  const [provider, setProvider] = useState<'claude' | 'openai' | 'gemini'>('claude');
+  const [provider, setProvider] = useState<ProviderName>('claude');
   const scrollRef             = useRef<HTMLDivElement>(null);
 
-  // Restore turns from sessionStorage on mount
+  // Restore turns from sessionStorage + provider from localStorage on mount
   useEffect(() => {
     try {
       const saved = sessionStorage.getItem(SESSION_KEY);
       if (saved) setTurns(JSON.parse(saved) as ChatTurn[]);
     } catch {}
+    try {
+      const savedProv = localStorage.getItem(PROVIDER_KEY);
+      if (isProviderName(savedProv)) setProvider(savedProv);
+    } catch {}
+    // Listen for provider changes from other tabs/windows
+    function onStorage(e: StorageEvent) {
+      if (e.key === PROVIDER_KEY && isProviderName(e.newValue)) {
+        setProvider(e.newValue);
+      }
+    }
+    window.addEventListener('storage', onStorage);
+    return () => window.removeEventListener('storage', onStorage);
   }, []);
+
+  // Persist provider preference globally
+  useEffect(() => {
+    try { localStorage.setItem(PROVIDER_KEY, provider); } catch {}
+  }, [provider]);
 
   // Persist turns to sessionStorage whenever they change
   useEffect(() => {

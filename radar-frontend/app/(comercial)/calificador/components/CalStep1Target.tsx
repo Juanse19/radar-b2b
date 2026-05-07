@@ -6,7 +6,8 @@ import { Zap, Target, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
-import { KeywordChips } from '@/app/(comercial)/components/KeywordChips';
+// V3 / Fase A1: KeywordChips removido — el Calificador no usa keywords ni
+// fuentes (eso es un patrón del Radar de Inversión, no aplica aquí).
 
 const LINEAS = [
   { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos, Cargo' },
@@ -137,15 +138,6 @@ export function CalStep1Target({ state, onChange }: Props) {
           </div>
         )}
 
-        {/* Keywords for selected line/sublinea */}
-        {state.linea && (
-          <div className="mt-2">
-            <KeywordChips
-              linea={state.linea}
-              sublinea={state.sublinea}
-            />
-          </div>
-        )}
       </div>
 
       {/* Modo de calificación */}

@@ -28,9 +28,8 @@ Panel de control para el equipo comercial de Matec. Permite:
 N8N_HOST=https://n8n.event2flow.com
 N8N_API_KEY=<n8n-api-key>
 
-# WF01 — Calificador (entry point)
-N8N_WORKFLOW_ID=jDtdafuyYt8TXISl
-N8N_WEBHOOK_PATH=calificador
+# V2: WF01 (Calificador) was removed from n8n — qualification runs in-process
+# via /api/comercial/calificar (SSE) + Supabase. No env vars needed for it.
 
 # WF02 — Radar de Inversión
 N8N_RADAR_WORKFLOW_ID=fko0zXYYl5X4PtHz
@@ -91,14 +90,14 @@ lib/
 
 ---
 
-## Bugs activos (v1.0) — no introducir más sin fix
+## Bugs históricos (v1.0)
 
-| Bug | Archivo | Descripción | Fix en |
-|-----|---------|-------------|--------|
-| F1 | `app/scan/page.tsx` | Solo 4 de 6 líneas en LINEA_OPTIONS | `PROMPT_Frontend_v2.md` → Bug 1 |
-| F2 | `lib/n8n.ts` | Campo `nombre` en vez de `empresa` al webhook WF01 | `PROMPT_Frontend_v2.md` → Bug 2 |
-| F3 | `app/api/prospect/route.ts` | No envía `tier` ni `paises[]` a WF03 | `PROMPT_Frontend_v2.md` → Bug 3 |
-| F4 | `lib/types.ts` | `LineaNegocio` incompleto (faltan 3 valores) | `PROMPT_Frontend_v2.md` → Bug 4 |
+| Bug | Estado |
+|-----|--------|
+| F1 (LINEA_OPTIONS incompleta en scan) | Obsoleto — `app/scan/*` migra a `/calificador/wizard` |
+| F2 (lib/n8n.ts campo `nombre` vs `empresa`) | Obsoleto — `triggerScan` removido junto con WF01 |
+| F3 (`/api/prospect` no envía tier/paises[]) | Resuelto |
+| F4 (`LineaNegocio` incompleto) | Resuelto |
 
 ---
 
@@ -120,22 +119,13 @@ export type LineaNegocio =
 
 ## Formato de payload correcto para cada webhook
 
-### POST /api/trigger → WF01 Calificador
-```json
-{
-  "linea": "Final de Línea",
-  "batchSize": 10,
-  "empresas": [
-    {
-      "empresa": "Grupo Nutresa",
-      "company_domain": "grupnutresa.com",
-      "pais": "Colombia",
-      "linea_negocio": "Final de Línea",
-      "paises": ["Colombia", "Mexico"]
-    }
-  ]
-}
+### GET /api/comercial/calificar → Calificador V2 (SSE)
+Reemplaza WF01. Stream SSE con eventos `empresa_started`, `dim_scored`, `tier_assigned`, `empresa_done`, `session_done`. Ejemplo de query:
 ```
+?sessionId=<uuid>&linea=Final%20de%20Línea&provider=claude&ragEnabled=true
+ &empresas=[{"name":"Grupo Bimbo","country":"Mexico","domain":"grupobimbo.com"}]
+```
+Persistencia en `matec_radar.calificaciones` con `is_v2=true` + `dimensiones jsonb`.
 
 ### POST /api/radar → WF02 Radar (disparo manual)
 ```json

@@ -1,21 +1,13 @@
 // app/api/agent/route.ts
 //
-// Unified trigger endpoint for the 3 n8n agents (WF01, WF02, WF03).
-// This is the API that powers the new <ManualAgentForm /> in /scan and the
-// "Re-escanear con Radar" actions across the app.
-//
-// Why a single endpoint instead of /api/trigger + /api/radar + /api/prospect:
-//   - Pipeline tracker needs every fire to land in the `ejecuciones` table
-//     with `agent_type` + `pipeline_id` populated. Doing it in three places
-//     duplicates the bookkeeping; doing it here once keeps the contract clean.
-//   - The legacy three routes are kept for backward compatibility (existing
-//     callers in /api/trigger, etc.) but they will be migrated to call this
-//     route or the same helper in Sprint 2.
+// Unified trigger endpoint for the 2 remaining n8n agents (WF02 Radar, WF03
+// Prospector). WF01 (Calificador) was retired in V2 — qualification now runs
+// in-process via /api/comercial/calificar (SSE).
 //
 // Request shape:
 //   POST /api/agent
 //   {
-//     agent: 'calificador' | 'radar' | 'prospector',
+//     agent: 'radar' | 'prospector',
 //     linea?: string,
 //     empresas?: Array<{ nombre, dominio?, pais?, linea? }>,
 //     batchSize?: number,
@@ -25,14 +17,13 @@
 //   { execution_id: string, pipeline_id: string }
 
 import { NextRequest, NextResponse } from 'next/server';
-import { triggerScan, triggerRadar, triggerProspect } from '@/lib/n8n';
+import { triggerRadar, triggerProspect } from '@/lib/n8n';
 import {
   getEmpresasParaEscaneo,
   registrarEjecucion,
   crearProspeccionLogs,
 } from '@/lib/db';
 import type { AgentType } from '@/lib/db/types';
-import type { LineaNegocio } from '@/lib/types';
 import { getCurrentSession } from '@/lib/auth/session';
 import { logActividad } from '@/lib/auth/audit';
 
@@ -64,9 +55,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'JSON inválido' }, { status: 400 });
   }
 
-  if (!body.agent || !['calificador', 'radar', 'prospector'].includes(body.agent)) {
+  if (!body.agent || !['radar', 'prospector'].includes(body.agent)) {
     return NextResponse.json(
-      { error: 'agent debe ser uno de: calificador, radar, prospector' },
+      { error: 'agent debe ser uno de: radar, prospector. (calificador fue retirado de n8n en V2 — usa /api/comercial/calificar)' },
       { status: 400 },
     );
   }
@@ -76,72 +67,12 @@ export async function POST(req: NextRequest) {
 
   try {
     switch (body.agent) {
-      case 'calificador': return await fireCalificador(body, session);
       case 'radar':       return await fireRadar(body, session);
       case 'prospector':  return await fireProspector(body, session);
     }
   } catch (error) {
     return mapError(error);
   }
-}
-
-// ── Calificador (WF01) ───────────────────────────────────────────────────────
-
-async function fireCalificador(body: BaseAgentBody, session: Awaited<ReturnType<typeof getCurrentSession>>) {
-  if (!body.linea) {
-    return NextResponse.json({ error: 'linea es requerido para calificador' }, { status: 400 });
-  }
-
-  const batchSize = body.batchSize ?? 10;
-
-  let empresasParaN8N = body.empresas ?? [];
-  if (empresasParaN8N.length === 0) {
-    const dbRows = await getEmpresasParaEscaneo(body.linea, batchSize);
-    empresasParaN8N = dbRows.map(e => ({
-      nombre:  e.company_name,
-      dominio: e.company_domain ?? undefined,
-      pais:    e.pais ?? undefined,
-      linea:   e.linea_negocio,
-    }));
-  }
-
-  const result = await triggerScan({
-    // El TriggerParams type usa LineaNegocio (union literal) por seguridad de
-    // tipos en el frontend, pero esta route recibe strings arbitrarios. WF01
-    // valida la línea internamente, así que aquí casteamos sin pena.
-    linea:               body.linea as LineaNegocio,
-    batchSize,
-    empresasEspecificas: empresasParaN8N.map(e => e.nombre),
-    dateFilterFrom:      body.options?.dateFilterFrom ?? '2025-07-01',
-    empresas:            empresasParaN8N,
-  });
-
-  let ejecucion: { id: number; pipeline_id: string } = { id: 0, pipeline_id: crypto.randomUUID() };
-  try {
-    ejecucion = await registrarEjecucion({
-      n8n_execution_id: result.executionId,
-      linea_negocio:    body.linea,
-      batch_size:       batchSize,
-      trigger_type:     'manual',
-      agent_type:       'calificador',
-      parametros: {
-        dateFilterFrom:   body.options?.dateFilterFrom ?? '2025-07-01',
-        empresasEnviadas: empresasParaN8N.length,
-        origenEmpresas:   body.empresas ? 'frontend' : 'db',
-      },
-    });
-  } catch (dbErr) {
-    console.error('[fireCalificador] registrarEjecucion failed (non-blocking):', dbErr);
-  }
-
-  void logActividad(session, 'disparo_agente',
-    `Calificador — ${body.linea} (${empresasParaN8N.length} empresas)`, 'ok',
-    { pipeline_id: ejecucion.pipeline_id, execution_id: result.executionId, agent: 'calificador', linea: body.linea });
-
-  return NextResponse.json({
-    execution_id: result.executionId,
-    pipeline_id:  ejecucion.pipeline_id,
-  });
 }
 
 // ── Radar (WF02) ─────────────────────────────────────────────────────────────

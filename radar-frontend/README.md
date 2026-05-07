@@ -31,7 +31,6 @@ Ver [`.env.example`](../.env.example) en la raíz. Mínimo necesario:
 ```env
 N8N_HOST=https://n8n.event2flow.com
 N8N_API_KEY=...
-N8N_WORKFLOW_ID=jDtdafuyYt8TXISl
 DATABASE_URL="file:./prisma/dev.db"
 DB_DRIVER=prisma
 
@@ -52,7 +51,7 @@ app/
   contactos/      # Contactos Apollo.io
   schedule/       # Programacion de escaneos
 lib/
-  n8n.ts          # Cliente webhooks WF01/WF02/WF03
+  n8n.ts          # Cliente webhooks WF02/WF03 (WF01 retirado en V2)
   db/
     index.ts      # DB_DRIVER switcher (prisma | supabase)
     prisma/       # Implementación Prisma
@@ -70,8 +69,8 @@ tests/
 ## Arquitectura API -> N8N
 
 ```
-POST /api/trigger         -> WF01 Calificador  (webhook/calificador)
-POST /api/radar           -> WF02 Radar        (webhook/radar-scan)  [directo, sin WF01]
+GET  /api/comercial/calificar -> Calificador V2 (SSE) — reemplaza WF01
+POST /api/radar           -> WF02 Radar        (webhook/radar-scan)
 GET  /api/results         -> DB via DB_DRIVER (señales guardadas)
 POST /api/prospect        -> WF03 Prospector   (webhook/prospector)
 GET  /api/prospect/logs   -> DB via DB_DRIVER (log de prospecciones)

@@ -3,6 +3,10 @@
  * server-only: referenced by engine, providers, and API route.
  */
 
+// V3 (Fase A1): tier es resultado calculado (no dimensión que el LLM elija).
+// El LLM califica 8 dimensiones; el backend deriva score_total + tier de ellas.
+// Sub-tiers (B-Alta/B-Baja) postergados — pendiente validación de umbrales
+// con Felipe y Paola.
 export type Tier = 'A' | 'B' | 'C' | 'D';
 
 export type Dimension =
@@ -10,9 +14,24 @@ export type Dimension =
   | 'multiplanta'
   | 'recurrencia'
   | 'referente_mercado'
+  | 'acceso_al_decisor'
   | 'anio_objetivo'
-  | 'ticket_estimado'
-  | 'prioridad_comercial';
+  | 'prioridad_comercial'
+  | 'cuenta_estrategica';
+
+// ── Categorical value sets per dimension (single source of truth) ──────────
+export type ImpactoCat        = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
+export type MultiplantaCat    = 'Presencia internacional' | 'Varias sedes regionales' | 'Única sede';
+export type RecurrenciaCat    = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
+export type ReferenteCat      = 'Referente internacional' | 'Referente país' | 'Baja visibilidad';
+export type AccesoDecisorCat  =
+  | 'Sin Contacto'
+  | 'Contacto Líder o Jefe'
+  | 'Contacto Gerente o Directivo'
+  | 'Contacto con 3 o más áreas';
+export type AnioCat           = '2026' | '2027' | '2028' | 'Sin año';
+export type PrioridadCat      = 'Muy Alta' | 'Alta' | 'Media' | 'Baja' | 'Muy Baja';
+export type CuentaEstratCat   = 'Sí' | 'No';
 
 export interface CalificacionInput {
   empresa: string;
@@ -37,9 +56,10 @@ export interface DimScores {
   multiplanta: number;
   recurrencia: number;
   referente_mercado: number;
+  acceso_al_decisor: number;
   anio_objetivo: number;
-  ticket_estimado: number;
   prioridad_comercial: number;
+  cuenta_estrategica: number;
 }
 
 /** v5: per-dimension detail produced by the Calificador prompt (optional). */
@@ -75,9 +95,12 @@ export interface CalificacionRow {
   score_multiplanta: number;
   score_recurrencia: number;
   score_referente: number;
+  score_acceso_al_decisor: number;
   score_anio: number;
-  score_ticket: number;
   score_prioridad: number;
+  score_cuenta_estrategica: number;
+  /** Legacy V2 column — kept nullable for backwards compat with old rows. */
+  score_ticket?: number | null;
   score_total: number;
   tier_calculado: Tier;
   razonamiento_agente?: string;
@@ -85,6 +108,8 @@ export interface CalificacionRow {
   perfil_web_sources?: unknown;
   rag_context_used?: unknown;
   raw_llm_json?: unknown;
+  /** V2: array of {dim, valor, score, justificacion} for UI rendering. */
+  dimensiones?: unknown;
   modelo_llm?: string;
   tokens_input?: number;
   tokens_output?: number;

@@ -1,42 +1,43 @@
 /**
- * calificador/schema.ts — Zod schema for validating LLM JSON output.
- * All providers must return a shape that passes this schema.
+ * calificador/schema.ts — Zod schema for validating LLM JSON output (V3 / Fase A1).
+ *
+ * El LLM devuelve 8 dimensiones categóricas. Tier y score_total los
+ * deriva el backend a partir de ellas (no se piden al LLM).
  */
 import { z } from 'zod';
 
-const DimScore = z.number().min(0).max(10);
+// ── Per-dimension allowed categorical values (must match scoring.ts map) ────
+const ImpactoEnum     = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']);
+const MultiplantaEnum = z.enum(['Presencia internacional', 'Varias sedes regionales', 'Única sede']);
+const RecurrenciaEnum = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']);
+const ReferenteEnum   = z.enum(['Referente internacional', 'Referente país', 'Baja visibilidad']);
+const AccesoDecEnum   = z.enum([
+  'Sin Contacto',
+  'Contacto Líder o Jefe',
+  'Contacto Gerente o Directivo',
+  'Contacto con 3 o más áreas',
+]);
+const AnioEnum        = z.enum(['2026', '2027', '2028', 'Sin año']);
+const PrioridadEnum   = z.enum(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']);
+const CuentaEstratEnum= z.enum(['Sí', 'No']);
 
-/**
- * v5: per-dimension justification map (optional).
- * Each entry pairs a textual `valor` (e.g. "Muy Alto") with a brief
- * `justificacion` (≤ 200 chars). Existing v2 LLM responses without
- * this field continue to validate.
- */
-const DimDetail = z.object({
-  valor:         z.string().min(1).max(120),
-  justificacion: z.string().min(10).max(500),
-}).passthrough();
+const dimDetail = <V extends z.ZodTypeAny>(valor: V) =>
+  z.object({
+    valor,
+    justificacion: z.string().min(10).max(500),
+  }).passthrough();
 
 export const CalificacionLLMResponseSchema = z.object({
-  scores: z.object({
-    impacto_presupuesto: DimScore,
-    multiplanta:         DimScore,
-    recurrencia:         DimScore,
-    referente_mercado:   DimScore,
-    anio_objetivo:       DimScore,
-    ticket_estimado:     DimScore,
-    prioridad_comercial: DimScore,
-  }),
-  /** v5 — optional. When present, UI renders detailed per-dimension rationale. */
   dimensiones: z.object({
-    impacto_presupuesto: DimDetail,
-    multiplanta:         DimDetail,
-    recurrencia:         DimDetail,
-    referente_mercado:   DimDetail,
-    anio_objetivo:       DimDetail,
-    ticket_estimado:     DimDetail,
-    prioridad_comercial: DimDetail,
-  }).partial().optional(),
+    impacto_presupuesto: dimDetail(ImpactoEnum),
+    multiplanta:         dimDetail(MultiplantaEnum),
+    recurrencia:         dimDetail(RecurrenciaEnum),
+    referente_mercado:   dimDetail(ReferenteEnum),
+    acceso_al_decisor:   dimDetail(AccesoDecEnum),
+    anio_objetivo:       dimDetail(AnioEnum),
+    prioridad_comercial: dimDetail(PrioridadEnum),
+    cuenta_estrategica:  dimDetail(CuentaEstratEnum),
+  }),
   razonamiento: z.string().min(50).max(5000),
   perfilWeb: z.object({
     summary: z.string().min(10),
@@ -46,41 +47,63 @@ export const CalificacionLLMResponseSchema = z.object({
 
 export type CalificacionLLMResponse = z.infer<typeof CalificacionLLMResponseSchema>;
 
-/** JSON schema string passed to OpenAI response_format / tool definitions. */
+// Build a per-dimension JSON schema entry. OpenAI strict mode requires
+// `additionalProperties: false` on EVERY nested object schema.
+function dimSchema(allowed: readonly string[]) {
+  return {
+    type: 'object' as const,
+    required: ['valor', 'justificacion'],
+    additionalProperties: false,
+    properties: {
+      valor:         { type: 'string' as const, enum: allowed },
+      justificacion: { type: 'string' as const },
+    },
+  };
+}
+
+/** JSON schema passed to OpenAI response_format (strict) and similar APIs. */
 export const CALIFICACION_JSON_SCHEMA = {
   type: 'object',
-  required: ['scores', 'razonamiento', 'perfilWeb'],
+  required: ['dimensiones', 'razonamiento', 'perfilWeb'],
   additionalProperties: false,
   properties: {
-    scores: {
+    dimensiones: {
       type: 'object',
       required: [
         'impacto_presupuesto',
         'multiplanta',
         'recurrencia',
         'referente_mercado',
+        'acceso_al_decisor',
         'anio_objetivo',
-        'ticket_estimado',
         'prioridad_comercial',
+        'cuenta_estrategica',
       ],
       additionalProperties: false,
       properties: {
-        impacto_presupuesto: { type: 'number', minimum: 0, maximum: 10 },
-        multiplanta:         { type: 'number', minimum: 0, maximum: 10 },
-        recurrencia:         { type: 'number', minimum: 0, maximum: 10 },
-        referente_mercado:   { type: 'number', minimum: 0, maximum: 10 },
-        anio_objetivo:       { type: 'number', minimum: 0, maximum: 10 },
-        ticket_estimado:     { type: 'number', minimum: 0, maximum: 10 },
-        prioridad_comercial: { type: 'number', minimum: 0, maximum: 10 },
+        impacto_presupuesto: dimSchema(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']),
+        multiplanta:         dimSchema(['Presencia internacional', 'Varias sedes regionales', 'Única sede']),
+        recurrencia:         dimSchema(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']),
+        referente_mercado:   dimSchema(['Referente internacional', 'Referente país', 'Baja visibilidad']),
+        acceso_al_decisor:   dimSchema([
+          'Sin Contacto',
+          'Contacto Líder o Jefe',
+          'Contacto Gerente o Directivo',
+          'Contacto con 3 o más áreas',
+        ]),
+        anio_objetivo:       dimSchema(['2026', '2027', '2028', 'Sin año']),
+        prioridad_comercial: dimSchema(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']),
+        cuenta_estrategica:  dimSchema(['Sí', 'No']),
       },
     },
-    razonamiento: { type: 'string', minLength: 50, maxLength: 5000 },
+    razonamiento: { type: 'string' },
     perfilWeb: {
       type: 'object',
       required: ['summary', 'sources'],
+      additionalProperties: false,
       properties: {
-        summary: { type: 'string', minLength: 10 },
-        sources: { type: 'array', items: { type: 'string' }, maxItems: 20 },
+        summary: { type: 'string' },
+        sources: { type: 'array', items: { type: 'string' } },
       },
     },
   },

@@ -97,13 +97,13 @@ test.describe('Módulos — prueba completa', () => {
     }
   });
 
-  test('Auth guard — /api/trigger sin sesión devuelve 401', async ({ page }) => {
-    // Sin login — request directa a la API
-    const res = await page.request.post('http://localhost:3000/api/trigger', {
-      data: { linea: 'BHS', batchSize: 1 },
-      headers: { 'Content-Type': 'application/json' },
-    });
-    console.log(`✅ Auth guard /api/trigger status: ${res.status()}`);
+  test('Auth guard — /api/comercial/calificar sin sesión devuelve 401', async ({ page }) => {
+    // Sin login — request directa a la API SSE
+    const res = await page.request.get(
+      'http://localhost:3000/api/comercial/calificar?sessionId=test&linea=BHS&empresas=' +
+        encodeURIComponent(JSON.stringify([{ name: 'X', country: 'CO' }])),
+    );
+    console.log(`✅ Auth guard /api/comercial/calificar status: ${res.status()}`);
     expect(res.status()).toBe(401);
   });
 });
