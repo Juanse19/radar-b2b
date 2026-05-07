@@ -23,7 +23,7 @@ const breadcrumbMap: Record<string, string> = {
 };
 
 // Wide pages that need more horizontal space
-const widePages = new Set(['resultados', 'investigar', 'metricas', 'calificador', 'portfolio', 'empresas']);
+const widePages = new Set(['resultados', 'investigar', 'metricas', 'calificador', 'portfolio', 'empresas', 'contactos']);
 
 export default function ComercialLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();

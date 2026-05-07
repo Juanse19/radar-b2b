@@ -35,6 +35,8 @@ interface ContactoRow {
   empresa_id:        number | null;
   empresa_nombre:    string | null;
   empresa_tier:      string | null;
+  empresa_linea?:    string | null;     // codigo de matec_radar.lineas_negocio (bhs, carton_papel, intralogistica)
+  empresa_sublinea?: string | null;     // codigo de matec_radar.sub_lineas_negocio (aeropuertos, etc.)
   pais:              string | null;
   hubspot_status:    string;
   prospector_session_id: string | null;
@@ -58,6 +60,19 @@ const TIER_BADGE: Record<string, TierStyle> = {
   'C':             { bg: '#EDE9FE', fg: '#4C1D95', border: '#DDD6FE', label: 'C' },
   'D':             { bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB', label: 'D' },
   'sin_calificar': { bg: '#F3F4F6', fg: '#6B7280', border: '#E5E7EB', label: '—' },
+};
+
+// Mapping codigo → nombre legible (matec_radar.lineas_negocio)
+const LINEA_LABELS: Record<string, string> = {
+  bhs:            'BHS',
+  carton_papel:   'Cartón y Papel',
+  intralogistica: 'Intralogística',
+};
+
+const LINEA_COLORS: Record<string, string> = {
+  bhs:            '#0EA5E9',  // sky
+  carton_papel:   '#10B981',  // emerald
+  intralogistica: '#F59E0B',  // amber
 };
 
 const HUBSPOT_STYLE: Record<string, { bg: string; fg: string; border: string; icon: typeof CheckCircle2; label: string }> = {
@@ -99,10 +114,11 @@ interface Props {
 }
 
 export function AllContactsTable({ initial }: Props) {
-  const [contactos]               = useState<ContactoRow[]>(initial);
-  const [filter,    setFilter]    = useState<FilterMode>('all');
-  const [searchQ,   setSearchQ]   = useState('');
+  const [contactos]                 = useState<ContactoRow[]>(initial);
+  const [filter,    setFilter]      = useState<FilterMode>('all');
+  const [searchQ,   setSearchQ]     = useState('');
   const [tierFilter, setTierFilter] = useState<Set<string>>(new Set());
+  const [lineaFilter, setLineaFilter] = useState<Set<string>>(new Set());
 
   const counts = useMemo(() => {
     const c = { all: contactos.length, sincronizado: 0, pendiente: 0, error: 0 };
@@ -120,6 +136,9 @@ export function AllContactsTable({ initial }: Props) {
     if (tierFilter.size > 0) {
       xs = xs.filter(c => tierFilter.has(c.empresa_tier ?? 'sin_calificar'));
     }
+    if (lineaFilter.size > 0) {
+      xs = xs.filter(c => c.empresa_linea && lineaFilter.has(c.empresa_linea));
+    }
     const q = searchQ.trim().toLowerCase();
     if (q) {
       xs = xs.filter(c =>
@@ -130,7 +149,7 @@ export function AllContactsTable({ initial }: Props) {
       );
     }
     return xs;
-  }, [contactos, filter, tierFilter, searchQ]);
+  }, [contactos, filter, tierFilter, lineaFilter, searchQ]);
 
   function toggleTier(t: string) {
     setTierFilter(prev => {
@@ -141,11 +160,30 @@ export function AllContactsTable({ initial }: Props) {
     });
   }
 
+  function toggleLinea(l: string) {
+    setLineaFilter(prev => {
+      const next = new Set(prev);
+      if (next.has(l)) next.delete(l);
+      else             next.add(l);
+      return next;
+    });
+  }
+
   const tierCounts = useMemo(() => {
     const c: Record<string, number> = { A: 0, B: 0, C: 0, D: 0, sin_calificar: 0 };
     for (const x of contactos) {
       const t = x.empresa_tier ?? 'sin_calificar';
       c[t] = (c[t] ?? 0) + 1;
+    }
+    return c;
+  }, [contactos]);
+
+  const lineaCounts = useMemo(() => {
+    const c: Record<string, number> = {};
+    for (const x of contactos) {
+      const l = x.empresa_linea;
+      if (!l) continue;
+      c[l] = (c[l] ?? 0) + 1;
     }
     return c;
   }, [contactos]);
@@ -161,7 +199,7 @@ export function AllContactsTable({ initial }: Props) {
     return (
       <div className="rounded-xl border border-border/70 bg-card p-12 text-center">
         <p className="text-sm text-muted-foreground mb-2">Sin contactos prospectados todavía.</p>
-        <Link href="/contactos">
+        <Link href="/contactos/buscar">
           <Button size="sm" style={{ background: ACCENT, color: '#fff' }}>
             Iniciar prospección
           </Button>
@@ -289,6 +327,50 @@ export function AllContactsTable({ initial }: Props) {
               )}
             </div>
           </div>
+
+          {/* Zona 4 — filtro por LÍNEA de negocio */}
+          {Object.keys(lineaCounts).length > 0 && (
+            <div className="flex flex-wrap items-center gap-2 border-t border-border/40 px-5 py-3 bg-muted/10">
+              <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">
+                Línea:
+              </span>
+              {Object.entries(LINEA_LABELS).map(([codigo, label]) => {
+                const count = lineaCounts[codigo] ?? 0;
+                const active = lineaFilter.has(codigo);
+                if (count === 0 && !active) return null;
+                const accent = LINEA_COLORS[codigo] ?? '#94a3b8';
+                return (
+                  <button
+                    key={codigo}
+                    type="button"
+                    onClick={() => toggleLinea(codigo)}
+                    className={cn(
+                      'inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs transition-all',
+                      active ? 'font-semibold shadow-sm' : 'opacity-75 hover:opacity-100',
+                    )}
+                    style={{
+                      background:  active ? `color-mix(in srgb, ${accent} 12%, transparent)` : 'transparent',
+                      color:       active ? accent : undefined,
+                      borderColor: active ? accent : 'var(--border)',
+                    }}
+                  >
+                    <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: accent }} />
+                    {label}
+                    <span className="text-[10px] opacity-70">{count}</span>
+                  </button>
+                );
+              })}
+              {lineaFilter.size > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setLineaFilter(new Set())}
+                  className="inline-flex items-center gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <X size={11} /> Limpiar
+                </button>
+              )}
+            </div>
+          )}
         </div>
       </div>
 
@@ -304,6 +386,7 @@ export function AllContactsTable({ initial }: Props) {
               <tr className="border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-5 py-3 text-left font-semibold">Contacto</th>
                 <th className="px-5 py-3 text-left font-semibold">Empresa</th>
+                <th className="px-5 py-3 text-left font-semibold">Línea</th>
                 <th className="px-5 py-3 text-left font-semibold">Tier</th>
                 <th className="px-5 py-3 text-left font-semibold">Email</th>
                 <th className="px-5 py-3 text-left font-semibold">Teléfono</th>
@@ -393,6 +476,29 @@ function Row({ ct }: { ct: ContactoRow }) {
       <td className="px-5 py-4 align-middle">
         <p className="truncate text-sm font-medium">{ct.empresa_nombre ?? '—'}</p>
         <p className="text-xs text-muted-foreground">{ct.pais ?? '—'}</p>
+      </td>
+
+      {/* Línea / Sub-línea */}
+      <td className="px-5 py-4 align-middle">
+        {ct.empresa_linea ? (
+          <div className="flex flex-col">
+            <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+              <span
+                aria-hidden
+                className="inline-block h-1.5 w-1.5 rounded-full"
+                style={{ background: LINEA_COLORS[ct.empresa_linea] ?? '#94a3b8' }}
+              />
+              {LINEA_LABELS[ct.empresa_linea] ?? ct.empresa_linea}
+            </span>
+            {ct.empresa_sublinea && (
+              <span className="text-[11px] text-muted-foreground capitalize">
+                {ct.empresa_sublinea.replace(/_/g, ' ')}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
       </td>
 
       {/* Tier */}

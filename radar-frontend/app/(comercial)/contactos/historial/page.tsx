@@ -1,16 +1,14 @@
 /**
- * /contactos/historial — Vista global del Apollo Prospector v2.
+ * /contactos/historial — Sesiones de prospección (lista de ejecuciones del wizard).
  *
- * Dos secciones:
- *   1. Todos los contactos prospectados (tabla principal con filtros HubSpot)
- *   2. Historial de sesiones (lista colapsable de ejecuciones del wizard)
+ * La tabla de TODOS los contactos vive ahora en /contactos.
+ * Esta página queda enfocada en sesiones (auditoría de búsquedas).
  */
 import Link from 'next/link';
-import { History, Search, Users, AlertCircle, Sparkles, Loader2 } from 'lucide-react';
+import { History, Search, AlertCircle, Sparkles, Loader2, ArrowLeft } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { pgQuery, SCHEMA } from '@/lib/db/supabase/pg_client';
-import { AllContactsTable } from './components/AllContactsTable';
 
 export const dynamic = 'force-dynamic';
 
@@ -30,28 +28,7 @@ interface SessionRow {
   finished_at:       string | null;
 }
 
-interface ContactoRow {
-  id:                number;
-  apollo_id:         string | null;
-  first_name:        string | null;
-  last_name:         string | null;
-  title:             string | null;
-  nivel_jerarquico:  string | null;
-  email:             string | null;
-  email_status:      string | null;
-  phone_mobile:      string | null;
-  phone_unlocked:    boolean;
-  linkedin_url:      string | null;
-  empresa_id:        number | null;
-  empresa_nombre:    string | null;
-  empresa_tier:      string | null;
-  pais:              string | null;
-  hubspot_status:    string;
-  prospector_session_id: string | null;
-  created_at:        string;
-}
-
-async function getSessions(limit = 50): Promise<SessionRow[]> {
+async function getSessions(limit = 100): Promise<SessionRow[]> {
   try {
     return await pgQuery<SessionRow>(`
       SELECT id, modo, sublineas, tiers,
@@ -64,31 +41,6 @@ async function getSessions(limit = 50): Promise<SessionRow[]> {
     `);
   } catch (err) {
     console.error('[contactos/historial] getSessions failed:', err);
-    return [];
-  }
-}
-
-async function getAllContactos(limit = 500): Promise<ContactoRow[]> {
-  try {
-    return await pgQuery<ContactoRow>(`
-      SELECT c.id, c.apollo_id, c.first_name, c.last_name, c.title,
-             c.nivel_jerarquico, c.email, c.email_status,
-             c.phone_mobile, c.phone_unlocked, c.linkedin_url,
-             c.empresa_id,
-             e.company_name AS empresa_nombre,
-             e.tier_actual::TEXT AS empresa_tier,
-             c.country::TEXT AS pais,
-             c.hubspot_status::TEXT AS hubspot_status,
-             c.prospector_session_id::TEXT AS prospector_session_id,
-             c.created_at
-      FROM ${SCHEMA}.contactos c
-      LEFT JOIN ${SCHEMA}.empresas e ON e.id = c.empresa_id
-      WHERE c.email IS NOT NULL
-      ORDER BY c.created_at DESC
-      LIMIT ${limit}
-    `);
-  } catch (err) {
-    console.error('[contactos/historial] getAllContactos failed:', err);
     return [];
   }
 }
@@ -108,14 +60,10 @@ function formatDuration(ms: number | null): string {
 }
 
 export default async function HistorialPage() {
-  const [sessions, contactos] = await Promise.all([
-    getSessions(50),
-    getAllContactos(500),
-  ]);
+  const sessions = await getSessions(100);
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-start gap-3 min-w-0 flex-1">
           <div
@@ -126,71 +74,61 @@ export default async function HistorialPage() {
           </div>
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-contactos)' }}>
-              Agente 03 — Prospector v2 · Historial
+              Agente 03 — Prospector v2 · Sesiones
             </p>
             <h1 className="text-xl font-semibold leading-tight text-foreground">
-              Contactos prospectados
+              Historial de sesiones
             </h1>
             <p className="mt-0.5 text-sm text-muted-foreground">
-              {contactos.length} contacto{contactos.length !== 1 ? 's' : ''} en {sessions.length} sesion{sessions.length !== 1 ? 'es' : ''} · ordenados de más reciente a más antigua.
+              {sessions.length} sesion{sessions.length !== 1 ? 'es' : ''} · click en cualquier ID para ver el detalle.
             </p>
           </div>
         </div>
-        <Link href="/contactos" className="shrink-0">
-          <Button variant="outline" size="sm">
-            <Sparkles size={13} className="mr-1.5" />
-            Nueva búsqueda
-          </Button>
-        </Link>
+        <div className="flex items-center gap-2 shrink-0">
+          <Link href="/contactos">
+            <Button variant="outline" size="sm">
+              <ArrowLeft size={13} className="mr-1.5" />
+              Ver contactos
+            </Button>
+          </Link>
+          <Link href="/contactos/buscar">
+            <Button size="sm" style={{ background: 'var(--agent-contactos)', color: '#fff' }}>
+              <Sparkles size={13} className="mr-1.5" />
+              Nueva búsqueda
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Sección 1: TODOS LOS CONTACTOS (lo principal) */}
-      {contactos.length === 0 ? (
+      {sessions.length === 0 ? (
         <Card>
           <CardContent className="flex flex-col items-center py-12 text-center">
-            <Users size={40} className="mb-4 text-muted-foreground/30" />
-            <h2 className="mb-1 text-lg font-semibold">Sin contactos todavía</h2>
+            <History size={40} className="mb-4 text-muted-foreground/30" />
+            <h2 className="mb-1 text-lg font-semibold">Sin sesiones todavía</h2>
             <p className="mb-6 max-w-sm text-sm text-muted-foreground">
-              Inicia una sesión de prospección desde el wizard de Contactos.
-              Los contactos prospectados aparecerán aquí con su email verificado,
-              estado HubSpot y sesión de origen.
+              Inicia una sesión de prospección desde el wizard. Cada ejecución
+              quedará registrada aquí con sus stats y créditos consumidos.
             </p>
-            <Link href="/contactos">
+            <Link href="/contactos/buscar">
               <Button>Empezar prospección</Button>
             </Link>
           </CardContent>
         </Card>
       ) : (
-        <AllContactsTable initial={contactos} />
-      )}
-
-      {/* Sección 2: HISTORIAL DE SESIONES (colapsable) */}
-      {sessions.length > 0 && (
-        <details className="rounded-xl border border-border/70 bg-card overflow-hidden">
-          <summary className="cursor-pointer list-none border-b border-border/60 px-4 py-3 hover:bg-muted/20 transition-colors">
-            <div className="flex items-center justify-between gap-2">
-              <h3 className="text-sm font-semibold inline-flex items-center gap-2">
-                Historial de sesiones
-                <span className="text-xs font-normal text-muted-foreground">
-                  ({sessions.length})
-                </span>
-              </h3>
-              <span className="text-xs text-muted-foreground">click para mostrar/ocultar</span>
-            </div>
-          </summary>
+        <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-2.5 text-left font-medium">Fecha</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Sesión</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Modo</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Sub-líneas / Tiers</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Empresas</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Contactos</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Créditos</th>
-                  <th className="px-4 py-2.5 text-right font-medium">Duración</th>
-                  <th className="px-4 py-2.5 text-left font-medium">Estado</th>
+                  <th className="px-5 py-3 text-left font-semibold">Fecha</th>
+                  <th className="px-5 py-3 text-left font-semibold">Sesión</th>
+                  <th className="px-5 py-3 text-left font-semibold">Modo</th>
+                  <th className="px-5 py-3 text-left font-semibold">Sub-líneas / Tiers</th>
+                  <th className="px-5 py-3 text-right font-semibold">Empresas</th>
+                  <th className="px-5 py-3 text-right font-semibold">Contactos</th>
+                  <th className="px-5 py-3 text-right font-semibold">Créditos</th>
+                  <th className="px-5 py-3 text-right font-semibold">Duración</th>
+                  <th className="px-5 py-3 text-left font-semibold">Estado</th>
                 </tr>
               </thead>
               <tbody>
@@ -198,7 +136,7 @@ export default async function HistorialPage() {
               </tbody>
             </table>
           </div>
-        </details>
+        </div>
       )}
     </div>
   );
@@ -211,10 +149,8 @@ function SessionRow({ session }: { session: SessionRow }) {
 
   return (
     <tr className="border-b border-border/40 last:border-b-0 hover:bg-muted/20 transition-colors">
-      <td className="px-4 py-3 align-middle text-xs text-muted-foreground">
-        {formatDate(session.created_at)}
-      </td>
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle text-xs text-muted-foreground">{formatDate(session.created_at)}</td>
+      <td className="px-5 py-4 align-middle">
         <Link
           href={`/contactos/historial/${session.id}`}
           className="text-xs font-mono hover:underline"
@@ -223,7 +159,7 @@ function SessionRow({ session }: { session: SessionRow }) {
           {session.id.slice(0, 8).toUpperCase()}
         </Link>
       </td>
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle">
         <span
           className="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wider"
           style={
@@ -235,40 +171,31 @@ function SessionRow({ session }: { session: SessionRow }) {
           {session.modo}
         </span>
       </td>
-      <td className="px-4 py-3 align-middle">
-        <p className="text-xs truncate max-w-[260px]" title={subs}>{subs}</p>
+      <td className="px-5 py-4 align-middle">
+        <p className="text-xs truncate max-w-[280px]" title={subs}>{subs}</p>
         {tiers && <p className="text-[10px] text-muted-foreground">tier {tiers}</p>}
       </td>
-      <td className="px-4 py-3 align-middle text-right tabular-nums">{session.empresas_count}</td>
-      <td className="px-4 py-3 align-middle text-right">
+      <td className="px-5 py-4 align-middle text-right tabular-nums">{session.empresas_count}</td>
+      <td className="px-5 py-4 align-middle text-right">
         <span className="font-semibold tabular-nums">{session.total_contacts}</span>
         {session.total_with_phone > 0 && (
-          <span className="ml-1 text-[10px] text-muted-foreground">
-            ({session.total_with_phone} c/tel)
-          </span>
+          <span className="ml-1 text-[10px] text-muted-foreground">({session.total_with_phone} c/tel)</span>
         )}
       </td>
-      <td className="px-4 py-3 align-middle text-right tabular-nums text-xs text-muted-foreground">
-        {session.credits_used}
-      </td>
-      <td className="px-4 py-3 align-middle text-right tabular-nums text-xs text-muted-foreground">
-        {formatDuration(session.duration_ms)}
-      </td>
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle text-right tabular-nums text-xs text-muted-foreground">{session.credits_used}</td>
+      <td className="px-5 py-4 align-middle text-right tabular-nums text-xs text-muted-foreground">{formatDuration(session.duration_ms)}</td>
+      <td className="px-5 py-4 align-middle">
         {!isFinished ? (
           <span className="inline-flex items-center gap-1 text-xs text-amber-700">
-            <Loader2 size={11} className="animate-spin" />
-            En curso
+            <Loader2 size={11} className="animate-spin" /> En curso
           </span>
         ) : session.cancelled ? (
           <span className="inline-flex items-center gap-1 text-xs text-amber-700">
-            <AlertCircle size={11} />
-            Cancelada
+            <AlertCircle size={11} /> Cancelada
           </span>
         ) : (
           <span className="inline-flex items-center gap-1 text-xs text-emerald-700">
-            <Search size={11} />
-            Completa
+            <Search size={11} /> Completa
           </span>
         )}
       </td>

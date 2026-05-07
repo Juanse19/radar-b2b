@@ -1,0 +1,50 @@
+/**
+ * /contactos/buscar — Wizard de prospección Apollo Prospector v2.
+ *
+ * (Antes vivía en /contactos. Movido aquí para que /contactos sea la
+ * vista principal de contactos prospectados, alineado con el patrón
+ * /calificador → /calificador/wizard del módulo Calificador.)
+ */
+import Link from 'next/link';
+import { Suspense } from 'react';
+import { Sparkles, ArrowLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ProspectorWizard } from '../components/ProspectorWizard';
+
+export const dynamic = 'force-dynamic';
+
+export default function BuscarContactosPage() {
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-start gap-3 min-w-0 flex-1">
+          <div
+            className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+            style={{ background: 'var(--agent-contactos-tint)', color: 'var(--agent-contactos)' }}
+          >
+            <Sparkles size={18} />
+          </div>
+          <div className="min-w-0">
+            <p className="text-[11px] font-semibold uppercase tracking-widest" style={{ color: 'var(--agent-contactos)' }}>
+              Agente 03 — Prospector v2 · Nueva búsqueda
+            </p>
+            <h1 className="text-xl font-semibold leading-tight text-foreground">Buscar contactos</h1>
+            <p className="mt-0.5 text-sm text-muted-foreground">
+              Búsqueda nativa con Apollo en vivo. Selecciona línea, sub-línea, modo (Auto/Manual) y dispara la prospección.
+            </p>
+          </div>
+        </div>
+        <Link href="/contactos" className="shrink-0">
+          <Button variant="outline" size="sm">
+            <ArrowLeft size={13} className="mr-1.5" />
+            Volver a contactos
+          </Button>
+        </Link>
+      </div>
+
+      <Suspense fallback={<div className="h-64 animate-pulse rounded bg-muted" />}>
+        <ProspectorWizard />
+      </Suspense>
+    </div>
+  );
+}

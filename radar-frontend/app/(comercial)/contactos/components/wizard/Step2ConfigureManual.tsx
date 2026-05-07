@@ -41,6 +41,7 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
   const [search, setSearch]         = useState('');
 
   const sublineaIdsKey = state.sublineaIds.join(',');
+  const tiersKey       = state.tiers.join(',');
 
   // Debounce server-side search por nombre/dominio/país.
   // Si state.sublineaIds está vacío, mostramos catálogo completo (no [-1]).
@@ -56,6 +57,7 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
           body: JSON.stringify({
             sublineaIds: state.sublineaIds.length > 0 ? state.sublineaIds : undefined,
             search:      search.trim() || undefined,
+            tiers:       state.tiers.length > 0 ? state.tiers : undefined,
             limit:       200,
           }),
         });
@@ -74,7 +76,7 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
       }
     }, search ? 350 : 0); // debounce solo cuando hay search (typing); inmediato en cambio de sublineaIds
     return () => { alive = false; clearTimeout(handle); };
-  }, [sublineaIdsKey, search]);
+  }, [sublineaIdsKey, tiersKey, search]);
 
   const selectedIds = useMemo(
     () => new Set(state.empresas.map(e => e.id).filter((x): x is number => x != null)),
@@ -125,6 +127,61 @@ export function Step2ConfigureManual({ state, onChange }: Props) {
             ({state.empresas.length} seleccionadas · de {filtered.length} disponibles)
           </span>
         </Label>
+
+        {/* Filtro por Tier — chips multi-select. Vacío = todos los tiers. */}
+        <div className="mb-3 flex flex-wrap items-center gap-1.5 rounded-lg border border-border/60 bg-muted/10 px-3 py-2">
+          <span className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold mr-1">
+            Tier:
+          </span>
+          {(['A', 'B', 'C', 'D', 'sin_calificar'] as const).map(t => {
+            const active = state.tiers.includes(t);
+            const isGold = t === 'A';
+            const colors = {
+              A:             { bg: '#FBBF24', fg: '#451A03', border: '#F59E0B' },
+              B:             { bg: '#FCE7F3', fg: '#831843', border: '#FBCFE8' },
+              C:             { bg: '#EDE9FE', fg: '#4C1D95', border: '#DDD6FE' },
+              D:             { bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB' },
+              sin_calificar: { bg: '#F3F4F6', fg: '#6B7280', border: '#E5E7EB' },
+            }[t];
+            return (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  const next = active
+                    ? state.tiers.filter(x => x !== t)
+                    : [...state.tiers, t];
+                  onChange({ tiers: next });
+                }}
+                className={cn(
+                  'inline-flex items-center gap-1 rounded-full border px-2.5 py-0.5 text-xs transition-all',
+                  active ? 'font-semibold shadow-sm' : 'opacity-65 hover:opacity-100',
+                )}
+                style={{
+                  background:  active ? (isGold ? `linear-gradient(135deg, ${colors.bg} 0%, #FCD34D 100%)` : colors.bg) : 'transparent',
+                  color:       active ? colors.fg : undefined,
+                  borderColor: active ? colors.border : 'var(--border)',
+                }}
+              >
+                {t === 'sin_calificar' ? 'Sin calificar' : `Tier ${t}`}
+              </button>
+            );
+          })}
+          {state.tiers.length > 0 && (
+            <button
+              type="button"
+              onClick={() => onChange({ tiers: [] })}
+              className="ml-1 text-xs text-muted-foreground hover:text-foreground underline"
+            >
+              Mostrar todas
+            </button>
+          )}
+          <span className="ml-auto text-[11px] text-muted-foreground">
+            {state.tiers.length === 0
+              ? 'Sin filtro · todas las empresas'
+              : `${state.tiers.length} tier${state.tiers.length !== 1 ? 's' : ''} seleccionado${state.tiers.length !== 1 ? 's' : ''}`}
+          </span>
+        </div>
 
         <div className="mb-2 flex gap-2">
           <div className="relative flex-1">
