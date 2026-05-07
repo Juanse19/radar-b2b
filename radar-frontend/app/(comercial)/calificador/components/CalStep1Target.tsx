@@ -6,14 +6,8 @@ import { Zap, Target, Check } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import { LINEAS_CONFIG } from '@/lib/comercial/lineas-config';
-// V3 / Fase A1: KeywordChips removido — el Calificador no usa keywords ni
-// fuentes (eso es un patrón del Radar de Inversión, no aplica aquí).
-
-const LINEAS = [
-  { value: 'BHS',            label: 'BHS',            sub: 'Aeropuertos, Cargo' },
-  { value: 'Cartón',         label: 'Cartón',          sub: 'Corrugado' },
-  { value: 'Intralogística', label: 'Intralogística',  sub: 'Final de Línea, Motos, Solumat' },
-];
+import { LineaLandingCards } from '@/app/(comercial)/components/LineaLandingCards';
+// V2: KeywordChips no aplica al Calificador — eso es patrón del Radar de Inversión.
 
 interface Props {
   state:    CalWizardState;
@@ -61,41 +55,11 @@ export function CalStep1Target({ state, onChange }: Props) {
             </button>
           </div>
         ) : (
-          /* Full card grid */
-          <div className="grid grid-cols-3 gap-2">
-            {LINEAS.map((l) => {
-              const selected = state.linea === l.value;
-              return (
-                <button
-                  key={l.value}
-                  type="button"
-                  onClick={() => selectLinea(l.value)}
-                  aria-pressed={selected}
-                  className={cn(
-                    'relative rounded-lg border-2 px-3 py-2.5 text-left text-sm transition-all duration-200',
-                    selected
-                      ? 'border-primary bg-primary/30 font-semibold ring-2 ring-primary shadow-lg shadow-primary/20'
-                      : 'border-border bg-muted/30 hover:border-primary/60 hover:bg-muted/50',
-                  )}
-                >
-                  {selected && (
-                    <span
-                      aria-hidden
-                      className="absolute top-1.5 right-1.5 flex h-4 w-4 items-center justify-center rounded-full bg-primary text-primary-foreground"
-                    >
-                      <Check size={10} strokeWidth={3} />
-                    </span>
-                  )}
-                  <span className={cn('block font-medium leading-tight', selected && 'text-primary')}>
-                    {l.label}
-                  </span>
-                  <span className={cn('block text-[11px] leading-tight', selected ? 'text-primary/80' : 'text-muted-foreground')}>
-                    {l.sub}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          /* Landing cards — mismo componente visual que el módulo Escanear */
+          <LineaLandingCards
+            onSelect={(linea) => selectLinea(linea)}
+            selected={state.linea}
+          />
         )}
 
         {/* Sublínea chips — only when a line is selected */}
