@@ -56,7 +56,7 @@ export const INITIAL_STATE: ProspectorWizardState = {
   sublineas:       [],
   sublineaIds:     [],
   modo:            '',
-  tiers:           ['A'],
+  tiers:           [],         // [] = sin filtro (todas las empresas). El user puede marcar A/B/C/D para filtrar.
   count:           5,
   empresas:        [],
   jobTitles:       [],
