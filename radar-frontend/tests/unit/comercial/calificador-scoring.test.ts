@@ -135,10 +135,10 @@ describe('asignarTier', () => {
 // ─── TIER_LABEL ───────────────────────────────────────────────────────────────
 
 describe('TIER_LABEL', () => {
-  it('maps A to ORO', () => expect(TIER_LABEL.A).toBe('ORO'));
-  it('maps B to MONITOREO', () => expect(TIER_LABEL.B).toBe('MONITOREO'));
-  it('maps C to ARCHIVO', () => expect(TIER_LABEL.C).toBe('ARCHIVO'));
-  it('maps D to Descartar', () => expect(TIER_LABEL.D).toBe('Descartar'));
+  it('maps A to "Tier A"', () => expect(TIER_LABEL.A).toBe('Tier A'));
+  it('maps B to "Tier B"', () => expect(TIER_LABEL.B).toBe('Tier B'));
+  it('maps C to "Tier C"', () => expect(TIER_LABEL.C).toBe('Tier C'));
+  it('maps D to "Tier D"', () => expect(TIER_LABEL.D).toBe('Tier D'));
 });
 
 // ─── shouldSuggestRadar ───────────────────────────────────────────────────────

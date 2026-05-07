@@ -49,12 +49,17 @@ export function asignarTier(score: number): Tier {
   return 'D';
 }
 
-/** Human-readable label for a tier. */
+/**
+ * Human-readable label for a tier.
+ * Convención del equipo comercial Matec: se muestra como "Tier X"
+ * (no como "ORO/MONITOREO/ARCHIVO" — esos eran los nombres del backlog
+ * interno de WF01 N8N, ya retirado).
+ */
 export const TIER_LABEL: Record<Tier, string> = {
-  A: 'ORO',
-  B: 'MONITOREO',
-  C: 'ARCHIVO',
-  D: 'Descartar',
+  A: 'Tier A',
+  B: 'Tier B',
+  C: 'Tier C',
+  D: 'Tier D',
 };
 
 /** Whether this tier should trigger an automatic Radar suggestion. */
