@@ -45,7 +45,21 @@ export const CalificacionLLMResponseSchema = z.object({
 
 export type CalificacionLLMResponse = z.infer<typeof CalificacionLLMResponseSchema>;
 
-/** JSON schema string passed to OpenAI response_format / tool definitions. */
+// Build a per-dimension JSON schema entry. OpenAI strict mode requires
+// `additionalProperties: false` on EVERY nested object schema.
+function dimSchema(allowed: readonly string[]) {
+  return {
+    type: 'object' as const,
+    required: ['valor', 'justificacion'],
+    additionalProperties: false,
+    properties: {
+      valor:         { type: 'string' as const, enum: allowed },
+      justificacion: { type: 'string' as const },
+    },
+  };
+}
+
+/** JSON schema passed to OpenAI response_format (strict) and similar APIs. */
 export const CALIFICACION_JSON_SCHEMA = {
   type: 'object',
   required: ['dimensiones', 'razonamiento', 'perfilWeb'],
@@ -66,87 +80,25 @@ export const CALIFICACION_JSON_SCHEMA = {
       ],
       additionalProperties: false,
       properties: {
-        impacto_presupuesto: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        multiplanta: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Presencia internacional', 'Varias sedes regionales', 'Única sede'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        recurrencia: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        referente_mercado: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Referente internacional', 'Referente país', 'Baja visibilidad'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        anio_objetivo: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['2026', '2027', '2028', 'Sin año'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        ticket_estimado: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        prioridad_comercial: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        cuenta_estrategica: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['Sí', 'No'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
-        tier: {
-          type: 'object',
-          required: ['valor', 'justificacion'],
-          properties: {
-            valor: { type: 'string', enum: ['A', 'B', 'C'] },
-            justificacion: { type: 'string', minLength: 10, maxLength: 500 },
-          },
-        },
+        impacto_presupuesto: dimSchema(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']),
+        multiplanta:         dimSchema(['Presencia internacional', 'Varias sedes regionales', 'Única sede']),
+        recurrencia:         dimSchema(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']),
+        referente_mercado:   dimSchema(['Referente internacional', 'Referente país', 'Baja visibilidad']),
+        anio_objetivo:       dimSchema(['2026', '2027', '2028', 'Sin año']),
+        ticket_estimado:     dimSchema(['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket']),
+        prioridad_comercial: dimSchema(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']),
+        cuenta_estrategica:  dimSchema(['Sí', 'No']),
+        tier:                dimSchema(['A', 'B', 'C']),
       },
     },
-    razonamiento: { type: 'string', minLength: 50, maxLength: 5000 },
+    razonamiento: { type: 'string' },
     perfilWeb: {
       type: 'object',
       required: ['summary', 'sources'],
+      additionalProperties: false,
       properties: {
-        summary: { type: 'string', minLength: 10 },
-        sources: { type: 'array', items: { type: 'string' }, maxItems: 20 },
+        summary: { type: 'string' },
+        sources: { type: 'array', items: { type: 'string' } },
       },
     },
   },

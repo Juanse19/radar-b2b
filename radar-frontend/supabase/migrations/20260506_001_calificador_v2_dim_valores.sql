@@ -30,8 +30,12 @@ CREATE INDEX IF NOT EXISTS calif_dimensiones_gin_idx
   USING GIN (dimensiones);
 
 -- 3. Refresh comercial_calificaciones view with new fields ─────────────────────
+-- Drop the view first because Postgres rejects column reorderings via
+-- CREATE OR REPLACE when new columns are inserted between existing ones.
 
-CREATE OR REPLACE VIEW matec_radar.comercial_calificaciones
+DROP VIEW IF EXISTS matec_radar.comercial_calificaciones;
+
+CREATE VIEW matec_radar.comercial_calificaciones
   WITH (security_invoker = true)
 AS
 SELECT
