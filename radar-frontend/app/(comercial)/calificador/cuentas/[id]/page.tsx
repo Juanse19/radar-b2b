@@ -67,7 +67,7 @@ async function getCalificacion(id: number): Promise<CalDetailRow | null> {
         c.created_at
       FROM ${S}.calificaciones c
       LEFT JOIN ${S}.empresas e ON e.id = c.empresa_id
-      WHERE c.id = ${id} AND c.is_v2 = TRUE
+      WHERE c.id = ${id}
       LIMIT 1
     `);
     return rows[0] ?? null;

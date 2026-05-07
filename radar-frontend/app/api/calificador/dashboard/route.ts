@@ -58,24 +58,9 @@ export async function GET(req: Request) {
   const whereSql = `WHERE ${where.join(' AND ')}`;
 
   try {
-    // 1. Stats: count por tier
-    const stats = await pgQuery<StatsRow>(
-      `SELECT c.tier_calculado::TEXT AS tier, COUNT(*)::INT AS count
-         FROM ${SCHEMA}.calificaciones c
-         LEFT JOIN ${SCHEMA}.sub_lineas_negocio sl ON sl.id = c.sub_linea_id
-         LEFT JOIN ${SCHEMA}.lineas_negocio    l  ON l.id  = sl.linea_id
-         ${whereSql}
-         GROUP BY c.tier_calculado`,
-    );
-
-    const statsMap: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
-    for (const r of stats) {
-      // Normaliza B-Alta / B-Baja legacy → B
-      const k = r.tier === 'B-Alta' || r.tier === 'B-Baja' ? 'B' : r.tier;
-      if (k in statsMap) statsMap[k] += r.count;
-    }
-
-    // 2. Calificaciones enriquecidas con empresa, país, línea
+    // Una sola query — stats se calculan client-side en el endpoint a partir
+    // de las filas ya cargadas. Evita el round-trip extra a Supabase y
+    // mantiene los counts consistentes con el listado mostrado.
     const rows = await pgQuery<CalificacionRow>(
       `SELECT
          c.id,
@@ -106,19 +91,32 @@ export async function GET(req: Request) {
        LIMIT ${pgLit(limit)}`,
     );
 
-    // 3. Total de empresas únicas (no calificaciones — empresas distintas)
-    const empresasUnicas = new Set(
-      rows
-        .map(r => r.empresa_id ?? r.empresa_nombre)
-        .filter((v): v is string | number => v !== null),
-    ).size;
+    // Stats agregados desde las filas (in-memory, costo despreciable).
+    const statsMap: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
+    const seen = new Set<string | number>();
+    for (const r of rows) {
+      const t = r.tier_calculado === 'B-Alta' || r.tier_calculado === 'B-Baja'
+        ? 'B'
+        : r.tier_calculado;
+      if (t in statsMap) statsMap[t] += 1;
+      if (r.empresa_id != null) seen.add(r.empresa_id);
+      else if (r.empresa_nombre) seen.add(r.empresa_nombre);
+    }
 
-    return NextResponse.json({
-      stats: statsMap,
-      empresasUnicas,
-      calificaciones: rows,
-      total: rows.length,
-    });
+    return NextResponse.json(
+      {
+        stats:           statsMap,
+        empresasUnicas:  seen.size,
+        calificaciones:  rows,
+        total:           rows.length,
+      },
+      {
+        status:  200,
+        // Cache breve para que cambiar entre tabs Empresas ↔ Histórico
+        // no dispare un fetch nuevo cada vez (mejora UX percibida).
+        headers: { 'Cache-Control': 'private, max-age=10, stale-while-revalidate=30' },
+      },
+    );
   } catch (e) {
     return NextResponse.json(
       { error: (e as Error).message, stats: { A: 0, B: 0, C: 0, D: 0 }, empresasUnicas: 0, calificaciones: [], total: 0 },
