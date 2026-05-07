@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
 
       const sessionStart = Date.now();
       let totalCost      = 0;
-      const tieredCounts: Record<string, number> = { 'A': 0, 'B-Alta': 0, 'B-Baja': 0, 'C': 0, 'D': 0 };
+      const tieredCounts: Record<string, number> = { A: 0, B: 0, C: 0, D: 0 };
       let errors         = 0;
 
       for (let i = 0; i < empresas.length; i++) {

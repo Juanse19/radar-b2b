@@ -18,11 +18,10 @@ import type { Tier } from '@/lib/comercial/calificador/types';
 import { TIER_LABEL } from '@/lib/comercial/calificador/scoring';
 
 const TIER_STYLE: Record<Tier, { icon: typeof Star; cls: string; badgeCls: string }> = {
-  'A':      { icon: Star,       cls: 'text-amber-500',       badgeCls: 'bg-amber-500/15 text-amber-700 border-amber-500/30' },
-  'B-Alta': { icon: TrendingUp, cls: 'text-blue-600',        badgeCls: 'bg-blue-500/20  text-blue-800  border-blue-500/40'  },
-  'B-Baja': { icon: TrendingUp, cls: 'text-blue-400',        badgeCls: 'bg-blue-500/10  text-blue-600  border-blue-500/25'  },
-  'C':      { icon: Archive,    cls: 'text-slate-500',       badgeCls: 'bg-slate-500/15 text-slate-700 border-slate-500/30' },
-  'D':      { icon: Archive,    cls: 'text-muted-foreground',badgeCls: '' },
+  A: { icon: Star,       cls: 'text-amber-500',       badgeCls: 'bg-amber-500/15 text-amber-700 border-amber-500/30' },
+  B: { icon: TrendingUp, cls: 'text-blue-500',        badgeCls: 'bg-blue-500/15  text-blue-700  border-blue-500/30'  },
+  C: { icon: Archive,    cls: 'text-slate-500',       badgeCls: 'bg-slate-500/15 text-slate-700 border-slate-500/30' },
+  D: { icon: Archive,    cls: 'text-muted-foreground',badgeCls: '' },
 };
 
 interface Props {

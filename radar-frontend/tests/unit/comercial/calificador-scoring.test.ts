@@ -108,19 +108,11 @@ describe('asignarTier', () => {
   it('returns A for score >= 8', () => {
     expect(asignarTier(8)).toBe('A');
     expect(asignarTier(10)).toBe('A');
-    expect(asignarTier(8.5)).toBe('A');
   });
 
-  it('returns B-Alta for score in [6.5, 8)', () => {
-    expect(asignarTier(6.5)).toBe('B-Alta');
-    expect(asignarTier(7)).toBe('B-Alta');
-    expect(asignarTier(7.99)).toBe('B-Alta');
-  });
-
-  it('returns B-Baja for score in [5, 6.5)', () => {
-    expect(asignarTier(5)).toBe('B-Baja');
-    expect(asignarTier(6)).toBe('B-Baja');
-    expect(asignarTier(6.49)).toBe('B-Baja');
+  it('returns B for score in [5, 8)', () => {
+    expect(asignarTier(5)).toBe('B');
+    expect(asignarTier(7.9)).toBe('B');
   });
 
   it('returns C for score in [3, 5)', () => {
@@ -133,10 +125,9 @@ describe('asignarTier', () => {
     expect(asignarTier(0)).toBe('D');
   });
 
-  it('boundaries: 8→A, 6.5→B-Alta, 5→B-Baja, 3→C', () => {
+  it('boundaries: 8→A, 5→B, 3→C', () => {
     expect(asignarTier(8)).toBe('A');
-    expect(asignarTier(6.5)).toBe('B-Alta');
-    expect(asignarTier(5)).toBe('B-Baja');
+    expect(asignarTier(5)).toBe('B');
     expect(asignarTier(3)).toBe('C');
   });
 });
@@ -145,8 +136,7 @@ describe('asignarTier', () => {
 
 describe('TIER_LABEL', () => {
   it('maps A to ORO', () => expect(TIER_LABEL.A).toBe('ORO'));
-  it('maps B-Alta to MONITOREO Alto', () => expect(TIER_LABEL['B-Alta']).toBe('MONITOREO Alto'));
-  it('maps B-Baja to MONITOREO Bajo', () => expect(TIER_LABEL['B-Baja']).toBe('MONITOREO Bajo'));
+  it('maps B to MONITOREO', () => expect(TIER_LABEL.B).toBe('MONITOREO'));
   it('maps C to ARCHIVO', () => expect(TIER_LABEL.C).toBe('ARCHIVO'));
   it('maps D to Descartar', () => expect(TIER_LABEL.D).toBe('Descartar'));
 });
@@ -155,8 +145,7 @@ describe('TIER_LABEL', () => {
 
 describe('shouldSuggestRadar', () => {
   it('returns true for tier A', () => expect(shouldSuggestRadar('A')).toBe(true));
-  it('returns true for tier B-Alta', () => expect(shouldSuggestRadar('B-Alta')).toBe(true));
-  it('returns true for tier B-Baja', () => expect(shouldSuggestRadar('B-Baja')).toBe(true));
+  it('returns true for tier B', () => expect(shouldSuggestRadar('B')).toBe(true));
   it('returns true for tier C', () => expect(shouldSuggestRadar('C')).toBe(true));
   it('returns false for tier D', () => expect(shouldSuggestRadar('D')).toBe(false));
 });

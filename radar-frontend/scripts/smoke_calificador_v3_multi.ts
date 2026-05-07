@@ -21,8 +21,8 @@ const LINEA = 'BHS';
 
 const EMPRESAS = [
   { name: 'Grupo Bimbo',  country: 'Mexico',   domain: 'grupobimbo.com',   expectedTier: 'A' },
-  { name: 'Coordinadora', country: 'Colombia', domain: 'coordinadora.com', expectedTier: 'B-Alta' },
-  { name: 'Tiendas D1',   country: 'Colombia', domain: 'tiendasd1.com',    expectedTier: 'C' },
+  { name: 'Coordinadora', country: 'Colombia', domain: 'coordinadora.com', expectedTier: 'B' },
+  { name: 'Tiendas D1',   country: 'Colombia', domain: 'tiendasd1.com',    expectedTier: 'B' },
 ];
 
 interface DimEvent { empresa: string; dim: string; value: number; valor?: string; justificacion?: string }

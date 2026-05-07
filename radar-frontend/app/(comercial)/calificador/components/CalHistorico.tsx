@@ -10,22 +10,20 @@ const AGENT_TINT  = 'var(--agent-calificador-tint, rgba(185,132,42,0.08))';
 
 const CIRCUMFERENCE = 2 * Math.PI * 34; // ≈ 213.63
 
-type TierKey = 'A' | 'B-Alta' | 'B-Baja' | 'C' | 'D';
+type TierKey = 'A' | 'B' | 'C' | 'D';
 
 const TIER_LABEL: Record<TierKey, string> = {
-  'A':      'ORO',
-  'B-Alta': 'MONITOREO Alto',
-  'B-Baja': 'MONITOREO Bajo',
-  'C':      'ARCHIVO',
-  'D':      'DESCARTAR',
+  A: 'ORO',
+  B: 'MONITOREO',
+  C: 'ARCHIVO',
+  D: 'DESCARTAR',
 };
 
 const TIER_STYLE: Record<TierKey, { color: string; bg: string }> = {
-  'A':      { color: 'var(--gold, #b9842a)', bg: 'rgba(185,132,42,0.10)' },
-  'B-Alta': { color: '#1f5d8d',              bg: 'rgba(31,93,141,0.14)'  },
-  'B-Baja': { color: '#3d7eb5',              bg: 'rgba(31,93,141,0.07)'  },
-  'C':      { color: '#5c6f81',              bg: 'rgba(92,111,129,0.10)' },
-  'D':      { color: '#8b1a3c',              bg: 'rgba(139,26,60,0.08)'  },
+  A: { color: 'var(--gold, #b9842a)', bg: 'rgba(185,132,42,0.10)' },
+  B: { color: '#1f5d8d',              bg: 'rgba(31,93,141,0.10)'  },
+  C: { color: '#5c6f81',              bg: 'rgba(92,111,129,0.10)' },
+  D: { color: '#8b1a3c',              bg: 'rgba(139,26,60,0.08)'  },
 };
 
 const DIM_CONFIG: Array<{ key: keyof CalificacionItem; label: string }> = [
@@ -68,9 +66,9 @@ type SortDir   = 'asc' | 'desc';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toTierKey(raw: string): TierKey {
-  if (raw === 'A' || raw === 'B-Alta' || raw === 'B-Baja' || raw === 'C' || raw === 'D') return raw;
-  // Backwards compat: V2 rows may have tier 'B' without sub-division.
-  if (raw === 'B') return 'B-Baja';
+  if (raw === 'A' || raw === 'B' || raw === 'C' || raw === 'D') return raw;
+  // Backwards compat: legacy sub-tier rows (B-Alta / B-Baja) → B.
+  if (raw === 'B-Alta' || raw === 'B-Baja') return 'B';
   return 'C';
 }
 
@@ -469,7 +467,7 @@ export function CalHistorico() {
 
   // Tier counts
   const tierCounts = useMemo(() => {
-    const counts: Record<TierKey, number> = { 'A': 0, 'B-Alta': 0, 'B-Baja': 0, 'C': 0, 'D': 0 };
+    const counts: Record<TierKey, number> = { A: 0, B: 0, C: 0, D: 0 };
     for (const item of items) counts[item.tier_calculado]++;
     return counts;
   }, [items]);
@@ -526,7 +524,7 @@ export function CalHistorico() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const summaryCards: Array<{ tier: TierKey }> = [
-    { tier: 'A' as const }, { tier: 'B-Alta' as const }, { tier: 'B-Baja' as const }, { tier: 'C' as const }, { tier: 'D' as const },
+    { tier: 'A' as const }, { tier: 'B' as const }, { tier: 'C' as const }, { tier: 'D' as const },
   ];
 
   return (

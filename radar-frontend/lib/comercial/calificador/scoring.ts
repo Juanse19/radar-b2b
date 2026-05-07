@@ -36,33 +36,30 @@ export function calcularScore(scores: DimScores): number {
 }
 
 /**
- * Map a weighted score to a tier letter (with B sub-divisions).
- *   A       (≥8)   = ORO            → trigger Radar automatically
- *   B-Alta  (≥6.5) = MONITOREO Alto → strong candidate for Radar
- *   B-Baja  (≥5)   = MONITOREO Bajo → consider Radar
- *   C       (≥3)   = ARCHIVO        → defer
- *   D       (<3)   = Descartar      → no radar suggestion
+ * Map a weighted score to a tier letter.
+ *   A (≥8) = ORO        → trigger Radar automatically
+ *   B (≥5) = MONITOREO  → offer to trigger Radar
+ *   C (≥3) = ARCHIVO    → offer to trigger Radar
+ *   D (<3) = Descartar  → no radar suggestion
  */
 export function asignarTier(score: number): Tier {
-  if (score >= 8)   return 'A';
-  if (score >= 6.5) return 'B-Alta';
-  if (score >= 5)   return 'B-Baja';
-  if (score >= 3)   return 'C';
+  if (score >= 8) return 'A';
+  if (score >= 5) return 'B';
+  if (score >= 3) return 'C';
   return 'D';
 }
 
 /** Human-readable label for a tier. */
 export const TIER_LABEL: Record<Tier, string> = {
-  'A':      'ORO',
-  'B-Alta': 'MONITOREO Alto',
-  'B-Baja': 'MONITOREO Bajo',
-  'C':      'ARCHIVO',
-  'D':      'Descartar',
+  A: 'ORO',
+  B: 'MONITOREO',
+  C: 'ARCHIVO',
+  D: 'Descartar',
 };
 
 /** Whether this tier should trigger an automatic Radar suggestion. */
 export function shouldSuggestRadar(tier: Tier): boolean {
-  return tier === 'A' || tier === 'B-Alta' || tier === 'B-Baja' || tier === 'C';
+  return tier === 'A' || tier === 'B' || tier === 'C';
 }
 
 // ─── Categórico ↔ Score mapping ───────────────────────────────────────────────

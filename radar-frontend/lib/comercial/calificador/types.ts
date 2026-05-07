@@ -3,10 +3,11 @@
  * server-only: referenced by engine, providers, and API route.
  */
 
-// V3 (Fase A1): tier becomes a CALCULATED result with sub-divisions, not a
-// dimension the LLM picks. The LLM scores 8 dimensions; the backend derives
-// score_total + tier from them.
-export type Tier = 'A' | 'B-Alta' | 'B-Baja' | 'C' | 'D';
+// V3 (Fase A1): tier es resultado calculado (no dimensión que el LLM elija).
+// El LLM califica 8 dimensiones; el backend deriva score_total + tier de ellas.
+// Sub-tiers (B-Alta/B-Baja) postergados — pendiente validación de umbrales
+// con Felipe y Paola.
+export type Tier = 'A' | 'B' | 'C' | 'D';
 
 export type Dimension =
   | 'impacto_presupuesto'
