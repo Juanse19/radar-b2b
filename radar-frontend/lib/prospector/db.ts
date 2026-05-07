@@ -149,6 +149,33 @@ export async function alreadyEnriched(apolloId: string): Promise<boolean> {
   return row !== null;
 }
 
+/**
+ * Pre-check de duplicado por (empresa_id, email) — protege contra gastar
+ * créditos Apollo enrich en contactos que ya importamos vía Excel.
+ *
+ * Los 1541 contactos importados por Excel tienen `apollo_id=NULL`, así que
+ * `alreadyEnriched(apollo_id)` no los detecta. Apollo Search ya devuelve un
+ * email no-verificado en el resultado del search (gratis), suficiente para
+ * dedupear contra los importados antes de gastar el crédito de Enrich.
+ *
+ * Devuelve el id del contacto existente si lo hay, null si no.
+ */
+export async function alreadyHasEmail(
+  empresaId: number,
+  email: string,
+): Promise<{ id: number; apollo_id: string | null } | null> {
+  if (!email || !empresaId) return null;
+  const safe = email.replace(/'/g, "''").toLowerCase();
+  const query = `
+    SELECT id, apollo_id
+    FROM ${tbl('contactos')}
+    WHERE empresa_id = ${empresaId}
+      AND LOWER(email) = '${safe}'
+    LIMIT 1
+  `;
+  return pgFirst<{ id: number; apollo_id: string | null }>(query);
+}
+
 // ---------------------------------------------------------------------------
 // upsertContact — guarda/actualiza un contacto enriquecido
 // ---------------------------------------------------------------------------

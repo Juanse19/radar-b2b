@@ -36,6 +36,7 @@ import { classifyLevel, NIVEL_ORDEN, type Nivel } from '@/lib/prospector/levels'
 import { creditCost } from '@/lib/prospector/phone-rules';
 import {
   alreadyEnriched,
+  alreadyHasEmail,
   buildContactResult,
   createProspectorSession,
   finalizeProspectorSession,
@@ -435,7 +436,7 @@ async function processCompany(args: ProcessCompanyArgs): Promise<CompanyStats> {
 
     const ct = ranked[idx];
 
-    // Skip si ya tiene email verificado en BD
+    // Skip si ya tiene email verificado en BD (match por apollo_id)
     try {
       if (await alreadyEnriched(ct.id)) {
         emitter.emit('skipped_duplicate', {
@@ -448,6 +449,28 @@ async function processCompany(args: ProcessCompanyArgs): Promise<CompanyStats> {
       }
     } catch (err) {
       console.error('[prospector v2] alreadyEnriched failed:', err);
+    }
+
+    // Pre-check por email contra contactos importados (apollo_id NULL).
+    // Apollo Search devuelve un email pre-verificado en `ct.email` cuando
+    // existe en su catálogo. Lo usamos para dedupear contra los 1541
+    // contactos importados via Excel SIN gastar enrich (1 crédito).
+    const candidateEmail = (ct as { email?: string | null }).email;
+    if (candidateEmail && candidateEmail.includes('@')) {
+      try {
+        const existing = await alreadyHasEmail(empresaId, candidateEmail);
+        if (existing) {
+          emitter.emit('skipped_duplicate', {
+            apollo_id: ct.id,
+            empresa:   target.empresa,
+            motivo:    'email_already_in_db',
+          });
+          stats.skipped += 1;
+          continue;
+        }
+      } catch (err) {
+        console.error('[prospector v2] alreadyHasEmail failed:', err);
+      }
     }
 
     emitter.emit('enriching', {

@@ -1,7 +1,17 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { Linkedin, Phone, Lock, Send, CheckCircle2, AlertCircle, Clock, Loader2 } from 'lucide-react';
+import {
+  Linkedin,
+  Phone,
+  Send,
+  CheckCircle2,
+  AlertCircle,
+  Clock,
+  Loader2,
+  ExternalLink,
+  Crown,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { UnlockPhoneButton } from './UnlockPhoneButton';
@@ -17,24 +27,29 @@ type FilterMode = 'all' | 'sincronizado' | 'pendiente' | 'error';
 
 const ACCENT = 'var(--agent-contactos)';
 
-// Colores por línea (alineados con AGENT_COLORS / lineas-config)
 const LINEA_DOT: Record<string, string> = {
-  bhs:                 '#0EA5E9',  // sky
+  bhs:                 '#0EA5E9',
   aeropuertos:         '#0EA5E9',
   cargo_uld:           '#0EA5E9',
-  carton_papel:        '#10B981',  // emerald
+  carton_papel:        '#10B981',
   carton_corrugado:    '#10B981',
-  intralogistica:      '#F59E0B',  // amber
+  intralogistica:      '#F59E0B',
   final_linea:         '#F59E0B',
   ensambladoras_motos: '#F59E0B',
   solumat:             '#F59E0B',
   logistica:           '#F59E0B',
 };
 
-// Badge HubSpot
-// Tier badges — matchea matec_radar.tier_enum (A | B | C | D | sin_calificar)
-const TIER_BADGE: Record<string, { bg: string; fg: string; border: string; label: string }> = {
-  'A':             { bg: '#FEF3C7', fg: '#7C2D12', border: '#FDE68A', label: 'A' },
+interface TierStyle {
+  bg:      string;
+  fg:      string;
+  border:  string;
+  label:   string;
+  ribbon?: boolean;
+}
+
+const TIER_BADGE: Record<string, TierStyle> = {
+  'A':             { bg: '#FBBF24', fg: '#451A03', border: '#F59E0B', label: 'A', ribbon: true },
   'B':             { bg: '#FCE7F3', fg: '#831843', border: '#FBCFE8', label: 'B' },
   'C':             { bg: '#EDE9FE', fg: '#4C1D95', border: '#DDD6FE', label: 'C' },
   'D':             { bg: '#E5E7EB', fg: '#374151', border: '#D1D5DB', label: 'D' },
@@ -47,7 +62,6 @@ const HUBSPOT_STYLE: Record<string, { bg: string; fg: string; border: string; ic
   error:        { bg: '#FEE2E2', fg: '#B91C1C', border: '#FECACA', icon: AlertCircle,   label: 'Error' },
 };
 
-// Avatar color por iniciales (estable, hash simple)
 function avatarColors(name: string): { bg: string; fg: string } {
   const palette = [
     { bg: '#DBEAFE', fg: '#1E40AF' },
@@ -73,7 +87,6 @@ function getInitials(name: string, last: string): string {
 function maskPhone(tel: string | null | undefined, unlocked: boolean): string {
   if (!tel) return '—';
   if (unlocked) return tel;
-  // Mostrar prefijo +XX y últimos 4 dígitos: "+57 312 •••• 4519"
   const cleaned = tel.replace(/[^\d+]/g, '');
   if (cleaned.length < 6) return '••••••••';
   const head = cleaned.slice(0, Math.min(7, cleaned.length - 4));
@@ -81,17 +94,52 @@ function maskPhone(tel: string | null | undefined, unlocked: boolean): string {
   return `${head} •••• ${tail}`;
 }
 
+function linkedinHandle(url: string | null | undefined): string | null {
+  if (!url) return null;
+  const m = url.match(/linkedin\.com\/(?:in|pub|company)\/([^/?#]+)/i);
+  return m ? m[1] : url.replace(/^https?:\/\//, '').replace(/\/$/, '');
+}
+
+function TierBadge({ tier }: { tier: string }) {
+  const t = TIER_BADGE[tier] ?? TIER_BADGE.sin_calificar;
+  if (t.ribbon) {
+    return (
+      <span
+        className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-[11px] font-bold uppercase tracking-wide shadow-sm"
+        style={{
+          background:  `linear-gradient(135deg, ${t.bg} 0%, #FCD34D 100%)`,
+          color:       t.fg,
+          borderColor: t.border,
+        }}
+        title="Tier A — máxima prioridad"
+      >
+        <Crown size={11} />
+        Tier {t.label}
+      </span>
+    );
+  }
+  return (
+    <span
+      className="inline-flex items-center justify-center rounded-md border px-2.5 py-1 text-[11px] font-semibold tabular-nums"
+      style={{ background: t.bg, color: t.fg, borderColor: t.border }}
+      title={tier === 'sin_calificar' ? 'Sin calificar' : `Tier ${t.label}`}
+    >
+      {t.label === '—' ? 'Sin calificar' : `Tier ${t.label}`}
+    </span>
+  );
+}
+
 export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }: Props) {
-  const [filter, setFilter] = useState<FilterMode>('all');
+  const [filter, setFilter]   = useState<FilterMode>('all');
   const [syncing, setSyncing] = useState(false);
 
   const counts = useMemo(() => {
     const c = { all: contacts.length, sincronizado: 0, pendiente: 0, error: 0 };
     for (const ct of contacts) {
       const s = (ct as ContactCardState & { hubspot_status?: string }).hubspot_status ?? 'pendiente';
-      if (s === 'sincronizado') c.sincronizado++;
-      else if (s === 'error')   c.error++;
-      else                       c.pendiente++;
+      if      (s === 'sincronizado') c.sincronizado++;
+      else if (s === 'error')        c.error++;
+      else                            c.pendiente++;
     }
     return c;
   }, [contacts]);
@@ -109,7 +157,6 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
     if (ids.length === 0) return;
     setSyncing(true);
     try {
-      // Endpoint pendiente — Phase 3. Por ahora solo log.
       // eslint-disable-next-line no-console
       console.info('[Sync HubSpot] batch ids:', ids);
       await new Promise(r => setTimeout(r, 600));
@@ -120,7 +167,7 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
 
   if (contacts.length === 0) {
     return (
-      <div className="rounded-lg border border-border/60 p-8 text-center">
+      <div className="rounded-lg border border-border/60 p-10 text-center">
         {isStreaming ? (
           <>
             <Loader2 size={20} className="mx-auto mb-2 animate-spin" style={{ color: ACCENT }} />
@@ -143,20 +190,22 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
 
   return (
     <div className="rounded-xl border border-border/70 bg-card overflow-hidden">
-      {/* Header — title + counters + chips + Sync HubSpot */}
-      <div className="flex flex-wrap items-center justify-between gap-3 border-b border-border/60 px-4 py-3">
+      {/* ── Toolbar ────────────────────────────────────────────────────────── */}
+      <div className="flex flex-col gap-4 border-b border-border/60 px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="min-w-0">
-          <h3 className="text-sm font-semibold leading-tight">Contactos prospectados</h3>
-          <p className="text-xs text-muted-foreground">
+          <h3 className="text-base font-semibold leading-tight tracking-tight">
+            Contactos prospectados
+          </h3>
+          <p className="mt-1 text-xs text-muted-foreground">
             {counts.all} contacto{counts.all !== 1 ? 's' : ''}
-            {counts.sincronizado > 0 && <> · {counts.sincronizado} sincronizado{counts.sincronizado !== 1 ? 's' : ''}</>}
-            {counts.pendiente > 0    && <> · {counts.pendiente} pendiente{counts.pendiente !== 1 ? 's' : ''}</>}
-            {counts.error > 0        && <> · {counts.error} con error</>}
+            {counts.sincronizado > 0 && <> · <span className="text-emerald-700 font-medium">{counts.sincronizado}</span> sincronizado{counts.sincronizado !== 1 ? 's' : ''}</>}
+            {counts.pendiente    > 0 && <> · <span className="text-amber-700 font-medium">{counts.pendiente}</span> pendiente{counts.pendiente !== 1 ? 's' : ''}</>}
+            {counts.error        > 0 && <> · <span className="text-red-700 font-medium">{counts.error}</span> con error</>}
           </p>
         </div>
 
-        <div className="flex items-center gap-1">
-          <div className="inline-flex rounded-lg border border-border/60 bg-background p-0.5">
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="inline-flex rounded-lg border border-border/60 bg-background p-0.5 shadow-xs">
             {filters.map(f => {
               const active = filter === f.id;
               return (
@@ -165,12 +214,18 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
                   type="button"
                   onClick={() => setFilter(f.id)}
                   className={cn(
-                    'px-3 py-1 text-xs rounded-md transition-colors',
-                    active ? 'bg-accent text-accent-foreground font-medium' : 'text-muted-foreground hover:text-foreground',
+                    'px-3 py-1.5 text-xs rounded-md transition-colors',
+                    active
+                      ? 'bg-foreground text-background font-medium shadow-sm'
+                      : 'text-muted-foreground hover:text-foreground',
                   )}
                 >
                   {f.label}
-                  {f.count > 0 && <span className={cn('ml-1.5 text-[10px]', active ? 'opacity-80' : 'opacity-60')}>{f.count}</span>}
+                  {f.count > 0 && (
+                    <span className={cn('ml-1.5 text-[10px] tabular-nums', active ? 'opacity-80' : 'opacity-60')}>
+                      {f.count}
+                    </span>
+                  )}
                 </button>
               );
             })}
@@ -178,30 +233,31 @@ export function ContactosResultsTable({ contacts, isStreaming, onPhoneUnlocked }
           <Button
             type="button"
             size="sm"
-            variant="outline"
             onClick={handleBatchSync}
             disabled={syncing || counts.all === 0}
-            className="ml-2"
+            style={{ background: ACCENT, color: '#fff' }}
+            className="h-9 shadow-sm"
           >
             {syncing
-              ? <><Loader2 size={13} className="mr-1.5 animate-spin" /> Sincronizando…</>
-              : <><Send size={13} className="mr-1.5" /> Sync HubSpot</>
+              ? <><Loader2 size={14} className="mr-1.5 animate-spin" /> Sincronizando…</>
+              : <><Send size={14} className="mr-1.5" /> Sync HubSpot</>
             }
           </Button>
         </div>
       </div>
 
-      {/* Table */}
+      {/* ── Tabla ──────────────────────────────────────────────────────────── */}
       <div className="overflow-x-auto">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-border/60 bg-muted/30 text-[10px] uppercase tracking-wider text-muted-foreground">
-              <th className="px-4 py-2.5 text-left font-medium">Contacto</th>
-              <th className="px-4 py-2.5 text-left font-medium">Empresa · Línea</th>
-              <th className="px-4 py-2.5 text-left font-medium">Tier</th>
-              <th className="px-4 py-2.5 text-left font-medium">Email</th>
-              <th className="px-4 py-2.5 text-left font-medium">Teléfono</th>
-              <th className="px-4 py-2.5 text-left font-medium">HubSpot</th>
+              <th className="px-5 py-3 text-left font-semibold">Contacto</th>
+              <th className="px-5 py-3 text-left font-semibold">Empresa · Línea</th>
+              <th className="px-5 py-3 text-left font-semibold">Tier</th>
+              <th className="px-5 py-3 text-left font-semibold">Email</th>
+              <th className="px-5 py-3 text-left font-semibold">Teléfono</th>
+              <th className="px-5 py-3 text-left font-semibold">LinkedIn</th>
+              <th className="px-5 py-3 text-left font-semibold">HubSpot</th>
             </tr>
           </thead>
           <tbody>
@@ -231,45 +287,44 @@ function ContactRow({ contact, onUnlocked }: RowProps) {
   const initials = getInitials(contact.nombre, contact.apellido);
   const avatar   = avatarColors(fullName);
   const dot      = LINEA_DOT[contact.sublinea ?? ''] ?? '#94A3B8';
+  const handle   = linkedinHandle(contact.linkedin);
 
   const hubspot = (contact as ContactCardState & { hubspot_status?: string }).hubspot_status ?? 'pendiente';
   const hsStyle = HUBSPOT_STYLE[hubspot] ?? HUBSPOT_STYLE.pendiente;
   const HsIcon  = hsStyle.icon;
 
+  const isGold = (contact.empresa_tier ?? '') === 'A';
+
   return (
-    <tr className="border-b border-border/40 last:border-b-0 hover:bg-muted/20 transition-colors">
+    <tr
+      className={cn(
+        'border-b border-border/40 last:border-b-0 transition-colors hover:bg-muted/30',
+        isGold && 'bg-amber-50/30',
+      )}
+    >
       {/* Contacto */}
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle">
         <div className="flex items-center gap-3 min-w-0">
           <span
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold"
-            style={{ background: avatar.bg, color: avatar.fg }}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-sm font-bold tracking-tight ring-2 ring-white"
+            style={{
+              background: avatar.bg,
+              color:      avatar.fg,
+              fontFeatureSettings: '"ss01"',
+            }}
             aria-hidden
           >
             {initials}
           </span>
           <div className="min-w-0">
-            <div className="flex items-center gap-1.5">
-              <p className="truncate text-sm font-medium">{fullName}</p>
-              {contact.linkedin && (
-                <a
-                  href={contact.linkedin}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="LinkedIn"
-                  className="text-muted-foreground hover:opacity-70"
-                >
-                  <Linkedin size={12} />
-                </a>
-              )}
-            </div>
+            <p className="truncate text-sm font-semibold text-foreground">{fullName}</p>
             <p className="truncate text-xs text-muted-foreground">{contact.cargo}</p>
           </div>
         </div>
       </td>
 
       {/* Empresa · Línea */}
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle">
         <p className="truncate text-sm font-medium">{contact.empresa}</p>
         <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
           <span aria-hidden className="inline-block h-1.5 w-1.5 rounded-full" style={{ background: dot }} />
@@ -278,27 +333,15 @@ function ContactRow({ contact, onUnlocked }: RowProps) {
       </td>
 
       {/* Tier */}
-      <td className="px-4 py-3 align-middle">
-        {(() => {
-          const tier = contact.empresa_tier ?? 'sin_calificar';
-          const t = TIER_BADGE[tier] ?? TIER_BADGE.sin_calificar;
-          return (
-            <span
-              className="inline-flex items-center justify-center rounded-full border px-2 py-0.5 text-[11px] font-semibold tabular-nums"
-              style={{ background: t.bg, color: t.fg, borderColor: t.border }}
-              title={tier === 'sin_calificar' ? 'Sin calificar' : `Tier ${t.label}`}
-            >
-              {t.label}
-            </span>
-          );
-        })()}
+      <td className="px-5 py-4 align-middle">
+        <TierBadge tier={contact.empresa_tier ?? 'sin_calificar'} />
       </td>
 
       {/* Email */}
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle">
         <a
           href={`mailto:${contact.email}`}
-          className="text-sm hover:underline"
+          className="text-sm hover:underline truncate max-w-[220px] inline-block"
           style={{ color: ACCENT }}
         >
           {contact.email}
@@ -309,7 +352,7 @@ function ContactRow({ contact, onUnlocked }: RowProps) {
       </td>
 
       {/* Teléfono */}
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle whitespace-nowrap">
         {contact.tel_movil ? (
           <span className="inline-flex items-center gap-1.5 text-sm font-mono">
             <Phone size={11} className="text-emerald-600" />
@@ -326,10 +369,29 @@ function ContactRow({ contact, onUnlocked }: RowProps) {
         )}
       </td>
 
+      {/* LinkedIn — columna explícita */}
+      <td className="px-5 py-4 align-middle">
+        {contact.linkedin ? (
+          <a
+            href={contact.linkedin}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-md border border-[#0A66C2]/20 bg-[#0A66C2]/5 px-2.5 py-1 text-xs font-medium text-[#0A66C2] transition-colors hover:bg-[#0A66C2]/10 hover:border-[#0A66C2]/40 max-w-[180px]"
+            title={contact.linkedin}
+          >
+            <Linkedin size={12} className="shrink-0" />
+            <span className="truncate">{handle ?? 'Ver perfil'}</span>
+            <ExternalLink size={10} className="shrink-0 opacity-60" />
+          </a>
+        ) : (
+          <span className="text-xs text-muted-foreground">—</span>
+        )}
+      </td>
+
       {/* HubSpot */}
-      <td className="px-4 py-3 align-middle">
+      <td className="px-5 py-4 align-middle">
         <span
-          className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+          className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium whitespace-nowrap"
           style={{ background: hsStyle.bg, color: hsStyle.fg, borderColor: hsStyle.border }}
         >
           <HsIcon size={11} />

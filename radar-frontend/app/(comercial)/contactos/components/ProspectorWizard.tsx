@@ -46,6 +46,10 @@ export function ProspectorWizard() {
   }, []);
 
   const fire = useCallback(async () => {
+    // Guard contra doble-click: si ya estamos en live o connecting, no disparar de nuevo
+    if (state.step === 'live' || streamState.status === 'connecting' || streamState.status === 'streaming') {
+      return;
+    }
     const sessionId = crypto.randomUUID();
     setState(prev => ({ ...prev, sessionId, step: 'live' }));
 
@@ -54,16 +58,16 @@ export function ProspectorWizard() {
       modo:        state.modo === 'manual' ? 'manual' : 'auto',
       sublineas:   state.sublineas,
       tiers:       state.modo === 'auto' ? state.tiers : undefined,
-      empresas:    state.empresas
-        .filter(e => !!e.dominio)
-        .map(e => ({
-          empresa_id: e.id,
-          empresa:    e.empresa,
-          pais:       e.pais,
-          dominio:    e.dominio,
-          sublinea:   e.sublinea,
-          tier:       e.tier,
-        })),
+      // Pasamos TODAS las empresas seleccionadas — el backend hace fallback
+      // a búsqueda por nombre cuando no hay dominio (apolloSearch.companyName).
+      empresas:    state.empresas.map(e => ({
+        empresa_id: e.id,
+        empresa:    e.empresa,
+        pais:       e.pais,
+        dominio:    e.dominio,
+        sublinea:   e.sublinea,
+        tier:       e.tier,
+      })),
       job_titles:        state.jobTitles,
       max_contactos:     state.maxContactos,
       reveal_phone_auto: state.revealPhoneAuto,
