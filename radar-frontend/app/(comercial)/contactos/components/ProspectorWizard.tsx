@@ -141,7 +141,7 @@ export function ProspectorWizard() {
           <ChevronLeft size={14} className="mr-1" />
           Atrás
         </Button>
-        {state.step < 3 ? (
+        {typeof state.step === 'number' && state.step < 3 ? (
           <Button type="button" size="sm" onClick={next} disabled={!canNext}>
             Siguiente
             <ChevronRight size={14} className="ml-1" />

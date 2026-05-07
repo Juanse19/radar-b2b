@@ -60,12 +60,12 @@ export async function GET(_req: NextRequest) {
   };
   try {
     const usage = await apolloPost<UsageStatsRaw>('/usage_stats/api_usage_stats', {});
-    const findKey = (path: string, action: string): RateLimit['day'] | undefined => {
+    const findKey = (path: string, action: string): RateLimit | undefined => {
       const target = JSON.stringify([path, action]);
       const entry = usage[target];
       return entry?.day;
     };
-    const findHour = (path: string, action: string): RateLimit['hour'] | undefined => {
+    const findHour = (path: string, action: string): RateLimit | undefined => {
       const target = JSON.stringify([path, action]);
       const entry = usage[target];
       return entry?.hour;

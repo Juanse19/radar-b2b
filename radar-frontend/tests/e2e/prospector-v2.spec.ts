@@ -95,7 +95,8 @@ async function runManualSearch(
     empresaRowText: string;   // text identifying the correct table row
   },
 ): Promise<void> {
-  await page.goto(`${BASE}/contactos`, { waitUntil: 'networkidle', timeout: NAV_TIMEOUT });
+  // /contactos ahora es la lista de contactos; el wizard vive en /contactos/buscar
+  await page.goto(`${BASE}/contactos/buscar`, { waitUntil: 'networkidle', timeout: NAV_TIMEOUT });
   await page.waitForTimeout(500); // allow Step1 to finish fetching /api/prospector/v2/lineas
 
   // ── Step 1: línea card ────────────────────────────────────────────────────
