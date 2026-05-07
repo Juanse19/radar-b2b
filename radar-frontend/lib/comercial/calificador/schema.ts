@@ -1,9 +1,8 @@
 /**
- * calificador/schema.ts — Zod schema for validating LLM JSON output.
+ * calificador/schema.ts — Zod schema for validating LLM JSON output (V3 / Fase A1).
  *
- * V2 contract: each of the 9 dimensions returns a categorical { valor,
- * justificacion } pair. Numeric scores are derived server-side via
- * `categoricoToScore` in `scoring.ts`.
+ * El LLM devuelve 8 dimensiones categóricas. Tier y score_total los
+ * deriva el backend a partir de ellas (no se piden al LLM).
  */
 import { z } from 'zod';
 
@@ -12,11 +11,15 @@ const ImpactoEnum     = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']
 const MultiplantaEnum = z.enum(['Presencia internacional', 'Varias sedes regionales', 'Única sede']);
 const RecurrenciaEnum = z.enum(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']);
 const ReferenteEnum   = z.enum(['Referente internacional', 'Referente país', 'Baja visibilidad']);
+const AccesoDecEnum   = z.enum([
+  'Sin Contacto',
+  'Contacto Líder o Jefe',
+  'Contacto Gerente o Directivo',
+  'Contacto con 3 o más áreas',
+]);
 const AnioEnum        = z.enum(['2026', '2027', '2028', 'Sin año']);
-const TicketEnum      = z.enum(['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket']);
 const PrioridadEnum   = z.enum(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']);
 const CuentaEstratEnum= z.enum(['Sí', 'No']);
-const TierEnum        = z.enum(['A', 'B', 'C']);
 
 const dimDetail = <V extends z.ZodTypeAny>(valor: V) =>
   z.object({
@@ -30,11 +33,10 @@ export const CalificacionLLMResponseSchema = z.object({
     multiplanta:         dimDetail(MultiplantaEnum),
     recurrencia:         dimDetail(RecurrenciaEnum),
     referente_mercado:   dimDetail(ReferenteEnum),
+    acceso_al_decisor:   dimDetail(AccesoDecEnum),
     anio_objetivo:       dimDetail(AnioEnum),
-    ticket_estimado:     dimDetail(TicketEnum),
     prioridad_comercial: dimDetail(PrioridadEnum),
     cuenta_estrategica:  dimDetail(CuentaEstratEnum),
-    tier:                dimDetail(TierEnum),
   }),
   razonamiento: z.string().min(50).max(5000),
   perfilWeb: z.object({
@@ -72,11 +74,10 @@ export const CALIFICACION_JSON_SCHEMA = {
         'multiplanta',
         'recurrencia',
         'referente_mercado',
+        'acceso_al_decisor',
         'anio_objetivo',
-        'ticket_estimado',
         'prioridad_comercial',
         'cuenta_estrategica',
-        'tier',
       ],
       additionalProperties: false,
       properties: {
@@ -84,11 +85,15 @@ export const CALIFICACION_JSON_SCHEMA = {
         multiplanta:         dimSchema(['Presencia internacional', 'Varias sedes regionales', 'Única sede']),
         recurrencia:         dimSchema(['Muy Alto', 'Alto', 'Medio', 'Bajo', 'Muy Bajo']),
         referente_mercado:   dimSchema(['Referente internacional', 'Referente país', 'Baja visibilidad']),
+        acceso_al_decisor:   dimSchema([
+          'Sin Contacto',
+          'Contacto Líder o Jefe',
+          'Contacto Gerente o Directivo',
+          'Contacto con 3 o más áreas',
+        ]),
         anio_objetivo:       dimSchema(['2026', '2027', '2028', 'Sin año']),
-        ticket_estimado:     dimSchema(['> 5M USD', '1-5M USD', '500K-1M USD', '< 500K USD', 'Sin ticket']),
         prioridad_comercial: dimSchema(['Muy Alta', 'Alta', 'Media', 'Baja', 'Muy Baja']),
         cuenta_estrategica:  dimSchema(['Sí', 'No']),
-        tier:                dimSchema(['A', 'B', 'C']),
       },
     },
     razonamiento: { type: 'string' },

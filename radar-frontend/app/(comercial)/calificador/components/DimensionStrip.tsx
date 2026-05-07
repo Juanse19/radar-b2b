@@ -8,24 +8,23 @@ const DIM_LABELS: Record<Dimension, string> = {
   impacto_presupuesto: 'Impacto presupuesto',
   multiplanta:         'Multiplanta',
   recurrencia:         'Recurrencia',
-  referente_mercado:   'Referente mercado',
+  referente_mercado:   'Referente del mercado',
+  acceso_al_decisor:   'Acceso al decisor',
   anio_objetivo:       'Año objetivo',
-  ticket_estimado:     'Ticket estimado',
   prioridad_comercial: 'Prioridad comercial',
   cuenta_estrategica:  'Cuenta estratégica',
-  tier:                'Tier',
 };
 
+// Order mirrors the official Matec spreadsheet: Cualitativa first, Estratégica last.
 const DIM_ORDER: Dimension[] = [
   'impacto_presupuesto',
-  'prioridad_comercial',
-  'cuenta_estrategica',
-  'tier',
-  'anio_objetivo',
   'multiplanta',
   'recurrencia',
   'referente_mercado',
-  'ticket_estimado',
+  'acceso_al_decisor',
+  'anio_objetivo',
+  'prioridad_comercial',
+  'cuenta_estrategica',
 ];
 
 function scoreColor(score: number): string {

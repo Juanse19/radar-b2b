@@ -3,29 +3,34 @@
  * server-only: referenced by engine, providers, and API route.
  */
 
-export type Tier = 'A' | 'B' | 'C' | 'D';
+// V3 (Fase A1): tier becomes a CALCULATED result with sub-divisions, not a
+// dimension the LLM picks. The LLM scores 8 dimensions; the backend derives
+// score_total + tier from them.
+export type Tier = 'A' | 'B-Alta' | 'B-Baja' | 'C' | 'D';
 
 export type Dimension =
   | 'impacto_presupuesto'
   | 'multiplanta'
   | 'recurrencia'
   | 'referente_mercado'
+  | 'acceso_al_decisor'
   | 'anio_objetivo'
-  | 'ticket_estimado'
   | 'prioridad_comercial'
-  | 'cuenta_estrategica'
-  | 'tier';
+  | 'cuenta_estrategica';
 
 // ── Categorical value sets per dimension (single source of truth) ──────────
 export type ImpactoCat        = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
 export type MultiplantaCat    = 'Presencia internacional' | 'Varias sedes regionales' | 'Única sede';
 export type RecurrenciaCat    = 'Muy Alto' | 'Alto' | 'Medio' | 'Bajo' | 'Muy Bajo';
 export type ReferenteCat      = 'Referente internacional' | 'Referente país' | 'Baja visibilidad';
+export type AccesoDecisorCat  =
+  | 'Sin Contacto'
+  | 'Contacto Líder o Jefe'
+  | 'Contacto Gerente o Directivo'
+  | 'Contacto con 3 o más áreas';
 export type AnioCat           = '2026' | '2027' | '2028' | 'Sin año';
-export type TicketCat         = '> 5M USD' | '1-5M USD' | '500K-1M USD' | '< 500K USD' | 'Sin ticket';
 export type PrioridadCat      = 'Muy Alta' | 'Alta' | 'Media' | 'Baja' | 'Muy Baja';
 export type CuentaEstratCat   = 'Sí' | 'No';
-export type TierCat           = 'A' | 'B' | 'C';
 
 export interface CalificacionInput {
   empresa: string;
@@ -50,11 +55,10 @@ export interface DimScores {
   multiplanta: number;
   recurrencia: number;
   referente_mercado: number;
+  acceso_al_decisor: number;
   anio_objetivo: number;
-  ticket_estimado: number;
   prioridad_comercial: number;
   cuenta_estrategica: number;
-  tier: number;
 }
 
 /** v5: per-dimension detail produced by the Calificador prompt (optional). */
@@ -90,11 +94,12 @@ export interface CalificacionRow {
   score_multiplanta: number;
   score_recurrencia: number;
   score_referente: number;
+  score_acceso_al_decisor: number;
   score_anio: number;
-  score_ticket: number;
   score_prioridad: number;
   score_cuenta_estrategica: number;
-  score_tier: number;
+  /** Legacy V2 column — kept nullable for backwards compat with old rows. */
+  score_ticket?: number | null;
   score_total: number;
   tier_calculado: Tier;
   razonamiento_agente?: string;

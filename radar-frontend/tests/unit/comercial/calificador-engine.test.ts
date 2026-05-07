@@ -72,11 +72,10 @@ function validLLMJson() {
       multiplanta:         { valor: 'Presencia internacional', justificacion: 'Opera en 33 países con plantas en cada uno.' },
       recurrencia:         { valor: 'Alto', justificacion: 'Mantenimiento anual y expansiones recurrentes.' },
       referente_mercado:   { valor: 'Referente internacional', justificacion: 'Líder global en panificación industrial.' },
+      acceso_al_decisor:   { valor: 'Contacto con 3 o más áreas', justificacion: 'Equipo de Operaciones, Mantenimiento y Compras visible en LinkedIn.' },
       anio_objetivo:       { valor: '2026', justificacion: 'Plan de expansión declarado para 2026 en LATAM.' },
-      ticket_estimado:     { valor: '> 5M USD', justificacion: 'Tamaño de proyectos típicos de modernización.' },
       prioridad_comercial: { valor: 'Muy Alta', justificacion: 'Cuenta clave histórica de Matec.' },
       cuenta_estrategica:  { valor: 'Sí', justificacion: 'Cliente clave estratégico con relación activa.' },
-      tier:                { valor: 'A', justificacion: 'Combina referente internacional, multiplanta y prioridad muy alta.' },
     },
     razonamiento:
       'Grupo Bimbo es una empresa multinacional con alta capacidad de inversión en plantas productivas de alimentos en LATAM.',
@@ -142,12 +141,12 @@ describe('calificarEmpresa', () => {
     expect(insertCall).toBeDefined();
   });
 
-  it('emits empresa_started, dim_scored ×9, tier_assigned, empresa_done', async () => {
+  it('emits empresa_started, dim_scored ×8, tier_assigned, empresa_done', async () => {
     const emitter = makeEmitter();
     await calificarEmpresa(buildInput(), {}, emitter);
     const eventNames = emitter.events.map(e => e.event);
     expect(eventNames).toContain('empresa_started');
-    expect(eventNames.filter(n => n === 'dim_scored')).toHaveLength(9);
+    expect(eventNames.filter(n => n === 'dim_scored')).toHaveLength(8);
     expect(eventNames).toContain('tier_assigned');
     expect(eventNames).toContain('empresa_done');
   });

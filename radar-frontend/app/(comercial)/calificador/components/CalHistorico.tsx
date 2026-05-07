@@ -10,51 +10,56 @@ const AGENT_TINT  = 'var(--agent-calificador-tint, rgba(185,132,42,0.08))';
 
 const CIRCUMFERENCE = 2 * Math.PI * 34; // ≈ 213.63
 
-type TierKey = 'A' | 'B' | 'C' | 'D';
+type TierKey = 'A' | 'B-Alta' | 'B-Baja' | 'C' | 'D';
 
 const TIER_LABEL: Record<TierKey, string> = {
-  A: 'ORO',
-  B: 'MONITOREO',
-  C: 'ARCHIVO',
-  D: 'DESCARTAR',
+  'A':      'ORO',
+  'B-Alta': 'MONITOREO Alto',
+  'B-Baja': 'MONITOREO Bajo',
+  'C':      'ARCHIVO',
+  'D':      'DESCARTAR',
 };
 
 const TIER_STYLE: Record<TierKey, { color: string; bg: string }> = {
-  A: { color: 'var(--gold, #b9842a)',    bg: 'rgba(185,132,42,0.10)' },
-  B: { color: '#1f5d8d',                 bg: 'rgba(31,93,141,0.10)'  },
-  C: { color: '#5c6f81',                 bg: 'rgba(92,111,129,0.10)' },
-  D: { color: '#8b1a3c',                 bg: 'rgba(139,26,60,0.08)'  },
+  'A':      { color: 'var(--gold, #b9842a)', bg: 'rgba(185,132,42,0.10)' },
+  'B-Alta': { color: '#1f5d8d',              bg: 'rgba(31,93,141,0.14)'  },
+  'B-Baja': { color: '#3d7eb5',              bg: 'rgba(31,93,141,0.07)'  },
+  'C':      { color: '#5c6f81',              bg: 'rgba(92,111,129,0.10)' },
+  'D':      { color: '#8b1a3c',              bg: 'rgba(139,26,60,0.08)'  },
 };
 
 const DIM_CONFIG: Array<{ key: keyof CalificacionItem; label: string }> = [
-  { key: 'score_impacto',    label: 'Impacto presupuesto' },
-  { key: 'score_multiplanta',label: 'Multiplanta'         },
-  { key: 'score_recurrencia',label: 'Recurrencia'         },
-  { key: 'score_referente',  label: 'Referente mercado'   },
-  { key: 'score_anio',       label: 'Año objetivo'        },
-  { key: 'score_ticket',     label: 'Ticket estimado'     },
-  { key: 'score_prioridad',  label: 'Prioridad comercial' },
+  { key: 'score_impacto',           label: 'Impacto presupuesto' },
+  { key: 'score_multiplanta',       label: 'Multiplanta'         },
+  { key: 'score_recurrencia',       label: 'Recurrencia'         },
+  { key: 'score_referente',         label: 'Referente mercado'   },
+  { key: 'score_acceso_al_decisor', label: 'Acceso al decisor'   },
+  { key: 'score_anio',              label: 'Año objetivo'        },
+  { key: 'score_prioridad',         label: 'Prioridad comercial' },
+  { key: 'score_cuenta_estrategica',label: 'Cuenta estratégica'  },
 ];
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface CalificacionItem {
-  id:               number;
-  empresa_nombre:   string;
-  pais:             string;
-  linea_negocio:    string;
-  tier_calculado:   TierKey;
-  score_total:      number;
-  score_impacto:    number;
-  score_multiplanta:number;
-  score_recurrencia:number;
-  score_referente:  number;
-  score_anio:       number;
-  score_ticket:     number;
-  score_prioridad:  number;
-  created_at:       string;
-  senales_count?:   number;
-  contactos_count?: number;
+  id:                       number;
+  empresa_nombre:           string;
+  pais:                     string;
+  linea_negocio:            string;
+  tier_calculado:           TierKey;
+  score_total:              number;
+  score_impacto:            number;
+  score_multiplanta:        number;
+  score_recurrencia:        number;
+  score_referente:          number;
+  score_acceso_al_decisor:  number;
+  score_anio:               number;
+  score_ticket:             number | null;
+  score_prioridad:          number;
+  score_cuenta_estrategica: number;
+  created_at:               string;
+  senales_count?:           number;
+  contactos_count?:         number;
 }
 
 type SortField = 'empresa_nombre' | 'score_total' | 'created_at';
@@ -63,7 +68,9 @@ type SortDir   = 'asc' | 'desc';
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function toTierKey(raw: string): TierKey {
-  if (raw === 'A' || raw === 'B' || raw === 'C' || raw === 'D') return raw;
+  if (raw === 'A' || raw === 'B-Alta' || raw === 'B-Baja' || raw === 'C' || raw === 'D') return raw;
+  // Backwards compat: V2 rows may have tier 'B' without sub-division.
+  if (raw === 'B') return 'B-Baja';
   return 'C';
 }
 
@@ -440,9 +447,11 @@ export function CalHistorico() {
           score_multiplanta: Number(row['score_multiplanta'] ?? 0),
           score_recurrencia: Number(row['score_recurrencia'] ?? 0),
           score_referente:   Number(row['score_referente'] ?? 0),
-          score_anio:        Number(row['score_anio'] ?? 0),
-          score_ticket:      Number(row['score_ticket'] ?? 0),
-          score_prioridad:   Number(row['score_prioridad'] ?? 0),
+          score_acceso_al_decisor:  Number(row['score_acceso_al_decisor'] ?? 0),
+          score_anio:               Number(row['score_anio'] ?? 0),
+          score_ticket:             row['score_ticket'] != null ? Number(row['score_ticket']) : null,
+          score_prioridad:          Number(row['score_prioridad'] ?? 0),
+          score_cuenta_estrategica: Number(row['score_cuenta_estrategica'] ?? 0),
           created_at:        String(row['created_at'] ?? new Date().toISOString()),
           senales_count:     row['senales_count'] != null ? Number(row['senales_count']) : undefined,
           contactos_count:   row['contactos_count'] != null ? Number(row['contactos_count']) : undefined,
@@ -460,7 +469,7 @@ export function CalHistorico() {
 
   // Tier counts
   const tierCounts = useMemo(() => {
-    const counts: Record<TierKey, number> = { A: 0, B: 0, C: 0, D: 0 };
+    const counts: Record<TierKey, number> = { 'A': 0, 'B-Alta': 0, 'B-Baja': 0, 'C': 0, 'D': 0 };
     for (const item of items) counts[item.tier_calculado]++;
     return counts;
   }, [items]);
@@ -517,7 +526,7 @@ export function CalHistorico() {
   // ── Render ─────────────────────────────────────────────────────────────────
 
   const summaryCards: Array<{ tier: TierKey }> = [
-    { tier: 'A' }, { tier: 'B' }, { tier: 'C' }, { tier: 'D' },
+    { tier: 'A' as const }, { tier: 'B-Alta' as const }, { tier: 'B-Baja' as const }, { tier: 'C' as const }, { tier: 'D' as const },
   ];
 
   return (

@@ -23,11 +23,11 @@ interface CalDetailRow {
   score_multiplanta:        number;
   score_recurrencia:        number;
   score_referente:          number;
+  score_acceso_al_decisor:  number | null;
   score_anio:               number;
-  score_ticket:             number;
+  score_ticket:             number | null;
   score_prioridad:          number;
   score_cuenta_estrategica: number | null;
-  score_tier:               number | null;
   dimensiones:              unknown;
   razonamiento_agente: string | null;
   perfil_web_summary:  string | null;
@@ -52,11 +52,11 @@ async function getCalificacion(id: number): Promise<CalDetailRow | null> {
         c.score_multiplanta,
         c.score_recurrencia,
         c.score_referente,
+        c.score_acceso_al_decisor,
         c.score_anio,
         c.score_ticket,
         c.score_prioridad,
         c.score_cuenta_estrategica,
-        c.score_tier,
         c.dimensiones,
         c.razonamiento_agente,
         c.perfil_web_summary,
@@ -77,21 +77,27 @@ async function getCalificacion(id: number): Promise<CalDetailRow | null> {
 }
 
 const TIER_ICON: Record<Tier, typeof Star> = {
-  A: Star, B: TrendingUp, C: Archive, D: XCircle,
+  'A':      Star,
+  'B-Alta': TrendingUp,
+  'B-Baja': TrendingUp,
+  'C':      Archive,
+  'D':      XCircle,
 };
 
 const TIER_CLS: Record<Tier, string> = {
-  A: 'text-amber-500',
-  B: 'text-blue-500',
-  C: 'text-slate-500',
-  D: 'text-muted-foreground',
+  'A':      'text-amber-500',
+  'B-Alta': 'text-blue-600',
+  'B-Baja': 'text-blue-400',
+  'C':      'text-slate-500',
+  'D':      'text-muted-foreground',
 };
 
 const TIER_BADGE: Record<Tier, string> = {
-  A: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
-  B: 'bg-blue-500/15  text-blue-700  border-blue-500/30',
-  C: 'bg-slate-500/15 text-slate-700 border-slate-500/30',
-  D: 'bg-muted        text-muted-foreground',
+  'A':      'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  'B-Alta': 'bg-blue-500/20  text-blue-800  border-blue-500/40',
+  'B-Baja': 'bg-blue-500/10  text-blue-600  border-blue-500/25',
+  'C':      'bg-slate-500/15 text-slate-700 border-slate-500/30',
+  'D':      'bg-muted        text-muted-foreground',
 };
 
 interface Props {
@@ -117,11 +123,10 @@ export default async function CalificacionDetailPage({ params }: Props) {
     multiplanta:         row.score_multiplanta,
     recurrencia:         row.score_recurrencia,
     referente_mercado:   row.score_referente,
+    acceso_al_decisor:   row.score_acceso_al_decisor ?? 0,
     anio_objetivo:       row.score_anio,
-    ticket_estimado:     row.score_ticket,
     prioridad_comercial: row.score_prioridad,
     cuenta_estrategica:  row.score_cuenta_estrategica ?? 0,
-    tier:                row.score_tier ?? 0,
   };
 
   // Build dimensiones map for UI from persisted jsonb if available.

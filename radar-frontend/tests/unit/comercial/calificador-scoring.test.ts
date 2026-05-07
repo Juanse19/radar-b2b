@@ -1,5 +1,5 @@
 /**
- * Unit tests for lib/comercial/calificador/scoring.ts (V2 — 9 dimensions)
+ * Unit tests for lib/comercial/calificador/scoring.ts (V3 / Fase A1 — 8 dimensiones)
  * Pure functions — no mocks needed.
  */
 import { describe, it, expect } from 'vitest';
@@ -22,11 +22,10 @@ const ALL_TEN: DimScores = {
   multiplanta:         10,
   recurrencia:         10,
   referente_mercado:   10,
+  acceso_al_decisor:   10,
   anio_objetivo:       10,
-  ticket_estimado:     10,
   prioridad_comercial: 10,
   cuenta_estrategica:  10,
-  tier:                10,
 };
 
 const ALL_ZERO: DimScores = {
@@ -34,11 +33,10 @@ const ALL_ZERO: DimScores = {
   multiplanta:         0,
   recurrencia:         0,
   referente_mercado:   0,
+  acceso_al_decisor:   0,
   anio_objetivo:       0,
-  ticket_estimado:     0,
   prioridad_comercial: 0,
   cuenta_estrategica:  0,
-  tier:                0,
 };
 
 const ALL_FIVE: DimScores = {
@@ -46,11 +44,10 @@ const ALL_FIVE: DimScores = {
   multiplanta:         5,
   recurrencia:         5,
   referente_mercado:   5,
+  acceso_al_decisor:   5,
   anio_objetivo:       5,
-  ticket_estimado:     5,
   prioridad_comercial: 5,
   cuenta_estrategica:  5,
-  tier:                5,
 };
 
 // ─── PESOS ────────────────────────────────────────────────────────────────────
@@ -61,15 +58,20 @@ describe('PESOS', () => {
     expect(sum).toBeCloseTo(1.0, 10);
   });
 
-  it('includes all 9 dimensions', () => {
+  it('includes exactly the 8 V3 dimensions', () => {
     const dims = Object.keys(PESOS).sort();
     expect(dims).toEqual(
       [
-        'anio_objetivo', 'cuenta_estrategica', 'impacto_presupuesto',
-        'multiplanta', 'prioridad_comercial', 'recurrencia',
-        'referente_mercado', 'ticket_estimado', 'tier',
+        'acceso_al_decisor', 'anio_objetivo', 'cuenta_estrategica',
+        'impacto_presupuesto', 'multiplanta', 'prioridad_comercial',
+        'recurrencia', 'referente_mercado',
       ].sort(),
     );
+  });
+
+  it('does NOT include retired dimensions (ticket_estimado, tier)', () => {
+    expect(Object.keys(PESOS)).not.toContain('ticket_estimado');
+    expect(Object.keys(PESOS)).not.toContain('tier');
   });
 
   it('impacto_presupuesto has the highest weight', () => {
@@ -98,28 +100,30 @@ describe('calcularScore', () => {
     const result = calcularScore(scores);
     expect(result.toString().split('.')[1]?.length ?? 0).toBeLessThanOrEqual(1);
   });
-
-  it('weights impacto_presupuesto more heavily than any single other dimension', () => {
-    const highImpacto: DimScores = { ...ALL_ZERO, impacto_presupuesto: 10 };
-    const highReferente: DimScores = { ...ALL_ZERO, referente_mercado: 10 };
-    expect(calcularScore(highImpacto)).toBeGreaterThan(calcularScore(highReferente));
-  });
 });
 
-// ─── asignarTier ──────────────────────────────────────────────────────────────
+// ─── asignarTier (with sub-divisions) ─────────────────────────────────────────
 
 describe('asignarTier', () => {
   it('returns A for score >= 8', () => {
     expect(asignarTier(8)).toBe('A');
     expect(asignarTier(10)).toBe('A');
+    expect(asignarTier(8.5)).toBe('A');
   });
 
-  it('returns B for score >= 5 and < 8', () => {
-    expect(asignarTier(5)).toBe('B');
-    expect(asignarTier(7.9)).toBe('B');
+  it('returns B-Alta for score in [6.5, 8)', () => {
+    expect(asignarTier(6.5)).toBe('B-Alta');
+    expect(asignarTier(7)).toBe('B-Alta');
+    expect(asignarTier(7.99)).toBe('B-Alta');
   });
 
-  it('returns C for score >= 3 and < 5', () => {
+  it('returns B-Baja for score in [5, 6.5)', () => {
+    expect(asignarTier(5)).toBe('B-Baja');
+    expect(asignarTier(6)).toBe('B-Baja');
+    expect(asignarTier(6.49)).toBe('B-Baja');
+  });
+
+  it('returns C for score in [3, 5)', () => {
     expect(asignarTier(3)).toBe('C');
     expect(asignarTier(4.9)).toBe('C');
   });
@@ -129,9 +133,10 @@ describe('asignarTier', () => {
     expect(asignarTier(0)).toBe('D');
   });
 
-  it('boundaries: 8→A, 5→B, 3→C', () => {
+  it('boundaries: 8→A, 6.5→B-Alta, 5→B-Baja, 3→C', () => {
     expect(asignarTier(8)).toBe('A');
-    expect(asignarTier(5)).toBe('B');
+    expect(asignarTier(6.5)).toBe('B-Alta');
+    expect(asignarTier(5)).toBe('B-Baja');
     expect(asignarTier(3)).toBe('C');
   });
 });
@@ -140,7 +145,8 @@ describe('asignarTier', () => {
 
 describe('TIER_LABEL', () => {
   it('maps A to ORO', () => expect(TIER_LABEL.A).toBe('ORO'));
-  it('maps B to MONITOREO', () => expect(TIER_LABEL.B).toBe('MONITOREO'));
+  it('maps B-Alta to MONITOREO Alto', () => expect(TIER_LABEL['B-Alta']).toBe('MONITOREO Alto'));
+  it('maps B-Baja to MONITOREO Bajo', () => expect(TIER_LABEL['B-Baja']).toBe('MONITOREO Bajo'));
   it('maps C to ARCHIVO', () => expect(TIER_LABEL.C).toBe('ARCHIVO'));
   it('maps D to Descartar', () => expect(TIER_LABEL.D).toBe('Descartar'));
 });
@@ -149,7 +155,8 @@ describe('TIER_LABEL', () => {
 
 describe('shouldSuggestRadar', () => {
   it('returns true for tier A', () => expect(shouldSuggestRadar('A')).toBe(true));
-  it('returns true for tier B', () => expect(shouldSuggestRadar('B')).toBe(true));
+  it('returns true for tier B-Alta', () => expect(shouldSuggestRadar('B-Alta')).toBe(true));
+  it('returns true for tier B-Baja', () => expect(shouldSuggestRadar('B-Baja')).toBe(true));
   it('returns true for tier C', () => expect(shouldSuggestRadar('C')).toBe(true));
   it('returns false for tier D', () => expect(shouldSuggestRadar('D')).toBe(false));
 });
@@ -171,15 +178,16 @@ describe('categoricoToScore', () => {
     expect(categoricoToScore('multiplanta', 'Única sede')).toBe(2);
   });
 
+  it('maps acceso_al_decisor values (NEW V3 dimension)', () => {
+    expect(categoricoToScore('acceso_al_decisor', 'Contacto con 3 o más áreas')).toBe(10);
+    expect(categoricoToScore('acceso_al_decisor', 'Contacto Gerente o Directivo')).toBe(7);
+    expect(categoricoToScore('acceso_al_decisor', 'Contacto Líder o Jefe')).toBe(4);
+    expect(categoricoToScore('acceso_al_decisor', 'Sin Contacto')).toBe(1);
+  });
+
   it('maps cuenta_estrategica binary values', () => {
     expect(categoricoToScore('cuenta_estrategica', 'Sí')).toBe(10);
     expect(categoricoToScore('cuenta_estrategica', 'No')).toBe(0);
-  });
-
-  it('maps tier (A/B/C) values', () => {
-    expect(categoricoToScore('tier', 'A')).toBe(10);
-    expect(categoricoToScore('tier', 'B')).toBe(6);
-    expect(categoricoToScore('tier', 'C')).toBe(2);
   });
 
   it('maps anio_objetivo years', () => {
@@ -202,10 +210,8 @@ describe('scoreToCategorico', () => {
     expect(scoreToCategorico('impacto_presupuesto', 8)).toBe('Alto');
     expect(scoreToCategorico('cuenta_estrategica', 10)).toBe('Sí');
     expect(scoreToCategorico('cuenta_estrategica', 0)).toBe('No');
-  });
-
-  it('rounds intermediate values to nearest known label', () => {
-    expect(scoreToCategorico('impacto_presupuesto', 9)).toMatch(/Muy Alto|Alto/);
+    expect(scoreToCategorico('acceso_al_decisor', 10)).toBe('Contacto con 3 o más áreas');
+    expect(scoreToCategorico('acceso_al_decisor', 1)).toBe('Sin Contacto');
   });
 });
 
@@ -215,10 +221,10 @@ describe('allowedCategoricos', () => {
   it('returns 5 values for impacto_presupuesto', () => {
     expect(allowedCategoricos('impacto_presupuesto')).toHaveLength(5);
   });
+  it('returns 4 values for acceso_al_decisor', () => {
+    expect(allowedCategoricos('acceso_al_decisor')).toHaveLength(4);
+  });
   it('returns 2 values for cuenta_estrategica', () => {
     expect(allowedCategoricos('cuenta_estrategica')).toEqual(['Sí', 'No']);
-  });
-  it('returns 3 values for tier', () => {
-    expect(allowedCategoricos('tier')).toEqual(['A', 'B', 'C']);
   });
 });

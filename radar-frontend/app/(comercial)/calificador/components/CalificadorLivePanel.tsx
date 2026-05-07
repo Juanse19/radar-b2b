@@ -42,21 +42,27 @@ interface CompanyState {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 const TIER_ICON: Record<Tier, typeof Star> = {
-  A: Star, B: TrendingUp, C: Archive, D: XCircle,
+  'A':      Star,
+  'B-Alta': TrendingUp,
+  'B-Baja': TrendingUp,
+  'C':      Archive,
+  'D':      XCircle,
 };
 
 const TIER_CLS: Record<Tier, string> = {
-  A: 'text-amber-500',
-  B: 'text-blue-500',
-  C: 'text-slate-500',
-  D: 'text-muted-foreground',
+  'A':      'text-amber-500',
+  'B-Alta': 'text-blue-600',
+  'B-Baja': 'text-blue-400',
+  'C':      'text-slate-500',
+  'D':      'text-muted-foreground',
 };
 
 const TIER_BADGE_CLS: Record<Tier, string> = {
-  A: 'bg-amber-500/15 text-amber-700 border-amber-500/30',
-  B: 'bg-blue-500/15  text-blue-700  border-blue-500/30',
-  C: 'bg-slate-500/15 text-slate-700 border-slate-500/30',
-  D: 'bg-muted        text-muted-foreground',
+  'A':      'bg-amber-500/15 text-amber-700 border-amber-500/30',
+  'B-Alta': 'bg-blue-500/20  text-blue-800  border-blue-500/40',
+  'B-Baja': 'bg-blue-500/10  text-blue-600  border-blue-500/25',
+  'C':      'bg-slate-500/15 text-slate-700 border-slate-500/30',
+  'D':      'bg-muted        text-muted-foreground',
 };
 
 function formatCost(usd: number): string {
@@ -307,7 +313,7 @@ export function CalificadorLivePanel({
 
                 {c.status === 'running' && Object.keys(c.scores).length > 0 && (
                   <span className="shrink-0 text-[11px] text-muted-foreground">
-                    {Object.keys(c.scores).length}/9
+                    {Object.keys(c.scores).length}/8
                   </span>
                 )}
 

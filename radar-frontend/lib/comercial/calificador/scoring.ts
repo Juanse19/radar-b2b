@@ -1,63 +1,75 @@
 /**
- * calificador/scoring.ts — Deterministic scoring logic.
+ * calificador/scoring.ts — Deterministic scoring logic (V3 / Fase A1).
+ *
+ * 8 dimensiones que el LLM califica → ponderación → score 0-10 → tier.
+ * Tier es resultado calculado, NO una dimensión que el LLM elige.
+ *
  * Pure functions: no I/O, no side effects. Easy to unit-test.
  */
 import type { Dimension, DimScores, Tier } from './types';
 
-// ── Weights (sum = 1.00) for the 9 calificador dimensions ───────────────────
+// ── Weights (sum = 1.00) for the 8 calificador dimensions ───────────────────
+//
+// Ajustado para Fase A1:
+//   - Eliminado `ticket_estimado` (no aparece en spreadsheets oficiales).
+//   - Agregado `acceso_al_decisor` con peso alto (es señal directa de
+//     ejecución comercial).
+//   - `tier` ya no es dimensión; se deriva del score total.
 export const PESOS: Record<Dimension, number> = {
-  impacto_presupuesto: 0.18,
-  prioridad_comercial: 0.16,
+  impacto_presupuesto: 0.20,
+  prioridad_comercial: 0.18,
+  acceso_al_decisor:   0.15,
   cuenta_estrategica:  0.13,
-  tier:                0.12,
-  anio_objetivo:       0.11,
+  anio_objetivo:       0.12,
   multiplanta:         0.10,
-  recurrencia:         0.08,
-  referente_mercado:   0.07,
-  ticket_estimado:     0.05,
+  recurrencia:         0.07,
+  referente_mercado:   0.05,
 };
 
-/** Weighted average of 9 dimension scores → 0–10 with 1 decimal. */
+/** Weighted average of 8 dimension scores → 0–10 with 1 decimal. */
 export function calcularScore(scores: DimScores): number {
   const total = (Object.entries(scores) as [Dimension, number][]).reduce(
-    (acc, [dim, val]) => acc + val * PESOS[dim],
+    (acc, [dim, val]) => acc + val * (PESOS[dim] ?? 0),
     0,
   );
   return Math.round(total * 10) / 10;
 }
 
 /**
- * Map a weighted score to a tier letter.
- *   A (≥8) = ORO          → trigger Radar automatically
- *   B (≥5) = MONITOREO    → offer to trigger Radar
- *   C (≥3) = ARCHIVO      → offer to trigger Radar
- *   D (<3) = Descartar    → no radar suggestion
+ * Map a weighted score to a tier letter (with B sub-divisions).
+ *   A       (≥8)   = ORO            → trigger Radar automatically
+ *   B-Alta  (≥6.5) = MONITOREO Alto → strong candidate for Radar
+ *   B-Baja  (≥5)   = MONITOREO Bajo → consider Radar
+ *   C       (≥3)   = ARCHIVO        → defer
+ *   D       (<3)   = Descartar      → no radar suggestion
  */
 export function asignarTier(score: number): Tier {
-  if (score >= 8) return 'A';
-  if (score >= 5) return 'B';
-  if (score >= 3) return 'C';
+  if (score >= 8)   return 'A';
+  if (score >= 6.5) return 'B-Alta';
+  if (score >= 5)   return 'B-Baja';
+  if (score >= 3)   return 'C';
   return 'D';
 }
 
 /** Human-readable label for a tier. */
 export const TIER_LABEL: Record<Tier, string> = {
-  A: 'ORO',
-  B: 'MONITOREO',
-  C: 'ARCHIVO',
-  D: 'Descartar',
+  'A':      'ORO',
+  'B-Alta': 'MONITOREO Alto',
+  'B-Baja': 'MONITOREO Bajo',
+  'C':      'ARCHIVO',
+  'D':      'Descartar',
 };
 
 /** Whether this tier should trigger an automatic Radar suggestion. */
 export function shouldSuggestRadar(tier: Tier): boolean {
-  return tier === 'A' || tier === 'B' || tier === 'C';
+  return tier === 'A' || tier === 'B-Alta' || tier === 'B-Baja' || tier === 'C';
 }
 
 // ─── Categórico ↔ Score mapping ───────────────────────────────────────────────
 //
-// Source of truth: the user's qualitative scoring table.
-// Each dimension maps a categorical string ("Muy Alto", "Sí", "A"…) to a
-// numeric score 0–10 used by `calcularScore`.
+// Source of truth: la rúbrica cualitativa de Matec (pantallazos oficiales).
+// Cada dimensión mapea un valor categórico ("Muy Alto", "Sí", "Sin Contacto"…)
+// a un score 0-10 utilizado por `calcularScore`.
 
 const CATEGORICO_SCORE_MAP: Record<Dimension, Record<string, number>> = {
   impacto_presupuesto: {
@@ -76,20 +88,20 @@ const CATEGORICO_SCORE_MAP: Record<Dimension, Record<string, number>> = {
     'Referente país': 6,
     'Baja visibilidad': 2,
   },
+  acceso_al_decisor: {
+    'Contacto con 3 o más áreas': 10,
+    'Contacto Gerente o Directivo': 7,
+    'Contacto Líder o Jefe': 4,
+    'Sin Contacto': 1,
+  },
   anio_objetivo: {
     '2026': 10, '2027': 6, '2028': 2, 'Sin año': 0,
-  },
-  ticket_estimado: {
-    '> 5M USD': 10, '1-5M USD': 8, '500K-1M USD': 5, '< 500K USD': 3, 'Sin ticket': 1,
   },
   prioridad_comercial: {
     'Muy Alta': 10, 'Alta': 8, 'Media': 5, 'Baja': 3, 'Muy Baja': 1,
   },
   cuenta_estrategica: {
     'Sí': 10, 'No': 0,
-  },
-  tier: {
-    'A': 10, 'B': 6, 'C': 2,
   },
 };
 
@@ -113,7 +125,7 @@ export function categoricoToScore(dim: Dimension, valor: string): number {
 
 /**
  * Inverse mapping: pick the closest categorical label for a numeric score.
- * Used for backward compatibility with V1 rows that only have numeric scores.
+ * Used for backward compatibility with rows that only have numeric scores.
  */
 export function scoreToCategorico(dim: Dimension, score: number): string {
   const map = CATEGORICO_SCORE_MAP[dim];
