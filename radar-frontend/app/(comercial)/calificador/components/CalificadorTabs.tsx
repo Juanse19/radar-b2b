@@ -1,14 +1,16 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { Building2, History } from 'lucide-react';
+import { Sparkles, History } from 'lucide-react';
 import { AgentModeTabs, type AgentTab } from '@/components/agent/AgentModeTabs';
-import { CalDashboard } from './CalDashboard';
+import { useCalLiveStore } from '@/lib/comercial/calificador/live-store';
+import { CalificadorWizard } from './CalificadorWizard';
+import { CalificadorLivePanel } from './CalificadorLivePanel';
 
-// CalHistorico es ~800 líneas: lazy-load para que no bloquee el render
-// inicial del tab Empresas (que es el default).
-const CalHistorico = dynamic(
-  () => import('./CalHistorico').then((m) => ({ default: m.CalHistorico })),
+// Dashboard del histórico es el componente más pesado (drawer + tabla
+// paginada). Lazy-load para que no bloquee el primer paint del tab Nueva.
+const CalDashboard = dynamic(
+  () => import('./CalDashboard').then((m) => ({ default: m.CalDashboard })),
   {
     ssr:     false,
     loading: () => (
@@ -19,25 +21,35 @@ const CalHistorico = dynamic(
   },
 );
 
-// Calificador V2 — solo 2 tabs según convención del equipo comercial:
-//   - Empresas:  distribución por Tier + tabla de empresas calificadas
-//   - Histórico: lista de escaneos / sesiones de calificación
-// El wizard se accede desde /calificador/wizard.
+// Tab "Nueva calificación":
+//   - Si hay sesión activa o recién terminada en el store → muestra LivePanel
+//   - Si no hay sesión → muestra el wizard
+function NuevaCalificacionTab() {
+  const status = useCalLiveStore((s) => s.status);
+  if (status === 'running' || status === 'done') {
+    return <CalificadorLivePanel />;
+  }
+  return <CalificadorWizard />;
+}
+
+// V2 — 2 tabs según prototipo `comercial-v1`:
+//   - Nueva calificación → wizard de 3 pasos (o panel en vivo si scan activo)
+//   - Histórico          → 4 cards Tier + tabla con drawer lateral
 const TABS: AgentTab[] = [
   {
-    id:    'empresas',
-    label: 'Empresas',
-    icon:  Building2,
-    render: () => <CalDashboard />,
+    id:    'nueva',
+    label: 'Nueva calificación',
+    icon:  Sparkles,
+    render: () => <NuevaCalificacionTab />,
   },
   {
     id:    'historico',
     label: 'Histórico',
     icon:  History,
-    render: () => <CalHistorico />,
+    render: () => <CalDashboard />,
   },
 ];
 
 export function CalificadorTabs() {
-  return <AgentModeTabs tabs={TABS} defaultTab="empresas" />;
+  return <AgentModeTabs tabs={TABS} defaultTab="nueva" />;
 }

@@ -39,6 +39,9 @@ interface CalificacionRow {
   provider:                 string | null;
   session_id:               string | null;
   created_at:               string;
+  // Counts agregados desde radar_v2_results / contactos en Supabase.
+  senales_count:            number | null;
+  contactos_count:          number | null;
 }
 
 interface StatsRow { tier: string; count: number }
@@ -81,7 +84,17 @@ export async function GET(req: Request) {
          c.score_cuenta_estrategica,
          c.provider,
          c.session_id::TEXT            AS session_id,
-         c.created_at::TEXT            AS created_at
+         c.created_at::TEXT            AS created_at,
+         -- Counts de señales (radar_v2_results) y contactos por empresa.
+         -- Si la empresa no está vinculada (empresa_id NULL) devolvemos 0.
+         COALESCE(
+           (SELECT COUNT(*)::INT FROM ${SCHEMA}.radar_v2_results r WHERE r.empresa_id = c.empresa_id),
+           0
+         ) AS senales_count,
+         COALESCE(
+           (SELECT COUNT(*)::INT FROM ${SCHEMA}.contactos co WHERE co.empresa_id = c.empresa_id),
+           0
+         ) AS contactos_count
        FROM ${SCHEMA}.calificaciones c
        LEFT JOIN ${SCHEMA}.empresas          e  ON e.id  = c.empresa_id
        LEFT JOIN ${SCHEMA}.sub_lineas_negocio sl ON sl.id = c.sub_linea_id

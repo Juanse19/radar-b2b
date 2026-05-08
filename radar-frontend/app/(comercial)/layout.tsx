@@ -3,6 +3,7 @@
 import { usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { ChevronRight } from 'lucide-react';
+import { LiveCalIndicator } from './calificador/components/LiveCalIndicator';
 
 const breadcrumbMap: Record<string, string> = {
   escanear:    'Escanear',
@@ -30,7 +31,12 @@ export default function ComercialLayout({ children }: { children: React.ReactNod
 
   // Landing: no breadcrumb, full width
   if (pathname === '/comercial') {
-    return <>{children}</>;
+    return (
+      <>
+        {children}
+        <LiveCalIndicator />
+      </>
+    );
   }
 
   // Extract segment — routes live at top level (e.g. /resultados, /escanear)
@@ -51,6 +57,10 @@ export default function ComercialLayout({ children }: { children: React.ReactNod
         <span className="font-medium text-foreground">{label}</span>
       </nav>
       {children}
+      {/* Indicador flotante de calificación en curso — visible desde
+          cualquier ruta del módulo comercial. Solo se renderiza cuando
+          hay sesión activa o recién terminada. */}
+      <LiveCalIndicator />
     </div>
   );
 }
