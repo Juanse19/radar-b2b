@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Sparkles, Brain, Zap, Play, Loader2 } from 'lucide-react';
 import type { CalWizardState } from '@/lib/comercial/calificador-wizard-state';
 import type { ComercialCompany } from '@/lib/comercial/types';
+import { useCalLiveStore, type ProviderName } from '@/lib/comercial/calificador/live-store';
 
 const PROVIDERS = [
   {
@@ -128,18 +129,25 @@ export function CalStep3Review({ state, onChange }: Props) {
         return;
       }
 
-      // Navigate to live panel with all params encoded in URL
-      const qs = new URLSearchParams({
+      // V3: arranca la sesión en el store global de Zustand. La conexión
+      // SSE vive en el store, así que sobrevive a navegación entre rutas.
+      // El indicador flotante (LiveCalIndicator) y el panel "Nueva
+      // calificación" se subscriben al mismo estado.
+      useCalLiveStore.getState().startSession(
         sessionId,
-        linea:      state.linea,
-        empresas:   JSON.stringify(empresas),
-        provider:   state.provider,
-        rag:        String(state.ragEnabled),
-      });
-      if (state.subLineaId) qs.set('subLineaId', String(state.subLineaId));
-      if (state.model)      qs.set('model', state.model);
+        empresas,
+        {
+          linea:      state.linea,
+          subLineaId: state.subLineaId ?? undefined,
+          provider:   state.provider as ProviderName,
+          ragEnabled: state.ragEnabled,
+          model:      state.model,
+        },
+      );
 
-      router.push(`/calificador/live?${qs.toString()}`);
+      // Redirige al tab "nueva" del módulo calificador, donde el panel
+      // en vivo lee del store. Ya no se pasan datos por URL.
+      router.push('/calificador?tab=nueva');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al iniciar calificación');
       setLoading(false);

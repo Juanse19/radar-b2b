@@ -1,75 +1,53 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
-import Link from 'next/link';
-import { Star, TrendingUp, Archive, MinusCircle, Plus, Search, Building2 } from 'lucide-react';
+/**
+ * CalDashboard — contenido del tab "Histórico" del Calificador V2.
+ *
+ * Composición (siguiendo el prototipo `comercial-v1`):
+ *   - 4 cards de distribución por Tier (filtrables al hacer click)
+ *   - Tabla con: Empresa · País · Línea · Tier · Score · Señales · Contactos
+ *   - Click en una fila → abre <CompanyDetailDrawer /> (no navega — drawer
+ *     local, datos ya en memoria, abre en <100ms)
+ *   - Paginación 20 por página
+ *
+ * Datos: /api/calificador/dashboard (incluye counts de señales y contactos
+ * via sub-queries a radar_v2_results y contactos).
+ */
+import { useEffect, useMemo, useState } from 'react';
+import { Star, TrendingUp, Archive, MinusCircle, Search, ChevronRight, Building2 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { CompanyDetailDrawer, type DrawerCalificacion } from './CompanyDetailDrawer';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 type TierKey = 'A' | 'B' | 'C' | 'D';
 
-interface CalRow {
-  id:             number;
-  empresa_nombre: string | null;
-  pais:           string | null;
-  linea_negocio:  string | null;
-  tier_calculado: string;
-  score_total:    number | string | null;
-  provider:       string | null;
-  created_at:     string;
-}
-
 interface DashboardResponse {
   stats:           Record<TierKey, number>;
   empresasUnicas:  number;
-  calificaciones:  CalRow[];
+  calificaciones:  DrawerCalificacion[];
   total:           number;
 }
 
 // ─── Tier visual config ───────────────────────────────────────────────────────
 
 const TIER_CARDS: Array<{
-  key:      TierKey;
-  label:    string;
-  sublabel: string;
-  icon:     typeof Star;
-  color:    string;
-  bgClass:  string;
-  textClass:string;
-  borderClass: string;
+  key:        TierKey;
+  label:      string;
+  sublabel:   string;
+  icon:       typeof Star;
+  color:      string;
+  bgClass:    string;
+  textClass:  string;
+  borderClass:string;
 }> = [
-  {
-    key: 'A', label: 'Tier A', sublabel: 'Cuentas ORO',
-    icon: Star,        color: '#b9842a',
-    bgClass:    'bg-amber-500/10',
-    textClass:  'text-amber-700',
-    borderClass:'border-amber-500/30',
-  },
-  {
-    key: 'B', label: 'Tier B', sublabel: 'Monitoreo',
-    icon: TrendingUp, color: '#1f5d8d',
-    bgClass:    'bg-blue-500/10',
-    textClass:  'text-blue-700',
-    borderClass:'border-blue-500/30',
-  },
-  {
-    key: 'C', label: 'Tier C', sublabel: 'Archivo',
-    icon: Archive,    color: '#5c6f81',
-    bgClass:    'bg-slate-500/10',
-    textClass:  'text-slate-700',
-    borderClass:'border-slate-500/30',
-  },
-  {
-    key: 'D', label: 'Sin señal', sublabel: 'No calificable',
-    icon: MinusCircle, color: '#8b9099',
-    bgClass:    'bg-muted/40',
-    textClass:  'text-muted-foreground',
-    borderClass:'border-border',
-  },
+  { key: 'A', label: 'Tier A',    sublabel: 'Cuentas ORO',     icon: Star,        color: '#b9842a', bgClass: 'bg-amber-500/10', textClass: 'text-amber-700', borderClass: 'border-amber-500/30' },
+  { key: 'B', label: 'Tier B',    sublabel: 'Monitoreo',       icon: TrendingUp,  color: '#1f5d8d', bgClass: 'bg-blue-500/10',  textClass: 'text-blue-700',  borderClass: 'border-blue-500/30' },
+  { key: 'C', label: 'Tier C',    sublabel: 'Archivo',         icon: Archive,     color: '#5c6f81', bgClass: 'bg-slate-500/10', textClass: 'text-slate-700', borderClass: 'border-slate-500/30' },
+  { key: 'D', label: 'Sin señal', sublabel: 'No calificable',  icon: MinusCircle, color: '#8b9099', bgClass: 'bg-muted/40',     textClass: 'text-muted-foreground', borderClass: 'border-border' },
 ];
 
 const TIER_BADGE_CLS: Record<TierKey, string> = {
@@ -80,10 +58,7 @@ const TIER_BADGE_CLS: Record<TierKey, string> = {
 };
 
 const TIER_LABEL: Record<TierKey, string> = {
-  A: 'Tier A',
-  B: 'Tier B',
-  C: 'Tier C',
-  D: 'Sin señal',
+  A: 'Tier A', B: 'Tier B', C: 'Tier C', D: 'Sin señal',
 };
 
 function toTierKey(raw: string): TierKey {
@@ -93,27 +68,30 @@ function toTierKey(raw: string): TierKey {
 }
 
 function formatDate(iso: string): string {
-  const d = new Date(iso);
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
+  return new Date(iso).toLocaleDateString('es-CO', { day: '2-digit', month: 'short' });
 }
+
+const PAGE_SIZE = 20;
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
 export function CalDashboard() {
-  const [data, setData]       = useState<DashboardResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch]   = useState('');
+  const [data, setData]             = useState<DashboardResponse | null>(null);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState('');
   const [filterTier, setFilterTier] = useState<TierKey | 'all'>('all');
+  const [page, setPage]             = useState(1);
+  const [drawer, setDrawer]         = useState<DrawerCalificacion | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     fetch('/api/calificador/dashboard?limit=200', { credentials: 'same-origin' })
-      .then(r => (r.ok ? r.json() : null))
+      .then((r) => (r.ok ? r.json() : null))
       .then((d: DashboardResponse | null) => {
         if (!cancelled && d) setData(d);
       })
-      .catch(() => { /* ignored — UI shows empty state */ })
+      .catch(() => { /* mostramos empty state */ })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
@@ -122,11 +100,11 @@ export function CalDashboard() {
     if (!data) return [];
     let rows = data.calificaciones;
     if (filterTier !== 'all') {
-      rows = rows.filter(r => toTierKey(r.tier_calculado) === filterTier);
+      rows = rows.filter((r) => toTierKey(r.tier_calculado) === filterTier);
     }
     if (search.trim()) {
       const q = search.trim().toLowerCase();
-      rows = rows.filter(r =>
+      rows = rows.filter((r) =>
         (r.empresa_nombre ?? '').toLowerCase().includes(q) ||
         (r.pais ?? '').toLowerCase().includes(q) ||
         (r.linea_negocio ?? '').toLowerCase().includes(q),
@@ -135,14 +113,18 @@ export function CalDashboard() {
     return rows;
   }, [data, filterTier, search]);
 
+  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+  const visible    = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+
+  // Reset paginación cuando cambia búsqueda o filtro
+  useEffect(() => { setPage(1); }, [search, filterTier]);
+
   return (
     <div className="space-y-6">
-      {/* Header — el CTA "Iniciar calificación" se ofrece en empty state
-          y desde el tab Histórico. Aquí evitamos duplicar botones. */}
       <div>
         <h2 className="text-lg font-semibold">Empresas calificadas</h2>
         <p className="mt-0.5 text-sm text-muted-foreground">
-          Distribución por Tier — click en una card para filtrar la tabla.
+          Distribución por Tier — click en una card para filtrar.
         </p>
       </div>
 
@@ -172,17 +154,13 @@ export function CalDashboard() {
               )}
               style={isActive ? { boxShadow: `0 0 0 2px ${t.color}` } : undefined}
             >
-              <div className="flex items-start justify-between">
-                <div>
-                  <div className="flex items-center gap-1.5">
-                    <Icon size={14} className={t.textClass} />
-                    <span className={cn('text-xs font-semibold uppercase tracking-wide', t.textClass)}>
-                      {t.label}
-                    </span>
-                  </div>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{t.sublabel}</p>
-                </div>
+              <div className="flex items-center gap-1.5">
+                <Icon size={14} className={t.textClass} />
+                <span className={cn('text-xs font-semibold uppercase tracking-wide', t.textClass)}>
+                  {t.label}
+                </span>
               </div>
+              <p className="mt-0.5 text-[11px] text-muted-foreground">{t.sublabel}</p>
               <p className={cn('mt-2 font-mono text-3xl font-bold tabular-nums', t.textClass)}>
                 {loading ? '—' : count}
               </p>
@@ -205,73 +183,67 @@ export function CalDashboard() {
         </div>
         {filterTier !== 'all' && (
           <Button variant="ghost" size="sm" onClick={() => setFilterTier('all')}>
-            Limpiar filtro tier
+            Limpiar filtro
           </Button>
         )}
         <span className="text-xs text-muted-foreground">
-          {loading ? 'Cargando…' : `${filtered.length} de ${data?.total ?? 0} empresas`}
+          {loading ? 'Cargando…' : `${filtered.length} de ${data?.total ?? 0}`}
         </span>
       </div>
 
-      {/* Tabla de empresas calificadas */}
+      {/* Tabla */}
       <div className="overflow-hidden rounded-lg border border-border">
         <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase tracking-wide text-muted-foreground">
+          <thead className="bg-muted/40 text-[10px] uppercase tracking-wider text-muted-foreground">
             <tr>
-              <th className="px-4 py-3 text-left font-medium">Empresa</th>
-              <th className="px-4 py-3 text-left font-medium">País</th>
-              <th className="px-4 py-3 text-left font-medium">Línea</th>
-              <th className="px-4 py-3 text-left font-medium">Tier</th>
-              <th className="px-4 py-3 text-right font-medium">Score</th>
-              <th className="px-4 py-3 text-left font-medium">Calificada</th>
+              <th className="px-4 py-3 text-left font-semibold">Empresa</th>
+              <th className="px-4 py-3 text-left font-semibold">País</th>
+              <th className="px-4 py-3 text-left font-semibold">Línea</th>
+              <th className="px-4 py-3 text-left font-semibold">Tier</th>
+              <th className="px-4 py-3 text-right font-semibold">Score</th>
+              <th className="px-4 py-3 text-right font-semibold">Señales</th>
+              <th className="px-4 py-3 text-right font-semibold">Contactos</th>
+              <th className="px-4 py-3 text-left font-semibold">Calif.</th>
               <th className="px-4 py-3 w-1" />
             </tr>
           </thead>
           <tbody>
             {loading && (
               <tr>
-                <td colSpan={7} className="px-4 py-8 text-center text-sm text-muted-foreground">
+                <td colSpan={9} className="px-4 py-8 text-center text-sm text-muted-foreground">
                   Cargando empresas…
                 </td>
               </tr>
             )}
-            {!loading && filtered.length === 0 && (
+            {!loading && visible.length === 0 && (
               <tr>
-                <td colSpan={7} className="px-4 py-12 text-center">
+                <td colSpan={9} className="px-4 py-12 text-center">
                   <Building2 size={28} className="mx-auto mb-2 text-muted-foreground/50" />
                   <p className="text-sm font-medium">
                     {data?.total ? 'No hay empresas con ese filtro' : 'Aún no has calificado empresas'}
                   </p>
-                  {!data?.total && (
-                    <Link href="/calificador/wizard" className="mt-2 inline-block">
-                      <Button size="sm" variant="outline" className="gap-1">
-                        <Plus size={14} /> Calificar la primera
-                      </Button>
-                    </Link>
-                  )}
                 </td>
               </tr>
             )}
-            {!loading && filtered.map((row) => {
+            {!loading && visible.map((row) => {
               const tierK = toTierKey(row.tier_calculado);
               const score = typeof row.score_total === 'string'
                 ? Number(row.score_total)
                 : (row.score_total ?? 0);
               return (
-                <tr key={row.id} className="border-t border-border/60 hover:bg-muted/20">
+                <tr
+                  key={row.id}
+                  onClick={() => setDrawer(row)}
+                  className="border-t border-border/60 cursor-pointer hover:bg-muted/30 transition-colors"
+                >
                   <td className="px-4 py-3 font-medium">
-                    <Link
-                      href={`/calificador/cuentas/${row.id}`}
-                      className="hover:underline"
-                    >
-                      {row.empresa_nombre ?? <span className="text-muted-foreground">—</span>}
-                    </Link>
+                    {row.empresa_nombre ?? <span className="text-muted-foreground">—</span>}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {row.pais ?? <span className="text-muted-foreground/50">—</span>}
+                    {row.pais ?? '—'}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
-                    {row.linea_negocio ?? <span className="text-muted-foreground/50">—</span>}
+                    {row.linea_negocio ?? '—'}
                   </td>
                   <td className="px-4 py-3">
                     <Badge variant="outline" className={cn('h-5 text-[10px] border', TIER_BADGE_CLS[tierK])}>
@@ -281,23 +253,58 @@ export function CalDashboard() {
                   <td className="px-4 py-3 text-right font-mono font-semibold tabular-nums">
                     {score.toFixed(1)}
                   </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums">
+                    {row.senales_count ?? 0}
+                  </td>
+                  <td className="px-4 py-3 text-right font-mono tabular-nums">
+                    {row.contactos_count ?? 0}
+                  </td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
                     {formatDate(row.created_at)}
                   </td>
-                  <td className="px-4 py-3 text-right">
-                    <Link
-                      href={`/calificador/cuentas/${row.id}`}
-                      className="text-xs text-primary hover:underline"
-                    >
-                      Ver
-                    </Link>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    <ChevronRight size={14} />
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+
+        {/* Paginación */}
+        {!loading && filtered.length > PAGE_SIZE && (
+          <div className="flex items-center justify-between border-t border-border px-4 py-2 text-xs text-muted-foreground">
+            <span>
+              {(page - 1) * PAGE_SIZE + 1}–{Math.min(page * PAGE_SIZE, filtered.length)} de {filtered.length}
+            </span>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+              >
+                Anterior
+              </Button>
+              <span className="font-mono">{page} / {totalPages}</span>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page >= totalPages}
+              >
+                Siguiente
+              </Button>
+            </div>
+          </div>
+        )}
       </div>
+
+      {/* Drawer lateral con detalle de la empresa */}
+      <CompanyDetailDrawer
+        calificacion={drawer}
+        onClose={() => setDrawer(null)}
+      />
     </div>
   );
 }
