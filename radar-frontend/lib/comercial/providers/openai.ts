@@ -332,15 +332,49 @@ function createOpenAIProvider(): AIProvider {
         ],
       };
 
-      const resp = await fetch('https://api.openai.com/v1/chat/completions', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
+      // Llamada con retry exponencial para manejar errores transitorios de
+      // Cloudflare/OpenAI (5xx, 520, 524). Hasta 3 intentos con espera
+      // 500ms → 1.5s → 4s antes de propagar el error al usuario.
+      const TRANSIENT_STATUSES = new Set([500, 502, 503, 504, 520, 521, 522, 524, 529]);
+      const MAX_ATTEMPTS = 3;
+      let lastError: { status: number; bodyPreview: string } | null = null;
+      let resp: Response | null = null;
 
-      if (!resp.ok) {
-        const err = await resp.text();
-        throw new Error(`OpenAI calificar ${resp.status}: ${err.slice(0, 300)}`);
+      for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+        resp = await fetch('https://api.openai.com/v1/chat/completions', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (resp.ok) break;
+
+        const errBody = await resp.text();
+        lastError = { status: resp.status, bodyPreview: errBody.slice(0, 200) };
+
+        // Si es transitorio y aún quedan intentos, espera y reintenta.
+        if (TRANSIENT_STATUSES.has(resp.status) && attempt < MAX_ATTEMPTS) {
+          const waitMs = [500, 1500, 4000][attempt - 1] ?? 1000;
+          emit?.emit('thinking', {
+            empresa: params.empresa,
+            chunk:   `OpenAI ${resp.status} transitorio · reintentando en ${waitMs}ms (${attempt}/${MAX_ATTEMPTS})…`,
+          });
+          await new Promise((r) => setTimeout(r, waitMs));
+          continue;
+        }
+
+        // Error no recuperable o agotamos intentos: lanza con mensaje claro.
+        const friendlyMsg = TRANSIENT_STATUSES.has(resp.status)
+          ? `OpenAI temporalmente no disponible (HTTP ${resp.status}). Reintenta en unos minutos.`
+          : `OpenAI rechazó la solicitud (HTTP ${resp.status}): ${errBody.slice(0, 150)}`;
+        throw new Error(friendlyMsg);
+      }
+
+      if (!resp || !resp.ok) {
+        throw new Error(
+          `OpenAI no respondió tras ${MAX_ATTEMPTS} intentos`
+          + (lastError ? ` (último: ${lastError.status})` : ''),
+        );
       }
 
       type OAIResp = { choices: Array<{ message: { content: string } }>; usage?: { prompt_tokens: number; completion_tokens: number } };

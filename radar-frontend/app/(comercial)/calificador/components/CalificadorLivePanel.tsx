@@ -6,7 +6,7 @@
  * Consume `useCalLiveStore`. La conexión SSE vive en el store (no en el
  * componente), así que la sesión sobrevive a tab switches y navegación.
  */
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { cn } from '@/lib/utils';
 import { Card } from '@/components/ui/card';
@@ -65,6 +65,38 @@ export function CalificadorLivePanel() {
   const [radarModal, setRadarModal] = useState<{
     open: boolean; empresa: string; tier: Tier; score: number; country: string;
   }>({ open: false, empresa: '', tier: 'A', score: 0, country: '' });
+
+  // Auto-mostrar modal "¿Lanzar Radar?" cuando una empresa recibe tier
+  // por primera vez (A/B/C). Mantenemos un Set de empresas ya notificadas
+  // para evitar abrir el modal repetidamente al re-renderizar.
+  const shownModalRef = useRef<Set<string>>(new Set());
+  useEffect(() => {
+    if (radarModal.open) return; // ya hay uno abierto
+    for (const c of companies) {
+      if (
+        c.tier &&
+        c.scoreTotal !== undefined &&
+        c.status === 'done' &&
+        shouldSuggestRadar(c.tier) &&
+        !shownModalRef.current.has(c.name)
+      ) {
+        shownModalRef.current.add(c.name);
+        setRadarModal({
+          open:    true,
+          empresa: c.name,
+          tier:    c.tier,
+          score:   c.scoreTotal,
+          country: c.country,
+        });
+        break;
+      }
+    }
+  }, [companies, radarModal.open]);
+
+  // Limpiar el set cuando arranca una nueva sesión
+  useEffect(() => {
+    shownModalRef.current = new Set();
+  }, [sessionId]);
 
   // Empty state cuando no hay sesión activa
   if (!sessionId || status === 'idle') {
@@ -153,10 +185,6 @@ export function CalificadorLivePanel() {
             company={c}
             expanded={!!expanded[c.name]}
             onToggle={() => toggleExpand(c.name)}
-            onSuggestRadar={(tier, score) => {
-              if (!shouldSuggestRadar(tier)) return;
-              setRadarModal({ open: true, empresa: c.name, tier, score, country: c.country });
-            }}
           />
         ))}
       </div>
@@ -191,17 +219,10 @@ interface CompanyCardProps {
   company:  CompanyLive;
   expanded: boolean;
   onToggle: () => void;
-  onSuggestRadar: (tier: Tier, score: number) => void;
 }
 
-function CompanyCard({ company: c, expanded, onToggle, onSuggestRadar }: CompanyCardProps) {
+function CompanyCard({ company: c, expanded, onToggle }: CompanyCardProps) {
   const TierIcon = c.tier ? TIER_ICON[c.tier] : null;
-
-  // Auto-suggest radar at tier_assigned (one-shot)
-  if (c.tier && c.scoreTotal !== undefined && shouldSuggestRadar(c.tier)) {
-    // El modal está controlado en el panel padre; aquí solo notificamos.
-    // (Se invoca solo cuando tier+scoreTotal aparecen; el padre evita duplicados.)
-  }
 
   return (
     <Card className={cn(
